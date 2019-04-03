@@ -8,24 +8,16 @@ import click
 import datetime
 import pathlib
 from gym.envs.mujoco import HalfCheetahEnv
-try:
-    from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
-    from rlkit.envs.wrappers import NormalizedBoxEnv
-    from rlkit.launchers.launcher_util import setup_logger
-    from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
-    from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
-    from rlkit.torch.sac.sac import ProtoSoftActorCritic
-    from rlkit.torch.sac.proto import ProtoAgent
-    import rlkit.torch.pytorch_util as ptu
-except:
-    from .rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
-    from .rlkit.envs.wrappers import NormalizedBoxEnv
-    from .rlkit.launchers.launcher_util import setup_logger
-    from .rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
-    from .rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
-    from .rlkit.torch.sac.sac import ProtoSoftActorCritic
-    from .rlkit.torch.sac.proto import ProtoAgent
-    from .rlkit.torch import pytorch_util as ptu
+import sys
+sys.path.append('/home/zhjl/oyster/rlkit')
+from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import setup_logger
+from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
+from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
+from rlkit.torch.sac.sac import ProtoSoftActorCritic
+from rlkit.torch.sac.proto import ProtoAgent
+import rlkit.torch.pytorch_util as ptu
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
