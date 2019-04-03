@@ -25,7 +25,7 @@ except:
     from .rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
     from .rlkit.torch.sac.sac import ProtoSoftActorCritic
     from .rlkit.torch.sac.proto import ProtoAgent
-    import .rlkit.torch.pytorch_util as ptu
+    from .rlkit.torch import pytorch_util as ptu
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
