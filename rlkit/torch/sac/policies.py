@@ -338,32 +338,34 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         :param deterministic: If True, do not sample
         :param return_log_prob: If True, return a sample and its log probability
         """
-        obs,z = inp
-        #######
-        # state -> state feature
-        #######
-        h = obs
-        obs_ = obs
-        for i, fc in enumerate(self.obs_fc):
-            h = self.hidden_activation(fc(h))
-        obs = h # latent dim
-        #######
-        # z -> z embed
-        #######
-        h = z
-        for i, fc in enumerate(self.z_fc):
-            h = self.hidden_activation(fc(h))
-        z = h # latent dim
-
-        #######
-        # get eta
-        #######
-        eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
-
-        #######
-        # p(a|s,eta)
-        #######
-        h = torch.cat((obs,eta), dim=-1)
+        h = torch.cat(inp, dim=-1)
+        # obs,z = inp
+        # #######
+        # # state -> state feature
+        # #######
+        # h = obs
+        # obs_ = obs
+        # for i, fc in enumerate(self.obs_fc):
+        #     h = self.hidden_activation(fc(h))
+        # obs = h # latent dim
+        # #######
+        # # z -> z embed
+        # #######
+        # h = z
+        # for i, fc in enumerate(self.z_fc):
+        #     h = self.hidden_activation(fc(h))
+        # z = h # latent dim
+        #
+        # #######
+        # # get eta
+        # #######
+        # eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
+        #
+        # #######
+        # # p(a|s,eta)
+        # #######
+        # h = torch.cat((obs,eta), dim=-1)
+        #######################################
         for i,fc in enumerate(self.a_fc):
             h = self.hidden_activation(fc(h)) # latent dim
 
