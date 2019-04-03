@@ -198,7 +198,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         if self.reparameterize:
             policy_loss = (
-                    log_pi - log_policy_target #+ v_pred.detach() # to make it around 0
+                    log_pi - log_policy_target + v_pred.detach() # to make it around 0
             ).mean()
         else:
             policy_loss = (

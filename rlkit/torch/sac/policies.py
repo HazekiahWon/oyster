@@ -220,7 +220,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             action_dim,
             obs_nlayer=2,
             z_nlayer=2,
-            a_nlayer=2,
+            a_nlayer=3,
             eta_nlayer=2,
             num_expz=None,
             std=None,
@@ -253,7 +253,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
 
         obs_fc = [self.construct_fc(obs_dim, latent_dim)]
         z_fc = [self.construct_fc(z_dim, latent_dim)]
-        a_fc = [self.construct_fc(obs_dim+z_dim, latent_dim)] # s+eta
+        a_fc = [self.construct_fc(2*latent_dim, latent_dim)] # s+eta
 
         for i in range(obs_nlayer):
             obs_fc.append(self.construct_fc(latent_dim,latent_dim))
@@ -338,33 +338,32 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         :param deterministic: If True, do not sample
         :param return_log_prob: If True, return a sample and its log probability
         """
-        h = torch.cat(inp, dim=-1)
-        # obs,z = inp
-        # #######
-        # # state -> state feature
-        # #######
-        # h = obs
-        # obs_ = obs
-        # for i, fc in enumerate(self.obs_fc):
-        #     h = self.hidden_activation(fc(h))
-        # obs = h # latent dim
-        # #######
-        # # z -> z embed
-        # #######
-        # h = z
-        # for i, fc in enumerate(self.z_fc):
-        #     h = self.hidden_activation(fc(h))
-        # z = h # latent dim
-        #
-        # #######
-        # # get eta
-        # #######
-        # eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
-        #
-        # #######
-        # # p(a|s,eta)
-        # #######
-        # h = torch.cat((obs,eta), dim=-1)
+        obs,z = inp
+        #######
+        # state -> state feature
+        #######
+        h = obs
+        obs_ = obs
+        for i, fc in enumerate(self.obs_fc):
+            h = self.hidden_activation(fc(h))
+        obs = h # latent dim
+        #######
+        # z -> z embed
+        #######
+        h = z
+        for i, fc in enumerate(self.z_fc):
+            h = self.hidden_activation(fc(h))
+        z = h # latent dim
+
+        #######
+        # get eta
+        #######
+        eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
+
+        #######
+        # p(a|s,eta)
+        #######
+        h = torch.cat((obs,eta), dim=-1)
         #######################################
         for i,fc in enumerate(self.a_fc):
             h = self.hidden_activation(fc(h)) # latent dim

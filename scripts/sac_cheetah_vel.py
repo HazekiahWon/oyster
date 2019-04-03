@@ -67,7 +67,8 @@ def experiment(variant):
     )
     policy2 = DecomposedPolicy(obs_dim,
             z_dim=latent_dim,
-            latent_dim=300,
+            latent_dim=256,
+            num_expz=64,
             action_dim=action_dim)
     agent = ProtoAgent(
         latent_dim,
