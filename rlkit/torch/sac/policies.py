@@ -73,6 +73,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
 
     @torch.no_grad()
     def get_actions(self, obs, deterministic=False):
+
         outputs = self.forward(obs, deterministic=deterministic)[0]
         return np_ify(outputs)
 
@@ -88,6 +89,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         :param deterministic: If True, do not sample
         :param return_log_prob: If True, return a sample and its log probability
         """
+        obs = torch.cat(obs, dim=-1)
         h = obs
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))

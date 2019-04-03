@@ -71,7 +71,7 @@ def experiment(variant):
             action_dim=action_dim)
     agent = ProtoAgent(
         latent_dim,
-        [task_enc, policy, qf1, qf2, vf],
+        [task_enc, policy2, qf1, qf2, vf],
         **variant['algo_params']
     )
 
@@ -79,7 +79,7 @@ def experiment(variant):
         env=env,
         train_tasks=tasks[:-30],
         eval_tasks=tasks[-30:],
-        nets=[agent, task_enc, policy, qf1, qf2, vf],
+        nets=[agent, task_enc, policy2, qf1, qf2, vf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )
