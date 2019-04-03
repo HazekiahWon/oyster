@@ -218,8 +218,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
         self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
 
-        # for key, value in self.eval_statistics.items():
-        #     logger.record_tabular(key, value)
+        for key, value in self.eval_statistics.items():
+            logger.record_tabular(key, value)
         self.eval_statistics = None
 
         if self.render_eval_paths:
