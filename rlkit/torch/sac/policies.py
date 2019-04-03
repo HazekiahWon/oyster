@@ -220,7 +220,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             action_dim,
             obs_nlayer=2,
             z_nlayer=2,
-            a_nlayer=3,
+            a_nlayer=2,
             eta_nlayer=2,
             num_expz=None,
             std=None,
@@ -253,7 +253,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
 
         obs_fc = [self.construct_fc(obs_dim, latent_dim)]
         z_fc = [self.construct_fc(z_dim, latent_dim)]
-        a_fc = [self.construct_fc(2*latent_dim, latent_dim)] # s+eta
+        a_fc = [self.construct_fc(obs_dim+z_dim, latent_dim)] # s+eta
 
         for i in range(obs_nlayer):
             obs_fc.append(self.construct_fc(latent_dim,latent_dim))
