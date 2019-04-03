@@ -90,7 +90,7 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 100
+    max_path_length = 200
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
@@ -124,7 +124,7 @@ def main(gpu, docker):
             eval_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
-            replay_buffer_size=1000,
+            replay_buffer_size=100000,
         ),
         net_size=300,
         use_gpu=True,
