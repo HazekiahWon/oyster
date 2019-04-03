@@ -9,7 +9,7 @@ import datetime
 import pathlib
 from gym.envs.mujoco import HalfCheetahEnv
 import sys
-sys.path.append('/home/zhjl/oyster/rlkit')
+sys.path.append('/home/zhjl/oyster')
 from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
