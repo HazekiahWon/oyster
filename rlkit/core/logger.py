@@ -9,6 +9,7 @@ import numpy as np
 import os
 import os.path as osp
 import sys
+import io
 import datetime
 import dateutil.tz
 import csv
@@ -19,7 +20,8 @@ import base64
 import errno
 
 from rlkit.core.tabulate import tabulate
-
+# sys.stdout = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
+# print(sys.getdefaultencoding())
 
 def mkdir_p(path):
     try:

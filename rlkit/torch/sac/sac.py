@@ -12,7 +12,8 @@ from rlkit.torch.core import np_ify, torch_ify
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.torch.torch_rl_algorithm import MetaTorchRLAlgorithm
 from rlkit.torch.sac.proto import ProtoAgent
-
+import time,os
+step = 0
 
 class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     def __init__(
@@ -44,7 +45,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     ):
         super().__init__(
             env=env,
-            policy=nets[0],
+            policy=nets[0], # take only the agent, as self.policy, self.exploration_policy
             train_tasks=train_tasks,
             eval_tasks=eval_tasks,
             **kwargs
@@ -145,6 +146,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.policy.detach_z()
 
     def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+        global step
 
         num_tasks = len(indices)
 
@@ -173,6 +175,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
         qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
         qf_loss.backward()
+        self.writer.add_scalar('qf', qf_loss, step)
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
@@ -185,6 +188,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         self.vf_optimizer.zero_grad()
         vf_loss.backward()
+        self.writer.add_scalar('vf', vf_loss, step)
         self.vf_optimizer.step()
         self.policy._update_target_network()
 
@@ -194,7 +198,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         if self.reparameterize:
             policy_loss = (
-                    log_pi - log_policy_target
+                    log_pi - log_policy_target #+ v_pred.detach() # to make it around 0
             ).mean()
         else:
             policy_loss = (
@@ -213,6 +217,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
+        self.writer.add_scalar('actor', policy_loss, step)
+        self.writer.add_histogram('logp', log_pi, step)
+        self.writer.add_histogram('adv', log_pi - log_policy_target + v_pred, step)
 
         # save some statistics for eval
         if self.eval_statistics is None:
@@ -254,6 +261,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
+        step += 1
 
     def sample_z_from_prior(self):
         self.policy.clear_z()

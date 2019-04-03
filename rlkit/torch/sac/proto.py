@@ -141,9 +141,9 @@ class ProtoAgent(nn.Module):
 
     def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
-        z = self.z
+        z = self.z#.unsqueeze(0) # 1,1,d
         obs = ptu.from_numpy(obs[None])
-        in_ = torch.cat([obs, z], dim=1)
+        in_ = (obs, z)
         return self.policy.get_action(in_, deterministic=deterministic)
 
     def set_num_steps_total(self, n):
@@ -179,7 +179,7 @@ class ProtoAgent(nn.Module):
         v = self.vf(obs, task_z.detach())
 
         # run policy, get log probs and new actions
-        in_ = torch.cat([obs, task_z.detach()], dim=1)
+        in_ = (obs, task_z.detach())#torch.cat([obs, task_z.detach()], dim=1)
         policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
 
         # get targets for use in V and Q updates

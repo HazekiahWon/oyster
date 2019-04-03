@@ -12,11 +12,13 @@ from gym.envs.mujoco import HalfCheetahEnv
 from rlkit.envs.half_cheetah_dir import HalfCheetahDirEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
-from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
+import sys,io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
@@ -52,7 +54,7 @@ def experiment(variant):
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
-    vf = FlattenMlp(
+    vf = FlattenMlp( # state value
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + latent_dim,
         output_size=1,
@@ -64,9 +66,11 @@ def experiment(variant):
         action_dim=action_dim,
     )
 
+    # policy2 = DecomposedPolicy(obs_dim, latent_dim, 32, action_dim)
+    policy2 = DecomposedPolicy(obs_dim, latent_dim, 32, action_dim, num_expz=32, eta_nlayer=None)
     agent = ProtoAgent(
         latent_dim,
-        [task_enc, policy, qf1, qf2, vf],
+        [task_enc, policy2, qf1, qf2, vf],
         **variant['algo_params']
     )
 
@@ -74,7 +78,7 @@ def experiment(variant):
         env=env,
         train_tasks=tasks,
         eval_tasks=tasks,
-        nets=[agent, task_enc, policy, qf1, qf2, vf],
+        nets=[agent, task_enc, policy2, qf1, qf2, vf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )
@@ -116,6 +120,7 @@ def main(gpu, docker):
             eval_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
+            replay_buffer_size=1000,
         ),
         net_size=300,
         use_gpu=True,

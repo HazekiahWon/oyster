@@ -12,7 +12,7 @@ from gym.envs.mujoco import HalfCheetahEnv
 from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
-from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
@@ -64,7 +64,10 @@ def experiment(variant):
         latent_dim=latent_dim,
         action_dim=action_dim,
     )
-
+    policy2 = DecomposedPolicy(obs_dim,
+            z_dim=latent_dim,
+            latent_dim=32,
+            action_dim=action_dim)
     agent = ProtoAgent(
         latent_dim,
         [task_enc, policy, qf1, qf2, vf],
@@ -87,7 +90,7 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 200
+    max_path_length = 100
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
@@ -121,6 +124,7 @@ def main(gpu, docker):
             eval_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
+            replay_buffer_size=1000,
         ),
         net_size=300,
         use_gpu=True,

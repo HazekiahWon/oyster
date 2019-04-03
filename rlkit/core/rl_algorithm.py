@@ -10,7 +10,10 @@ from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 from rlkit.data_management.path_builder import PathBuilder
 from rlkit.policies.base import ExplorationPolicy
 from rlkit.samplers.in_place import InPlacePathSampler
-
+from tensorboardX import SummaryWriter
+import time,os
+step = 0
+concat = False
 
 class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
@@ -31,7 +34,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             embedding_mini_batch_size=1024,
             max_path_length=1000,
             discount=0.99,
-            replay_buffer_size=1000000,
+            replay_buffer_size=10000,
             reward_scale=1,
             train_embedding_source='posterior_only',
             eval_embedding_source='initial_pool',
@@ -131,6 +134,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
 
+        expname = time.strftime('%y%m%d_%H%M%S', time.localtime())
+        self.writer = SummaryWriter(os.path.join('saved_models',expname))
+
     def make_exploration_policy(self, policy):
          return policy
 
@@ -151,6 +157,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         '''
         meta-training loop
         '''
+
         self.pretrain()
         params = self.get_epoch_snapshot(-1)
         logger.save_itr_params(-1, params)
@@ -167,7 +174,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self._start_epoch(it_)
             self.training_mode(True)
             if it_ == 0:
-                print('collecting initial pool of data for train and eval')
+                logger.log('collecting initial pool of data for train and eval')
                 # temp for evaluating
                 for idx in self.train_tasks:
                     self.task_idx = idx
@@ -206,13 +213,17 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # sample data from posterior to train RL algorithm
                     self.enc_replay_buffer.task_buffers[idx].clear()
                     # resamples using current policy, conditioned on prior
-                    self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
+                    prret = self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
                                                           resample_z_every_n=self.max_path_length,
                                                           add_to_enc_buffer=True)
 
-                    self.collect_data_from_task_posterior(idx=idx,
+                    poret = self.collect_data_from_task_posterior(idx=idx,
                                                           num_samples=self.num_steps_per_task,
                                                           add_to_enc_buffer=False)
+                    global step
+                    self.writer.add_scalar('prior_ret', np.mean(prret), step)
+                    self.writer.add_scalar('post_ret', np.mean(poret), step)
+                    step += 1
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # sample from prior, then sample more from the posterior
                     # embeddings computed from both prior and posterior data
@@ -222,7 +233,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                              add_to_enc_buffer=True)
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
-
+            logger.log(f'iteration {it_}.')
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
@@ -267,33 +278,42 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
             self.policy.clear_z()
-            self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
+            mret = self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
                               add_to_enc_buffer=add_to_enc_buffer)
+            return mret
         else:
             # collects more data in batches of resample_z_every_n until done
+            mrets = list()
             while num_samples > 0:
-                self.collect_data_sampling_from_prior(num_samples=min(resample_z_every_n, num_samples),
+                mret = self.collect_data_sampling_from_prior(num_samples=min(resample_z_every_n, num_samples),
                                                       resample_z_every_n=None,
                                                       eval_task=eval_task,
                                                       add_to_enc_buffer=add_to_enc_buffer)
+                mrets.append(mret)
                 num_samples -= resample_z_every_n
+
+            return mrets
 
     def collect_data_from_task_posterior(self, idx, num_samples=1, resample_z_every_n=None, eval_task=False,
                                          add_to_enc_buffer=True):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
             self.sample_z_from_posterior(idx, eval_task=eval_task)
-            self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
+            mret = self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
                               add_to_enc_buffer=add_to_enc_buffer)
+            return mret
         else:
             # collects more data in batches of resample_z_every_n until done
+            mrets = list()
             while num_samples > 0:
-                self.collect_data_from_task_posterior(idx=idx,
+                mret = self.collect_data_from_task_posterior(idx=idx,
                                                       num_samples=min(resample_z_every_n, num_samples),
                                                       resample_z_every_n=None,
                                                       eval_task=eval_task,
                                                       add_to_enc_buffer=add_to_enc_buffer)
                 num_samples -= resample_z_every_n
+                mrets.append(mret)
+            return mrets
 
     # split number of prior and posterior samples
     def collect_data_online(self, idx, num_samples, eval_task=False, add_to_enc_buffer=True):
@@ -316,6 +336,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         collect data from current env in batch mode
         with given policy
         '''
+        returns = list()
+        ret = 0
         for _ in range(num_samples):
             action, agent_info = self._get_action_and_info(agent, self.train_obs)
             if self.render:
@@ -324,6 +346,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.env.step(action)
             )
             reward = raw_reward
+            ret += reward
             terminal = np.array([terminal])
             reward = np.array([reward])
             self._handle_step(
@@ -341,12 +364,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             if terminal or len(self._current_path_builder) >= self.max_path_length:
                 self._handle_rollout_ending(eval_task=eval_task)
                 self.train_obs = self._start_new_rollout()
+                returns.append(ret)
+                ret = 0
             else:
                 self.train_obs = next_ob
 
         if not eval_task:
             self._n_env_steps_total += num_samples
             gt.stamp('sample')
+
+        return np.mean(returns)
 
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
@@ -416,11 +443,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def _get_action_and_info(self, agent, observation):
         """
         Get an action to take in the environment.
-        :param observation:
+        :param observation: always a single vector
         :return:
         """
         agent.set_num_steps_total(self._n_env_steps_total)
-        return agent.get_action(observation,)
+        return agent.get_action(observation)
 
     def _start_epoch(self, epoch):
         self._epoch_start_time = time.time()

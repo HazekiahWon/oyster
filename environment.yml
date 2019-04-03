@@ -127,5 +127,5 @@ dependencies:
     - urllib3==1.24.1
     - webencodings==0.5.1
     - widgetsnbextension==3.4.2
-prefix: /home/rakelly/miniconda3/envs/rlkit
+prefix: C:\Users\lenovo\Anaconda3\envs\pearl
 
