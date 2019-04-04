@@ -199,12 +199,14 @@ def create_log_dir(exp_prefix, exp_id=0, seed=0, base_log_dir=None):
     """
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
+    expname = time.strftime('_%y%m%d_%H%M%S', time.localtime())
+    exp_prefix += expname
     log_dir = osp.join(base_log_dir, exp_id, exp_prefix.replace("_", "-"))
     # don't overwrite existing data unless you're sure
     if osp.isdir(log_dir):
-        click.confirm(click.style("{} already exists. Do you want to "
-            "obliterate it and continue?".format(log_dir), fg='red'),
-            abort=True)
+        # click.confirm(click.style("{} already exists. Do you want to "
+        #     "obliterate it and continue?".format(log_dir), fg='red'),
+        #     abort=True)
         shutil.rmtree(log_dir)
     os.makedirs(log_dir, exist_ok=True)
     return log_dir
