@@ -368,8 +368,8 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         #######
         # get eta
         #######
-        # eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
-        eta = z
+        eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
+        # eta = z
         #######
         # p(a|s,eta)
         #######

@@ -68,6 +68,7 @@ def experiment(variant):
     policy2 = DecomposedPolicy(obs_dim,
             z_dim=latent_dim,
             latent_dim=64,
+            eta_nlayer=None,
             num_expz=64,
             action_dim=action_dim,
             anet_sizes=[net_size, net_size, net_size])
@@ -78,9 +79,7 @@ def experiment(variant):
         **variant['algo_params']
     )
 
-    memo = 'this exp wants to check out if simple embedding respectively for the policy\'s input will perform no worse than ' \
-    + 'the original raw concatenation. \n the new policy has the same hidden sizes, except that the inputs are two latent-dim ' \
-      'concatenation, which is obtained by two layer embedding nets.'
+    memo = 'this exp wants to check out the attentional embedding between z and observation to produce eta'
 
     variant['algo_params']['memo'] = memo
 
