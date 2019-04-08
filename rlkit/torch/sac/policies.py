@@ -10,6 +10,7 @@ from rlkit.torch.core import np_ify
 from torch.nn import functional as F
 from rlkit.torch.core import PyTorchModule
 from torch.autograd import Variable
+from rlkit.torch import pytorch_util as ptu
 
 USE_CUDA = True
 
@@ -205,12 +206,18 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
     """
 
 
-    def construct_fc(self, dim1, dim2):
-        init_w = self.init_w
+    def construct_fc(self, dim1, dim2, init_w=1e-3):
+        # init_w = self.init_w
         tmp = nn.Linear(dim1, dim2)
         tmp.weight.data.uniform_(-init_w, init_w)
         tmp.bias.data.uniform_(-init_w, init_w)
         return tmp
+
+    def construct_hidden(self, in_size, next_size, hidden_init=ptu.fanin_init, b_init_value=0.1):
+        fc = nn.Linear(in_size, next_size)
+        hidden_init(fc.weight)
+        fc.bias.data.fill_(b_init_value)
+        return fc
 
     def __init__(
             self,
@@ -218,13 +225,13 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             z_dim,
             latent_dim,
             action_dim,
+            anet_sizes,
             obs_nlayer=2,
             z_nlayer=2,
-            a_nlayer=3,
             eta_nlayer=2,
             num_expz=None,
             std=None,
-            init_w=1e-3,
+
             **kwargs
     ):
         self.save_init_params(locals())
@@ -240,7 +247,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         self.latent_dim = latent_dim
         self.log_std = None
         self.std = std
-        self.init_w = init_w
+        # self.init_w = init_w
         self.last_fc = self.construct_fc(latent_dim, action_dim)
         if std is None:
             # last_hidden_size = latent_dim
@@ -251,26 +258,29 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
-        obs_fc = [self.construct_fc(obs_dim, latent_dim)]
-        z_fc = [self.construct_fc(z_dim, latent_dim)]
-        a_fc = [self.construct_fc(2*latent_dim, latent_dim)] # s+eta
+        obs_fc = [self.construct_hidden(obs_dim, latent_dim)]
+        z_fc = [self.construct_hidden(z_dim, latent_dim)]
+        # a_fc = [self.construct_hidden(2*latent_dim, latent_dim)] # s+eta
+        a_fc = []
 
         for i in range(obs_nlayer):
-            obs_fc.append(self.construct_fc(latent_dim,latent_dim))
+            obs_fc.append(self.construct_hidden(latent_dim,latent_dim))
         for i in range(z_nlayer):
-            z_fc.append(self.construct_fc(latent_dim, latent_dim))
-        for i in range(a_nlayer):
-            a_fc.append(self.construct_fc(latent_dim, latent_dim))
-
+            z_fc.append(self.construct_hidden(latent_dim, latent_dim))
+        # specify the action network's net sizes
+        ain = 2*latent_dim
+        for nex in anet_sizes:
+            a_fc.append(self.construct_hidden(ain, nex))
+            ain = nex
 
         self.obs_fc = nn.ModuleList(obs_fc)
         self.z_fc = nn.ModuleList(z_fc)
         self.a_fc = nn.ModuleList(a_fc)
 
         if eta_nlayer is not None:
-            eta_fc = [self.construct_fc(2*latent_dim, latent_dim)]
+            eta_fc = [self.construct_hidden(2*latent_dim, latent_dim)]
             for i in range(eta_nlayer):
-                eta_fc.append(self.construct_fc(latent_dim, latent_dim))
+                eta_fc.append(self.construct_hidden(latent_dim, latent_dim))
             self.eta_fc = nn.ModuleList(eta_fc)
             self.use_atn = False
         else:
@@ -358,14 +368,14 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         #######
         # get eta
         #######
-        eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
-
+        # eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
+        eta = z
         #######
         # p(a|s,eta)
         #######
         h = torch.cat((obs,eta), dim=-1)
         #######################################
-        for i,fc in enumerate(self.a_fc):
+        for i,fc in enumerate(self.a_fc): # as the tanhpolicy
             h = self.hidden_activation(fc(h)) # latent dim
 
         mean = self.last_fc(h)

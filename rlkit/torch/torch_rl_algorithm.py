@@ -22,6 +22,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.dump_eval_paths = dump_eval_paths
         self.output_dir = output_dir
         self.recurrent = recurrent
+        logger.log(kwargs.get('memo', 'no memo'))
 
     ###### Torch stuff #####
     @property

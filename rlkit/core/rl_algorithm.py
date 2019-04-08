@@ -43,6 +43,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=False,
+            **kwargs
     ):
         """
         Base class for Meta RL Algorithms

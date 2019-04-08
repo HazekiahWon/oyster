@@ -67,14 +67,22 @@ def experiment(variant):
     )
     policy2 = DecomposedPolicy(obs_dim,
             z_dim=latent_dim,
-            latent_dim=256,
+            latent_dim=64,
             num_expz=64,
-            action_dim=action_dim)
+            action_dim=action_dim,
+            anet_sizes=[net_size, net_size, net_size])
+
     agent = ProtoAgent(
         latent_dim,
         [task_enc, policy2, qf1, qf2, vf],
         **variant['algo_params']
     )
+
+    memo = 'this exp wants to check out if simple embedding respectively for the policy\'s input will perform no worse than ' \
+    + 'the original raw concatenation. \n the new policy has the same hidden sizes, except that the inputs are two latent-dim ' \
+      'concatenation, which is obtained by two layer embedding nets.'
+
+    variant['algo_params']['memo'] = memo
 
     algorithm = ProtoSoftActorCritic(
         env=env,
