@@ -248,12 +248,12 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         self.log_std = None
         self.std = std
         # self.init_w = init_w
-        self.last_fc = self.construct_fc(latent_dim, action_dim)
+        self.last_fc = self.construct_fc(anet_sizes[-1], action_dim)
         if std is None:
             # last_hidden_size = latent_dim
             # if len(hidden_sizes) > 0:
             #     last_hidden_size = hidden_sizes[-1]
-            self.last_fc_log_std = self.construct_fc(latent_dim, action_dim)
+            self.last_fc_log_std = self.construct_fc(anet_sizes[-1], action_dim)
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
