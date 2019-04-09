@@ -14,7 +14,7 @@ from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
-from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
+from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder, OracleEncoder, OracleEncoder2
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
@@ -32,6 +32,7 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
+    physics_dim = 10
     latent_dim = 5
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
@@ -44,6 +45,42 @@ def experiment(variant):
             input_size=obs_dim + action_dim + reward_dim,
             output_size=task_enc_output_dim,
     )
+    ############################ type1 oracle
+    oracle1 = OracleEncoder(
+        hidden_sizes=[200,200,200],
+        input_size=obs_dim + action_dim + reward_dim + physics_dim,
+        output_size=task_enc_output_dim,
+    )
+    oracle_decoder1 = FlattenMlp(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_size=latent_dim,
+        output_size=physics_dim,
+    )
+    ###############################
+    ################### type2 oracle
+    phy_encoder = encoder_model(
+            hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
+            input_size=physics_dim,
+            output_size=latent_dim,
+    )
+    sar_encoder = encoder_model(
+            hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
+            input_size=obs_dim+action_dim+reward_dim,
+            output_size=latent_dim,
+    )
+    oracle2 = OracleEncoder2(
+        hidden_sizes=[200, 200, 200],
+        input_size=latent_dim*2,
+        output_size=task_enc_output_dim, # to append information bottleneck
+        encoder1= sar_encoder,
+        encoder2=phy_encoder
+    )
+    oracle_decoder2 = FlattenMlp(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_size=latent_dim,
+        output_size=physics_dim,
+    )
+    ###################################
     qf1 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,

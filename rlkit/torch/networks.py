@@ -135,6 +135,57 @@ class MlpEncoder(FlattenMlp):
     def reset(self, num_tasks=1):
         pass
 
+def _product_of_gaussians(mus, sigmas_squared):
+    '''
+    compute mu, sigma of product of gaussians
+    '''
+    sigmas_squared = torch.clamp(sigmas_squared, min=1e-7)
+    sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
+    mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
+    return mu, torch.sqrt(sigma_squared)
+class Info_bottleneck:
+    def information_bottleneck(self, z):
+        # assume input and output to be task x batch x feat
+        mu = z[..., :self.latent_dim]
+        sigma_squared = F.softplus(z[..., self.latent_dim:])
+        z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
+        if not self.det_z:
+            z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
+            self.z_dists = z_dists
+            z = [d.rsample() for d in z_dists]
+        else:
+            z = [p[0] for p in z_params]
+        z = torch.stack(z)
+        return z
+
+class OracleEncoder(MlpEncoder, Info_bottleneck):
+    def forward(self, *inputs, **kwargs):
+        """
+        make sure the inputs are of shape b,dim
+        :param inputs:
+        :param kwargs:
+        :return:
+        """
+        in_ = inputs[0]
+        new_z = super(OracleEncoder, self).forward(*inputs, **kwargs)
+        new_z = new_z.view(in_.size(0), -1, self.task_enc.output_size)
+
+        return self.information_bottleneck(new_z)
+
+class SeqEncoder(MlpEncoder, Info_bottleneck):
+
+class OracleEncoder2(OracleEncoder):
+    def __init__(self, encoder1, encoder2, **kwargs):
+        super().__init__(**kwargs)
+        self.encoder1 = encoder1
+        self.encoder2 = encoder2 # make sure its inputs shape is 1,dim
+
+    def forward(self, sar, phy):
+        zs = self.encoder1.forward(sar) # b,dim
+        phi = self.encoder2.forward(phy) # 1,dim
+        phi_exp = phi.repeat(zs.size(0),1) # b,dim
+        # inp = torch.cat((zs,phi_exp), dim=-1)
+        return super().forward((zs,phi_exp))
 
 class RecurrentEncoder(FlattenMlp):
     '''
