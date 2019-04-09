@@ -143,6 +143,7 @@ def _product_of_gaussians(mus, sigmas_squared):
     sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
     mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
     return mu, torch.sqrt(sigma_squared)
+
 class Info_bottleneck:
     def information_bottleneck(self, z):
         # assume input and output to be task x batch x feat
@@ -173,10 +174,29 @@ class OracleEncoder(MlpEncoder, Info_bottleneck):
         return self.information_bottleneck(new_z)
 
 class SeqEncoder(MlpEncoder, Info_bottleneck):
+    def __init__(self, *inputs, **kwargs):
+        self.save_init_params(locals())
+        super().__init__(*inputs, **kwargs)
+        self.z_collection = list()
+
+    def forward(self, *inputs, **kwargs):
+        """
+        make sure the inputs are of shape 1,dim
+        :param inputs:
+        :param kwargs:
+        :return:
+        """
+        single_z = super().forward(*inputs, **kwargs)
+        # TODO: # otherwise append the result: new_z
+        self.z_collection.append(single_z)
+        inp = torch.cat(self.z_collection, dim=0) # n,dim
+        new_z = self.information_bottleneck(inp)
+        return new_z
 
 class OracleEncoder2(OracleEncoder):
-    def __init__(self, encoder1, encoder2, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, encoder1, encoder2, *inputs, **kwargs):
+        self.save_init_params(locals())
+        super(OracleEncoder2, self).__init__(*inputs, **kwargs)
         self.encoder1 = encoder1
         self.encoder2 = encoder2 # make sure its inputs shape is 1,dim
 

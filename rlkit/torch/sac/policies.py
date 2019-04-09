@@ -40,7 +40,6 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             self,
             hidden_sizes,
             obs_dim,
-            latent_dim,
             action_dim,
             std=None,
             init_w=1e-3,
@@ -54,7 +53,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             init_w=init_w,
             **kwargs
         )
-        self.latent_dim = latent_dim
+        # self.latent_dim = latent_dim
         self.log_std = None
         self.std = std
         if std is None:

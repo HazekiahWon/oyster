@@ -14,7 +14,7 @@ from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
-from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder, OracleEncoder, OracleEncoder2
+from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder, OracleEncoder, OracleEncoder2, SeqEncoder
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
@@ -33,8 +33,8 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
     physics_dim = 10
-    latent_dim = 5
-    task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
+    z_dim = 5
+    task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
 
     net_size = variant['net_size']
@@ -53,7 +53,7 @@ def experiment(variant):
     )
     oracle_decoder1 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=latent_dim,
+        input_size=z_dim,
         output_size=physics_dim,
     )
     ###############################
@@ -61,49 +61,63 @@ def experiment(variant):
     phy_encoder = encoder_model(
             hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
             input_size=physics_dim,
-            output_size=latent_dim,
+            output_size=z_dim,
     )
     sar_encoder = encoder_model(
             hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
             input_size=obs_dim+action_dim+reward_dim,
-            output_size=latent_dim,
+            output_size=z_dim,
     )
     oracle2 = OracleEncoder2(
         hidden_sizes=[200, 200, 200],
-        input_size=latent_dim*2,
+        input_size=z_dim*2,
         output_size=task_enc_output_dim, # to append information bottleneck
-        encoder1= sar_encoder,
+        encoder1=sar_encoder,
         encoder2=phy_encoder
     )
     oracle_decoder2 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=latent_dim,
+        input_size=z_dim,
         output_size=physics_dim,
+    )
+    ###################################
+    ###################### Sequential encoder
+    seq_encoder = SeqEncoder(
+        hidden_sizes=[200, 200, 200],
+        input_size=obs_dim+action_dim+reward_dim,
+        output_size=task_enc_output_dim, # as we expect this to use information bottleneck to merge multiple z
+
+    )
+    explorer = TanhGaussianPolicy(
+        hidden_sizes=[net_size, net_size, net_size],
+        obs_dim=obs_dim + z_dim,
+        # latent_dim=z_dim,
+        action_dim=action_dim,
     )
     ###################################
     qf1 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
+        input_size=obs_dim + action_dim + z_dim,
         output_size=1,
     )
     qf2 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
+        input_size=obs_dim + action_dim + z_dim,
         output_size=1,
     )
     vf = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + latent_dim,
+        input_size=obs_dim + z_dim,
         output_size=1,
     )
     policy = TanhGaussianPolicy(
         hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + latent_dim,
-        latent_dim=latent_dim,
+        obs_dim=obs_dim + z_dim,
+        # latent_dim=z_dim,
         action_dim=action_dim,
     )
     policy2 = DecomposedPolicy(obs_dim,
-            z_dim=latent_dim,
+            z_dim=z_dim,
             latent_dim=64,
             eta_nlayer=None,
             num_expz=64,
@@ -111,8 +125,8 @@ def experiment(variant):
             anet_sizes=[net_size, net_size, net_size])
 
     agent = ProtoAgent(
-        latent_dim,
-        [task_enc, policy2, qf1, qf2, vf],
+        z_dim,
+        [task_enc, policy, qf1, qf2, vf],
         **variant['algo_params']
     )
 
@@ -124,8 +138,8 @@ def experiment(variant):
         env=env,
         train_tasks=tasks[:-30],
         eval_tasks=tasks[-30:],
-        nets=[agent, task_enc, policy2, qf1, qf2, vf],
-        latent_dim=latent_dim,
+        nets=[agent, task_enc, policy, qf1, qf2, vf],
+        latent_dim=z_dim,
         **variant['algo_params']
     )
     algorithm.to()
