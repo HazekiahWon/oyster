@@ -167,14 +167,14 @@ class Explorer(TanhGaussianPolicy):
         return super().forward(obs, reparameterize, deterministic, return_log_prob)
 
     @torch.no_grad()
-    def get_actions(self, obs, deterministic=False):
+    def get_actions(self, obs, reparameterize=False, deterministic=False):
         """
 
         :param obs:
         :param deterministic:
         :return:
         """
-        outputs = self.forward(obs, deterministic=deterministic)[0]
+        outputs = self.forward(obs, reparameterize, deterministic=deterministic)[0]
         return outputs, np_ify(outputs)
 
 

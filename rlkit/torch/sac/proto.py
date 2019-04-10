@@ -229,7 +229,7 @@ class NewAgent(ProtoAgent):
         for _ in range(self.seq_max_length):
             s = ptu.from_numpy(np.asarray(s)) # mb,dim
             # a should be mb,1,dim
-            a,np_a = self.explorer.get_actions((s,new_z)) # the situation where new_z is None is handled inside explorer.forward()
+            a,np_a = self.explorer.get_actions((s,new_z), reparameterize=self.reparam) # the situation where new_z is None is handled inside explorer.forward()
             ns,r,term,env_info = zip(*[self.envs[i].step(ai) for i,ai in enumerate(np_a)])
             r = ptu.from_numpy(np.asarray(r).reshape((-1,1)))
             # inp = (s, a, r)
