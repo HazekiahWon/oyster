@@ -131,12 +131,13 @@ def experiment(variant):
         **variant['algo_params']
     )
     ############### seq_encoder
+    mb = variant['algo_params']['meta_batch']
     nagent = NewAgent(
-        latent_dim=z_dim,
+        z_dim=z_dim,
         nets=[seq_encoder, policy, qf1, qf2, vf],
         explorer=explorer,
         seq_max_length=200,
-        env=env,
+        env=[NormalizedBoxEnv(HalfCheetahVelEnv(n_tasks=task_params['n_tasks'])) for _ in range(mb)],
         **variant['algo_params']
     )
     memo = 'this exp wants to check out the attentional embedding between z and observation to produce eta'
@@ -145,10 +146,10 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        use_explorer=True, # use the sequential encoder meaning using the new agent
+        use_explorer=False, # use the sequential encoder meaning using the new agent
         train_tasks=tasks[:-30],
         eval_tasks=tasks[-30:],
-        nets=[nagent, task_enc, policy, qf1, qf2, vf],
+        agent=nagent,
         latent_dim=z_dim,
         **variant['algo_params']
     )

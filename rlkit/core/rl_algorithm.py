@@ -19,7 +19,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
-            policy,
+            agent,
             train_tasks,
             eval_tasks,
             meta_batch=64,
@@ -48,7 +48,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         Base class for Meta RL Algorithms
         :param env: training env
-        :param policy: policy that is conditioned on a latent variable z that rl_algorithm is responsible for feeding in
+        :param agent: policy that is conditioned on a latent variable z that rl_algorithm is responsible for feeding in
         :param train_tasks: list of tasks used for training
         :param eval_tasks: list of tasks used for eval
         :param meta_batch: number of tasks used for meta-update
@@ -71,8 +71,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param save_environment:
         """
         self.env = env
-        self.agent = policy
-        self.exploration_policy = policy # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
+        self.agent = agent
+        self.exploration_policy = agent # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
         self.meta_batch = meta_batch
@@ -99,7 +99,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         self.eval_sampler = InPlacePathSampler(
             env=env,
-            policy=policy,
+            policy=agent,
             max_samples=self.num_steps_per_eval,
             max_path_length=self.max_path_length,
         )

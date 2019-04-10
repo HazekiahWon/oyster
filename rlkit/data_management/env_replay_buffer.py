@@ -43,7 +43,7 @@ class MultiTaskReplayBuffer(object):
             batch = self.task_buffers[task].random_trajs(batch_size)
         else:
             batch = self.task_buffers[task].random_batch(batch_size)
-            print(task, batch_size)
+            # print(task, batch_size)
         return batch
 
     def num_steps_can_sample(self, task):

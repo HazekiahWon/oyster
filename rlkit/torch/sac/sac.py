@@ -22,7 +22,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             train_tasks,
             eval_tasks,
             latent_dim,
-            nets,
+            agent,
 
             use_explorer=False,
             policy_lr=1e-3,
@@ -46,7 +46,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     ):
         super().__init__(
             env=env,
-            policy=nets[0], # take only the agent, as self.policy, self.exploration_policy
+            agent=agent, # take only the agent, as self.policy, self.exploration_policy
             train_tasks=train_tasks,
             eval_tasks=eval_tasks,
             **kwargs
@@ -167,7 +167,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
-        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data, self.env)
+        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data, indices)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # KL constraint on z if probabilistic

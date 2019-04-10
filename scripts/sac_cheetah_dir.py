@@ -78,7 +78,7 @@ def experiment(variant):
         env=env,
         train_tasks=tasks,
         eval_tasks=tasks,
-        nets=[agent, task_enc, policy2, qf1, qf2, vf],
+        agent=[agent, task_enc, policy2, qf1, qf2, vf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )

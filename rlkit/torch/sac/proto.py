@@ -6,6 +6,7 @@ from torch import nn as nn
 import torch.nn.functional as F
 
 import rlkit.torch.pytorch_util as ptu
+from collections import Iterable
 from rlkit.torch.core import np_ify, torch_ify
 
 
@@ -31,12 +32,12 @@ def _mean_of_gaussians(mus, sigmas):
 class ProtoAgent(nn.Module):
 
     def __init__(self,
-                 latent_dim,
+                 z_dim,
                  nets,
                  **kwargs
-    ):
+                 ):
         super().__init__()
-        self.latent_dim = latent_dim
+        self.z_dim = z_dim
         self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets
         self.target_vf = self.vf.copy()
         self.recurrent = kwargs['recurrent']
@@ -49,21 +50,21 @@ class ProtoAgent(nn.Module):
 
         # initialize task embedding to zero
         # (task, latent dim)
-        self.register_buffer('z', torch.zeros(1, latent_dim))
+        self.register_buffer('z', torch.zeros(1, z_dim))
         # for incremental update, must keep track of number of datapoints accumulated
         self.register_buffer('num_z', torch.zeros(1))
 
         # initialize posterior to the prior
         if self.use_ib:
-            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))]
+            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim))]
 
     def clear_z(self, num_tasks=1):
         if self.use_ib:
-            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim)) for _ in range(num_tasks)]
+            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim)) for _ in range(num_tasks)]
             z = [d.rsample() for d in self.z_dists]
             self.z = torch.stack(z)
         else:
-            self.z = self.z.new_full((num_tasks, self.latent_dim), 0)
+            self.z = self.z.new_full((num_tasks, self.z_dim), 0)
         self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
 
     def detach_z(self):
@@ -87,8 +88,8 @@ class ProtoAgent(nn.Module):
 
     def information_bottleneck(self, z):
         # assume input and output to be task x batch x feat
-        mu = z[..., :self.latent_dim]
-        sigma_squared = F.softplus(z[..., self.latent_dim:])
+        mu = z[..., :self.z_dim]
+        sigma_squared = F.softplus(z[..., self.z_dim:])
         z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
         if not self.det_z:
             z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
@@ -100,7 +101,7 @@ class ProtoAgent(nn.Module):
         return z
 
     def compute_kl_div(self):
-        prior = torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))
+        prior = torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim))
         kl_divs = [torch.distributions.kl.kl_divergence(z_dist, prior) for z_dist in self.z_dists]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
@@ -207,10 +208,10 @@ class NewAgent(ProtoAgent):
         super().__init__(**kwargs)
         # self.seq_encoder = seq_encoder
         self.explorer = explorer
-        self.env = env
+        self.envs = env
         self.seq_max_length = seq_max_length
 
-    def set_z(self, in_, idx):
+    def set_z(self, in_, indices):
         """
         sequentially set z
         :param in_: does not need new data at all
@@ -218,20 +219,30 @@ class NewAgent(ProtoAgent):
         """
         # TODO Attention: there is no need for data here
         # s,a,ns,r = in_
-        s = self.env.reset_task(idx)
+        # zs = list()
+        # z_dists = list()
+        # this means for each train step, the z is reproduced
+        if not isinstance(indices, Iterable): indices = (indices,)
+
+        s = [self.envs[i].reset_task(idx) for i,idx in enumerate(indices)] # a list of vectors
         new_z = None
         for _ in range(self.seq_max_length):
-            s = ptu.from_numpy(s[None]) # 1,dim
-            a,np_a = self.explorer.get_action((s,new_z)) # the situation where new_z is None is handled inside explorer.forward()
-            ns,r,term,env_info = self.env.step(np_a)
-            r = ptu.from_numpy(r.reshape((1,-1)))
+            s = ptu.from_numpy(np.asarray(s)) # mb,dim
+            # a should be mb,1,dim
+            a,np_a = self.explorer.get_actions((s,new_z)) # the situation where new_z is None is handled inside explorer.forward()
+            ns,r,term,env_info = zip(*[self.envs[i].step(ai) for i,ai in enumerate(np_a)])
+            r = ptu.from_numpy(np.asarray(r).reshape((-1,1)))
             # inp = (s, a, r)
-            new_z = self.task_enc(s,a,r)
+            new_z = self.task_enc(s,a,r) # mb,dim
             s = ns
 
-            if term: break
-
-        self.z = new_z
+            if True in term: break # TODO currently break once there is any terminal
+            # zs.append(new_z)
+            # z_dists.append(self.task_enc.z_dists[0]) # the sequential encoder by default processes one z at one time
+        self.z = new_z # mb,zdim
+        self.z_dists = self.task_enc.z_dists
+        # Attention here !
+        self.task_enc.clear() # clear the z of seq_encoder
 
     def forward(self, obs, actions, next_obs, enc_data, idx):
         # TODO: the current issue is that in algo it uses indices, but currently we only support single

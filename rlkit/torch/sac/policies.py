@@ -142,10 +142,10 @@ class Explorer(TanhGaussianPolicy):
         super().__init__(*inputs, **kwargs)
         self.z_dim = z_dim
 
-    def init_z(self):
-        z_dist = torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim))
-        z = z_dist.rsample()
-        return z[None] # 1,dim
+    def init_z(self, num_tasks):
+        z_dists = [torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim)) for _ in range(num_tasks)]
+        z = [z_dist.rsample()[None] for z_dist in z_dists] # mb of 1,dim
+        return torch.cat(z, dim=0) # mb,dim
 
     def forward(
             self,
@@ -157,14 +157,17 @@ class Explorer(TanhGaussianPolicy):
         """
             when the function is first called, there is no z available, so we need to random initialize one
         """
+        # by default z is of 3d shape
         if len(obs)>1 and obs[1] is None:
-            z = self.init_z()
+            num_tasks = obs[0].size(0) # mb, sdim
+            z = self.init_z(num_tasks)
+            # if num_tasks>1: z = z.unsqueeze(1) # mb,1,dim
             obs = (obs[0], z)
 
         return super().forward(obs, reparameterize, deterministic, return_log_prob)
 
     @torch.no_grad()
-    def get_action(self, obs, deterministic=False):
+    def get_actions(self, obs, deterministic=False):
         """
 
         :param obs:

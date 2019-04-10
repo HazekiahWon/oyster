@@ -188,13 +188,16 @@ class SeqEncoder(MlpEncoder, Info_bottleneck):
         :param kwargs:
         :return:
         """
-        single_z = super().forward(*inputs, **kwargs)
+        single_z = super().forward(*inputs, **kwargs) # mb,1,dim
         # TODO: # otherwise append the result: new_z
         self.z_collection.append(single_z)
-        inp = torch.cat(self.z_collection, dim=0).unsqueeze(0) # n,dim
+        inp = torch.stack(self.z_collection, dim=1) # mb,n,dim
         # TODO all information bottleneck should make sure its input of shape mb,b,dim
-        new_z = self.information_bottleneck(inp)
-        return new_z
+        new_z = self.information_bottleneck(inp) # mb,dim
+        return new_z # mb,dim
+
+    def clear(self):
+        self.z_collection.clear()
 
 class OracleEncoder2(OracleEncoder):
     def __init__(self, encoder1, encoder2, *inputs, **kwargs):
