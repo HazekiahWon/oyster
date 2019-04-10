@@ -86,7 +86,7 @@ class FlattenMlp(Mlp):
     """
 
     def forward(self, *inputs, **kwargs):
-        flat_inputs = torch.cat(inputs, dim=1)
+        flat_inputs = torch.cat(inputs, dim=-1)
         return super().forward(flat_inputs, **kwargs)
 
 
@@ -145,17 +145,18 @@ def _product_of_gaussians(mus, sigmas_squared):
     return mu, torch.sqrt(sigma_squared)
 
 class Info_bottleneck:
+
     def information_bottleneck(self, z):
         # assume input and output to be task x batch x feat
-        mu = z[..., :self.latent_dim]
-        sigma_squared = F.softplus(z[..., self.latent_dim:])
+        mu = z[..., :self.z_dim]
+        sigma_squared = F.softplus(z[..., self.z_dim:])
         z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
-        if not self.det_z:
-            z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
-            self.z_dists = z_dists
-            z = [d.rsample() for d in z_dists]
-        else:
-            z = [p[0] for p in z_params]
+        # if not self.det_z:
+        z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
+        self.z_dists = z_dists
+        z = [d.rsample() for d in z_dists]
+        # else:
+        #     z = [p[0] for p in z_params]
         z = torch.stack(z)
         return z
 
@@ -174,10 +175,11 @@ class OracleEncoder(MlpEncoder, Info_bottleneck):
         return self.information_bottleneck(new_z)
 
 class SeqEncoder(MlpEncoder, Info_bottleneck):
-    def __init__(self, *inputs, **kwargs):
+    def __init__(self, z_dim, *inputs, **kwargs):
         self.save_init_params(locals())
         super().__init__(*inputs, **kwargs)
         self.z_collection = list()
+        self.z_dim = z_dim
 
     def forward(self, *inputs, **kwargs):
         """
@@ -189,7 +191,8 @@ class SeqEncoder(MlpEncoder, Info_bottleneck):
         single_z = super().forward(*inputs, **kwargs)
         # TODO: # otherwise append the result: new_z
         self.z_collection.append(single_z)
-        inp = torch.cat(self.z_collection, dim=0) # n,dim
+        inp = torch.cat(self.z_collection, dim=0).unsqueeze(0) # n,dim
+        # TODO all information bottleneck should make sure its input of shape mb,b,dim
         new_z = self.information_bottleneck(inp)
         return new_z
 

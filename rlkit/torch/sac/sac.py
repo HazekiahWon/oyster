@@ -24,11 +24,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             latent_dim,
             nets,
 
-            class_lr=1e-1,
+            use_explorer=False,
             policy_lr=1e-3,
             qf_lr=1e-3,
             vf_lr=1e-3,
             context_lr=1e-3,
+            explorer_lr=1e-3,
             kl_lambda=1.,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
@@ -70,28 +71,37 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
 
+        ### added
+        self.use_explorer = use_explorer
+        ####################################
+
         # TODO consolidate optimizers!
         self.policy_optimizer = optimizer_class(
-            self.policy.policy.parameters(),
+            self.agent.policy.parameters(),
             lr=policy_lr,
         )
         self.qf1_optimizer = optimizer_class(
-            self.policy.qf1.parameters(),
+            self.agent.qf1.parameters(),
             lr=qf_lr,
         )
         self.qf2_optimizer = optimizer_class(
-            self.policy.qf2.parameters(),
+            self.agent.qf2.parameters(),
             lr=qf_lr,
         )
         self.vf_optimizer = optimizer_class(
-            self.policy.vf.parameters(),
+            self.agent.vf.parameters(),
             lr=vf_lr,
         )
         self.context_optimizer = optimizer_class(
-            self.policy.task_enc.parameters(),
+            self.agent.task_enc.parameters(),
             lr=context_lr,
         )
 
+        if self.use_explorer:
+            self.explorer_optimizer = optimizer_class(
+                self.agent.explorer.parameters(),
+                lr=explorer_lr,
+            )
 
 
     def sample_data(self, indices, encoder=False):
@@ -136,7 +146,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         batch = self.sample_data(indices, encoder=True)
 
         # zero out context and hidden encoder state
-        self.policy.clear_z(num_tasks=len(indices))
+        self.agent.clear_z(num_tasks=len(indices))
 
         for i in range(num_updates):
             # TODO(KR) argh so ugly
@@ -145,7 +155,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self._take_step(indices, obs_enc, act_enc, rewards_enc)
 
             # stop backprop
-            self.policy.detach_z()
+            self.agent.detach_z()
 
     def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
         global step
@@ -157,13 +167,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
-        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
+        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data, self.env)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
         if self.use_information_bottleneck:
-            kl_div = self.policy.compute_kl_div()
+            kl_div = self.agent.compute_kl_div()
             kl_loss = self.kl_lambda * kl_div
             kl_loss.backward(retain_graph=True)
 
@@ -183,7 +193,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        min_q_new_actions = self.policy.min_q(obs, new_actions, task_z)
+        min_q_new_actions = self.agent.min_q(obs, new_actions, task_z)
 
         # vf update
         v_target = min_q_new_actions - log_pi
@@ -192,7 +202,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         vf_loss.backward()
         self.writer.add_scalar('vf', vf_loss, step)
         self.vf_optimizer.step()
-        self.policy._update_target_network()
+        self.agent._update_target_network()
 
         # policy update
         # n.b. policy update includes dQ/da
@@ -216,9 +226,14 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
         policy_loss = policy_loss + policy_reg_loss
 
+        if self.use_explorer:
+            self.explorer_optimizer.zero_grad()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
+        if self.use_explorer:
+            self.explorer_optimizer.step()
+
         self.writer.add_scalar('actor', policy_loss, step)
         self.writer.add_histogram('logp', log_pi, step)
         self.writer.add_histogram('adv', log_pi - log_policy_target + v_pred, step)
@@ -231,8 +246,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # across all the train steps?
             self.eval_statistics = OrderedDict()
             if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
-                z_sig = np.mean(ptu.get_numpy(self.policy.z_dists[0].variance))
+                z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_dists[0].mean)))
+                z_sig = np.mean(ptu.get_numpy(self.agent.z_dists[0].variance))
                 self.eval_statistics['Z mean train'] = z_mean
                 self.eval_statistics['Z variance train'] = z_sig
                 self.eval_statistics['KL Divergence'] = ptu.get_numpy(kl_div)
@@ -266,7 +281,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         step += 1
 
     def sample_z_from_prior(self):
-        self.policy.clear_z()
+        self.agent.clear_z()
 
     def sample_z_from_posterior(self, idx, eval_task=False):
         batch = self.get_encoding_batch(idx=idx, eval_task=eval_task)
@@ -274,20 +289,21 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
         in_ = self.prepare_encoder_data(obs, act, rewards)
-        self.policy.set_z(in_)
+        # TODO: the sequential does not need a replay buffer actually
+        self.agent.set_z(in_, idx)
 
     @property
     def networks(self):
-        return self.policy.networks + [self.policy]
+        return self.agent.networks + [self.agent]
 
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)
         snapshot.update(
-            qf1=self.policy.qf1,
-            qf2=self.policy.qf2,
-            policy=self.policy.policy,
-            vf=self.policy.vf,
-            target_vf=self.policy.target_vf,
-            task_enc=self.policy.task_enc,
+            qf1=self.agent.qf1,
+            qf2=self.agent.qf2,
+            policy=self.agent.policy,
+            vf=self.agent.vf,
+            target_vf=self.agent.target_vf,
+            task_enc=self.agent.task_enc,
         )
         return snapshot

@@ -71,7 +71,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param save_environment:
         """
         self.env = env
-        self.policy = policy
+        self.agent = policy
         self.exploration_policy = policy # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
@@ -278,9 +278,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                          add_to_enc_buffer=True):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
-            self.policy.clear_z()
-            mret = self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
-                              add_to_enc_buffer=add_to_enc_buffer)
+            self.agent.clear_z()
+            mret = self.collect_data(self.agent, num_samples=num_samples, eval_task=eval_task,
+                                     add_to_enc_buffer=add_to_enc_buffer)
             return mret
         else:
             # collects more data in batches of resample_z_every_n until done
@@ -300,8 +300,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
             self.sample_z_from_posterior(idx, eval_task=eval_task)
-            mret = self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
-                              add_to_enc_buffer=add_to_enc_buffer)
+            mret = self.collect_data(self.agent, num_samples=num_samples, eval_task=eval_task,
+                                     add_to_enc_buffer=add_to_enc_buffer)
             return mret
         else:
             # collects more data in batches of resample_z_every_n until done

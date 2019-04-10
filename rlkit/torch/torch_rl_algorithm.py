@@ -68,12 +68,12 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         otherwise, sample a task encoding once and keep it fixed
         '''
         is_online = (self.eval_embedding_source == 'online')
-        self.policy.clear_z()
+        self.agent.clear_z()
 
         if not is_online:
             self.sample_z_from_posterior(idx, eval_task=eval_task)
 
-        dprint('task encoding ', self.policy.z)
+        dprint('task encoding ', self.agent.z)
 
         test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
         if self.sparse_rewards:
@@ -204,8 +204,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
 
             if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
-                z_sig = np.mean(ptu.get_numpy(self.policy.z_dists[0].variance))
+                z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_dists[0].mean)))
+                z_sig = np.mean(ptu.get_numpy(self.agent.z_dists[0].variance))
                 self.eval_statistics['Z mean eval'] = z_mean
                 self.eval_statistics['Z variance eval'] = z_sig
 

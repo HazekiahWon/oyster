@@ -89,6 +89,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         :param deterministic: If True, do not sample
         :param return_log_prob: If True, return a sample and its log probability
         """
+        # print([x.size() for x in obs])
         obs = torch.cat(obs, dim=-1)
         h = obs
         for i, fc in enumerate(self.fcs):
@@ -134,6 +135,44 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             action, mean, log_std, log_prob, expected_log_prob, std,
             mean_action_log_prob, pre_tanh_value,
         )
+
+class Explorer(TanhGaussianPolicy):
+    def __init__(self, z_dim, *inputs, **kwargs):
+        self.save_init_params(locals())
+        super().__init__(*inputs, **kwargs)
+        self.z_dim = z_dim
+
+    def init_z(self):
+        z_dist = torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim))
+        z = z_dist.rsample()
+        return z[None] # 1,dim
+
+    def forward(
+            self,
+            obs,
+            reparameterize=False,
+            deterministic=False,
+            return_log_prob=False,
+    ):
+        """
+            when the function is first called, there is no z available, so we need to random initialize one
+        """
+        if len(obs)>1 and obs[1] is None:
+            z = self.init_z()
+            obs = (obs[0], z)
+
+        return super().forward(obs, reparameterize, deterministic, return_log_prob)
+
+    @torch.no_grad()
+    def get_action(self, obs, deterministic=False):
+        """
+
+        :param obs:
+        :param deterministic:
+        :return:
+        """
+        outputs = self.forward(obs, deterministic=deterministic)[0]
+        return outputs, np_ify(outputs)
 
 
 class Attn(nn.Module):

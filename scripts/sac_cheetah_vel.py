@@ -13,10 +13,10 @@ sys.path.append('/home/zhjl/oyster')
 from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
-from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
+from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy, Explorer
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder, OracleEncoder, OracleEncoder2, SeqEncoder
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
-from rlkit.torch.sac.proto import ProtoAgent
+from rlkit.torch.sac.proto import ProtoAgent, NewAgent
 import rlkit.torch.pytorch_util as ptu
 
 def datetimestamp(divider=''):
@@ -83,15 +83,16 @@ def experiment(variant):
     ###################################
     ###################### Sequential encoder
     seq_encoder = SeqEncoder(
+        z_dim=z_dim,
         hidden_sizes=[200, 200, 200],
         input_size=obs_dim+action_dim+reward_dim,
         output_size=task_enc_output_dim, # as we expect this to use information bottleneck to merge multiple z
 
     )
-    explorer = TanhGaussianPolicy(
+    explorer = Explorer(
         hidden_sizes=[net_size, net_size, net_size],
         obs_dim=obs_dim + z_dim,
-        # latent_dim=z_dim,
+        z_dim=z_dim,
         action_dim=action_dim,
     )
     ###################################
@@ -129,16 +130,25 @@ def experiment(variant):
         [task_enc, policy, qf1, qf2, vf],
         **variant['algo_params']
     )
-
+    ############### seq_encoder
+    nagent = NewAgent(
+        latent_dim=z_dim,
+        nets=[seq_encoder, policy, qf1, qf2, vf],
+        explorer=explorer,
+        seq_max_length=200,
+        env=env,
+        **variant['algo_params']
+    )
     memo = 'this exp wants to check out the attentional embedding between z and observation to produce eta'
 
     variant['algo_params']['memo'] = memo
 
     algorithm = ProtoSoftActorCritic(
         env=env,
+        use_explorer=True, # use the sequential encoder meaning using the new agent
         train_tasks=tasks[:-30],
         eval_tasks=tasks[-30:],
-        nets=[agent, task_enc, policy, qf1, qf2, vf],
+        nets=[nagent, task_enc, policy, qf1, qf2, vf],
         latent_dim=z_dim,
         **variant['algo_params']
     )
@@ -184,7 +194,7 @@ def main(gpu, docker):
             eval_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
-            replay_buffer_size=100000,
+            replay_buffer_size=1000,
         ),
         net_size=300,
         use_gpu=True,

@@ -105,7 +105,7 @@ class ProtoAgent(nn.Module):
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
 
-    def set_z(self, in_):
+    def set_z(self, in_, idx):
         ''' compute latent task embedding only from this input data '''
         new_z = self.task_enc(in_)
         new_z = new_z.view(in_.size(0), -1, self.task_enc.output_size)
@@ -114,6 +114,7 @@ class ProtoAgent(nn.Module):
         else:
             new_z = torch.mean(new_z, dim=1)
         self.z = new_z
+
 
     def update_z(self, in_):
         '''
@@ -152,11 +153,11 @@ class ProtoAgent(nn.Module):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
-    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc):
-        self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc)
+    def forward(self, obs, actions, next_obs, enc_data, idx):
+        self.set_z(enc_data, idx)
+        return self.infer(obs, actions, next_obs)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc):
+    def infer(self, obs, actions, next_obs):
         '''
         compute predictions of SAC networks for update
 
@@ -200,6 +201,43 @@ class ProtoAgent(nn.Module):
     @property
     def networks(self):
         return [self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.target_vf]
+
+class NewAgent(ProtoAgent):
+    def __init__(self, explorer, seq_max_length, env, **kwargs):
+        super().__init__(**kwargs)
+        # self.seq_encoder = seq_encoder
+        self.explorer = explorer
+        self.env = env
+        self.seq_max_length = seq_max_length
+
+    def set_z(self, in_, idx):
+        """
+        sequentially set z
+        :param in_: does not need new data at all
+        :return:
+        """
+        # TODO Attention: there is no need for data here
+        # s,a,ns,r = in_
+        s = self.env.reset_task(idx)
+        new_z = None
+        for _ in range(self.seq_max_length):
+            s = ptu.from_numpy(s[None]) # 1,dim
+            a,np_a = self.explorer.get_action((s,new_z)) # the situation where new_z is None is handled inside explorer.forward()
+            ns,r,term,env_info = self.env.step(np_a)
+            r = ptu.from_numpy(r.reshape((1,-1)))
+            # inp = (s, a, r)
+            new_z = self.task_enc(s,a,r)
+            s = ns
+
+            if term: break
+
+        self.z = new_z
+
+    def forward(self, obs, actions, next_obs, enc_data, idx):
+        # TODO: the current issue is that in algo it uses indices, but currently we only support single
+        self.set_z(enc_data, idx)
+        return self.infer(obs, actions, next_obs)
+
 
 
 
