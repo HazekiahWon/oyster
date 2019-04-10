@@ -149,7 +149,7 @@ def experiment(variant):
         use_explorer=False, # use the sequential encoder meaning using the new agent
         train_tasks=tasks[:-30],
         eval_tasks=tasks[-30:],
-        agent=agent,
+        agent=nagent,
         latent_dim=z_dim,
         **variant['algo_params']
     )
@@ -195,7 +195,7 @@ def main(gpu, docker):
             eval_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
-            replay_buffer_size=1000,
+            replay_buffer_size=100000,
         ),
         net_size=300,
         use_gpu=True,
