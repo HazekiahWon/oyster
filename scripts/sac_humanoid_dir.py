@@ -12,7 +12,7 @@ from rlkit.envs.humanoid_dir import HumanoidDirEnv
 
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
-from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
@@ -31,55 +31,71 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 5
-    task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
+    physics_dim = 10
+    z_dim = 5
+    task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
 
     net_size = variant['net_size']
-    # start with linear task encoding
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     task_enc = encoder_model(
-            hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
-            input_size=obs_dim + action_dim + reward_dim,
-            output_size=task_enc_output_dim,
+        hidden_sizes=[200, 200, 200],  # deeper net + higher dim space generalize better
+        input_size=obs_dim + action_dim + reward_dim,
+        output_size=task_enc_output_dim,
     )
     qf1 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
+        input_size=obs_dim + action_dim + z_dim,
         output_size=1,
     )
     qf2 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
+        input_size=obs_dim + action_dim + z_dim,
         output_size=1,
     )
     vf = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + latent_dim,
+        input_size=obs_dim + z_dim,
         output_size=1,
     )
     policy = TanhGaussianPolicy(
         hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + latent_dim,
-        latent_dim=latent_dim,
+        obs_dim=obs_dim + z_dim,
+        # latent_dim=z_dim,
         action_dim=action_dim,
     )
+    policy2 = DecomposedPolicy(obs_dim,
+                               z_dim=z_dim,
+                               latent_dim=64,
+                               eta_nlayer=None,
+                               num_expz=64,
+                               action_dim=action_dim,
+                               anet_sizes=[net_size, net_size, net_size])
 
     agent = ProtoAgent(
-        latent_dim,
+        z_dim,
         [task_enc, policy, qf1, qf2, vf],
         **variant['algo_params']
     )
 
+    memo = 'this exp wants to reproduce pearl results in humanoid_dir'
+
+    variant['algo_params']['memo'] = memo
+
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=list(tasks[:-30]),
-        eval_tasks=list(tasks[-30:]),
-        agent=[agent, task_enc, policy, qf1, qf2, vf],
-        latent_dim=latent_dim,
+        use_explorer=False,  # use the sequential encoder meaning using the new agent
+        train_tasks=tasks[:-30],
+        eval_tasks=tasks[-30:],
+        agent=agent,
+        latent_dim=z_dim,
         **variant['algo_params']
     )
+
+    if ptu.gpu_enabled():
+        algorithm.to()
+    algorithm.train()
     if ptu.gpu_enabled():
         algorithm.to()
     algorithm.train()

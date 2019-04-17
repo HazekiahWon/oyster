@@ -149,7 +149,7 @@ def experiment(variant):
         use_explorer=False, # use the sequential encoder meaning using the new agent
         train_tasks=tasks[:-30],
         eval_tasks=tasks[-30:],
-        agent=nagent,
+        agent=agent,
         latent_dim=z_dim,
         **variant['algo_params']
     )

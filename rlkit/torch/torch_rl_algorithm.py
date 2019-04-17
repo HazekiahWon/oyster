@@ -229,6 +229,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if self.plotter:
             self.plotter.draw()
 
+        return avg_train_return,avg_train_return
+
 def _elem_or_tuple_to_variable(elem_or_tuple):
     if isinstance(elem_or_tuple, tuple):
         return tuple(

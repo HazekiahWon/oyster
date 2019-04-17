@@ -222,7 +222,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                           num_samples=self.num_steps_per_task,
                                                           add_to_enc_buffer=False)
                     global step
-                    self.writer.add_scalar('prior_ret', np.mean(prret), step)
+                    # self.writer.add_scalar('prior_ret', np.mean(prret), step)
                     self.writer.add_scalar('post_ret', np.mean(poret), step)
                     step += 1
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
@@ -245,7 +245,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             #self.training_mode(False)
 
             # eval
-            self._try_to_eval(it_)
+            trn_ret,tst_ret = self._try_to_eval(it_)
+            self.writer.add_scalar('eval_trn_return', trn_ret, it_)
+            self.writer.add_scalar('eval_tst_return', tst_ret, it_)
             gt.stamp('eval')
 
             self._end_epoch()
@@ -379,7 +381,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
-            self.evaluate(epoch)
+            trn_ret, tst_ret = self.evaluate(epoch)
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
@@ -418,6 +420,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             logger.record_tabular("Epoch", epoch)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
+            return trn_ret,tst_ret
         else:
             logger.log("Skipping eval for now.")
 
