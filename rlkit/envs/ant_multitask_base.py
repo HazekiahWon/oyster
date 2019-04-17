@@ -9,30 +9,53 @@ class MultitaskAntEnv(AntEnv):
         self.tasks = self.sample_tasks(n_tasks)
         self._goal = self.tasks[0]['goal']
         super(MultitaskAntEnv, self).__init__(**kwargs)
-
+    
     """
-    def step(self, action):
+        def step(self, action):
         xposbefore = self.sim.data.qpos[0]
         self.do_simulation(action, self.frame_skip)
         xposafter = self.sim.data.qpos[0]
-
+        
         forward_vel = (xposafter - xposbefore) / self.dt
         forward_reward = -1.0 * abs(forward_vel - self._goal_vel)
         ctrl_cost = 0.5 * 1e-1 * np.sum(np.square(action))
-
+        
         observation = self._get_obs()
         reward = forward_reward - ctrl_cost
         done = False
         infos = dict(reward_forward=forward_reward,
-                     reward_ctrl=-ctrl_cost, task=self._task)
+        reward_ctrl=-ctrl_cost, task=self._task)
         return (observation, reward, done, infos)
-    """
-
-
+        """
+    
+    
     def get_all_task_idx(self):
         return range(len(self.tasks))
-
+    
     def reset_task(self, idx):
         self._task = self.tasks[idx]
         self._goal = self._task['goal'] # assume parameterization of task by single vector
         self.reset()
+    
+    def reset_task_dynamics(self, idx):
+        self._task = self.tasks[idx]
+        
+        # reload model
+        
+        xml_path = "ant_shape_%d.xml" %idx
+        if xml_path.startswith("/"):
+            fullpath = xml_path
+        else:
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", xml_path)
+        
+        self.model = mujoco_py.load_model_from_path(fullpath)
+        self.sim = mujoco_py.MjSim(self.model)
+        self.data = self.sim.data
+        self.viewer = None
+        self._viewers = {}
+        self.init_qpos = self.sim.data.qpos.ravel().copy()
+        self.init_qvel = self.sim.data.qvel.ravel().copy()
+        observation, _reward, done, _info = self.step(np.zeros(self.model.nu))
+        assert not done
+        self.seed()
+
