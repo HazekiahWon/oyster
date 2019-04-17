@@ -96,9 +96,6 @@ def experiment(variant):
     if ptu.gpu_enabled():
         algorithm.to()
     algorithm.train()
-    if ptu.gpu_enabled():
-        algorithm.to()
-    algorithm.train()
 
 
 @click.command()
