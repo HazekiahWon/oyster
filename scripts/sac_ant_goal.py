@@ -7,7 +7,8 @@ import click
 import datetime
 import pathlib
 import os
-
+import sys
+sys.path.append('/home/zhjl/oyster')
 from rlkit.envs.ant_goal import AntGoalEnv
 
 from rlkit.envs.wrappers import NormalizedBoxEnv

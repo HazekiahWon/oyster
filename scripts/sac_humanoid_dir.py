@@ -7,7 +7,8 @@ import click
 import datetime
 import pathlib
 import os
-
+import sys
+sys.path.append('/home/zhjl/oyster')
 from rlkit.envs.humanoid_dir import HumanoidDirEnv
 
 from rlkit.envs.wrappers import NormalizedBoxEnv
