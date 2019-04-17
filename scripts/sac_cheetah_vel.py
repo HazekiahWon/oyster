@@ -120,7 +120,7 @@ def experiment(variant):
     policy2 = DecomposedPolicy(obs_dim,
             z_dim=z_dim,
             # latent_dim=64,
-            eta_nlayer=2,
+            eta_nlayer=None,
             num_expz=64,
             action_dim=action_dim,
             anet_sizes=[net_size, net_size, net_size])

@@ -305,13 +305,13 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         # if we only embed observation,
         # when using direct eta, the dimensions do not matter.
         # when using atn eta, must ensure the embedded observation to have the same dimension as the z
-        ############# embed observation, obs_dim - latent_dim (direct) or z_dim (atn)
+        ############# embed observation, obs_dim - obsemb_dim (direct) or z_dim (atn)
         latent_dim = obs_emb_dim
         obs_fc = [self.construct_hidden(obs_dim, latent_dim)]
-        for i in range(obs_nlayer-1):
+        for i in range(obs_nlayer):
             obs_fc.append(self.construct_hidden(latent_dim,latent_dim))
-        if self.use_atn: obs_fc.append(self.construct_hidden(latent_dim, z_dim))
-        else: obs_fc.append(self.construct_hidden(latent_dim, latent_dim))
+        # if self.use_atn: obs_fc.append(self.construct_hidden(latent_dim, obs_emb_dim))
+        # else: obs_fc.append(self.construct_hidden(latent_dim, latent_dim))
         self.obs_fc = nn.ModuleList(obs_fc)
         ############## eta net
         ### direct eta: obsembdim+z_dim - etadim
@@ -326,18 +326,19 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             self.eta_fc = nn.ModuleList(eta_fc)
             # self.use_atn = False
         else:
-            z_fc = [self.construct_hidden(z_dim, latent_dim)]
+            # should be the same as the embedded observation
+            z_fc = [self.construct_hidden(z_dim, obs_emb_dim)]
             for i in range(z_nlayer):
-                z_fc.append(self.construct_hidden(latent_dim, latent_dim))
+                z_fc.append(self.construct_hidden(obs_emb_dim, obs_emb_dim))
             # specify the action network's net sizes
             self.z_fc = nn.ModuleList(z_fc)
-            self.wsw = nn.Sequential(nn.Linear(latent_dim, num_expz),
+            self.wsw = nn.Sequential(nn.Linear(obs_emb_dim, num_expz),
                                      # nn.BatchNorm1d(num_expz), # cannnot batch norm when batch=1
                                      nn.ReLU()
                                      )
             # self.bn = nn.BatchNorm1d(num_expz)
 
-            self.atn = Attn('general', hidden_size=latent_dim)
+            self.atn = Attn('general', hidden_size=obs_emb_dim)
             # self.use_atn = True
         ######### action net
         ### eta_dim+obsemb_dim - action_dim
