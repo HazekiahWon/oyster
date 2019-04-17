@@ -264,9 +264,12 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             self,
             obs_dim,
             z_dim,
-            latent_dim,
+            # latent_dim,
             action_dim,
             anet_sizes,
+            obs_emb_dim=16, # or 16
+            eta_emb_dim=64,
+            eta_dim=16, # because z is small?
             obs_nlayer=2,
             z_nlayer=2,
             eta_nlayer=2,
@@ -285,11 +288,12 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         #     **kwargs
         # )
         self.hidden_activation = F.relu
-        self.latent_dim = latent_dim
+        # self.latent_dim = latent_dim
         self.log_std = None
         self.std = std
         # self.init_w = init_w
         self.last_fc = self.construct_fc(anet_sizes[-1], action_dim)
+        self.use_atn = eta_nlayer is None
         if std is None:
             # last_hidden_size = latent_dim
             # if len(hidden_sizes) > 0:
@@ -298,33 +302,35 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
-
+        # if we only embed observation,
+        # when using direct eta, the dimensions do not matter.
+        # when using atn eta, must ensure the embedded observation to have the same dimension as the z
+        ############# embed observation, obs_dim - latent_dim (direct) or z_dim (atn)
+        latent_dim = obs_emb_dim
         obs_fc = [self.construct_hidden(obs_dim, latent_dim)]
-        z_fc = [self.construct_hidden(z_dim, latent_dim)]
-        # a_fc = [self.construct_hidden(2*latent_dim, latent_dim)] # s+eta
-        a_fc = []
-
-        for i in range(obs_nlayer):
+        for i in range(obs_nlayer-1):
             obs_fc.append(self.construct_hidden(latent_dim,latent_dim))
-        for i in range(z_nlayer):
-            z_fc.append(self.construct_hidden(latent_dim, latent_dim))
-        # specify the action network's net sizes
-        ain = 2*latent_dim
-        for nex in anet_sizes:
-            a_fc.append(self.construct_hidden(ain, nex))
-            ain = nex
-
+        if self.use_atn: obs_fc.append(self.construct_hidden(latent_dim, z_dim))
+        else: obs_fc.append(self.construct_hidden(latent_dim, latent_dim))
         self.obs_fc = nn.ModuleList(obs_fc)
-        self.z_fc = nn.ModuleList(z_fc)
-        self.a_fc = nn.ModuleList(a_fc)
-
-        if eta_nlayer is not None:
-            eta_fc = [self.construct_hidden(2*latent_dim, latent_dim)]
-            for i in range(eta_nlayer):
+        ############## eta net
+        ### direct eta: obsembdim+z_dim - etadim
+        ### atn eta: 2*obsembdim - eta_dim
+        eta_in = latent_dim+z_dim if not self.use_atn else 2*latent_dim
+        latent_dim = eta_emb_dim
+        if not self.use_atn:
+            eta_fc = [self.construct_hidden(eta_in, latent_dim)]
+            for i in range(eta_nlayer-1):
                 eta_fc.append(self.construct_hidden(latent_dim, latent_dim))
+            eta_fc.append(self.construct_hidden(latent_dim,eta_dim))
             self.eta_fc = nn.ModuleList(eta_fc)
-            self.use_atn = False
+            # self.use_atn = False
         else:
+            z_fc = [self.construct_hidden(z_dim, latent_dim)]
+            for i in range(z_nlayer):
+                z_fc.append(self.construct_hidden(latent_dim, latent_dim))
+            # specify the action network's net sizes
+            self.z_fc = nn.ModuleList(z_fc)
             self.wsw = nn.Sequential(nn.Linear(latent_dim, num_expz),
                                      # nn.BatchNorm1d(num_expz), # cannnot batch norm when batch=1
                                      nn.ReLU()
@@ -332,7 +338,15 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             # self.bn = nn.BatchNorm1d(num_expz)
 
             self.atn = Attn('general', hidden_size=latent_dim)
-            self.use_atn = True
+            # self.use_atn = True
+        ######### action net
+        ### eta_dim+obsemb_dim - action_dim
+        a_fc = [] # s+eta
+        ain = eta_dim + obs_emb_dim
+        for nex in anet_sizes:
+            a_fc.append(self.construct_hidden(ain, nex))
+            ain = nex
+        self.a_fc = nn.ModuleList(a_fc)
 
     def get_action(self, obs, deterministic=False):
         actions = self.get_actions(obs, deterministic=deterministic)
@@ -353,6 +367,13 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         #######
         # atn
         #######
+        #######
+        # z -> z embed
+        #######
+        h = z
+        for i, fc in enumerate(self.z_fc):
+            h = self.hidden_activation(fc(h))
+        z = h # latent dim
         # mb,b,c = z.shape
         # z = z.permute(0,2,1) # b,c,1
         zw = self.wsw(z)  # mb*b,d, no normalize cuz size(0)=1
@@ -398,13 +419,6 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         for i, fc in enumerate(self.obs_fc):
             h = self.hidden_activation(fc(h))
         obs = h # latent dim
-        #######
-        # z -> z embed
-        #######
-        h = z
-        for i, fc in enumerate(self.z_fc):
-            h = self.hidden_activation(fc(h))
-        z = h # latent dim
 
         #######
         # get eta

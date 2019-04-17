@@ -119,15 +119,15 @@ def experiment(variant):
     )
     policy2 = DecomposedPolicy(obs_dim,
             z_dim=z_dim,
-            latent_dim=64,
-            eta_nlayer=None,
+            # latent_dim=64,
+            eta_nlayer=2,
             num_expz=64,
             action_dim=action_dim,
             anet_sizes=[net_size, net_size, net_size])
 
     agent = ProtoAgent(
         z_dim,
-        [task_enc, policy, qf1, qf2, vf],
+        [task_enc, policy2, qf1, qf2, vf],
         **variant['algo_params']
     )
     ############### seq_encoder
