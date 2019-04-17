@@ -80,7 +80,7 @@ def experiment(variant):
         **variant['algo_params']
     )
 
-    memo = 'this exp wants to reproduce pearl results in humanoid_dir'
+    memo = '[humanoid_dir] this exp wants to reproduce pearl results in humanoid_dir'
 
     variant['algo_params']['memo'] = memo
 

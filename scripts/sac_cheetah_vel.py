@@ -140,7 +140,7 @@ def experiment(variant):
         env=[NormalizedBoxEnv(HalfCheetahVelEnv(n_tasks=task_params['n_tasks'])) for _ in range(mb)],
         **variant['algo_params']
     )
-    memo = 'this exp wants to check out the attentional embedding between z and observation to produce eta'
+    memo = '[cheetah_vel] this exp wants to check out the attentional embedding between z and observation to produce eta'
 
     variant['algo_params']['memo'] = memo
 
