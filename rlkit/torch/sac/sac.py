@@ -23,8 +23,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             eval_tasks,
             latent_dim,
             agent,
-
-            use_explorer=False,
+            explorer=None,
+            # use_explorer=False,
             policy_lr=1e-3,
             qf_lr=1e-3,
             vf_lr=1e-3,
@@ -72,7 +72,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.sparse_rewards = sparse_rewards
 
         ### added
-        self.use_explorer = use_explorer
+        self.use_explorer = explorer is not None
+        self.explorer = agent
         ####################################
 
         # TODO consolidate optimizers!
@@ -279,18 +280,18 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 ptu.get_numpy(policy_log_std),
             ))
         step += 1
-
+    # TODO: this may cause problem if is used in the future, remember to make agent arg.
     def sample_z_from_prior(self):
         self.agent.clear_z()
 
-    def sample_z_from_posterior(self, idx, eval_task=False):
+    def sample_z_from_posterior(self, agent, idx, eval_task=False):
         batch = self.get_encoding_batch(idx=idx, eval_task=eval_task)
         obs = batch['observations'][None, ...]
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
         in_ = self.prepare_encoder_data(obs, act, rewards)
         # TODO: the sequential does not need a replay buffer actually
-        self.agent.set_z(in_, idx)
+        agent.set_z(in_, idx)
 
     @property
     def networks(self):

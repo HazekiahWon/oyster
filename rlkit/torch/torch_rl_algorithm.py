@@ -70,8 +70,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         is_online = (self.eval_embedding_source == 'online')
         self.agent.clear_z()
 
-        if not is_online:
-            self.sample_z_from_posterior(idx, eval_task=eval_task)
+        if not is_online: # only using the enc buffer to generate z
+            self.sample_z_from_posterior(self.agent, idx, eval_task=eval_task)
 
         dprint('task encoding ', self.agent.z)
 

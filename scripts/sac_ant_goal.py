@@ -59,7 +59,7 @@ def experiment(variant, resume):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        use_explorer=False,  # use the sequential encoder meaning using the new agent
+        explorer=None,  # use the sequential encoder meaning using the new agent
         train_tasks=tasks[:-30],
         eval_tasks=tasks[-30:],
         agent=agent,
