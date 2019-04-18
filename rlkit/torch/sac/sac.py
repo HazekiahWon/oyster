@@ -235,8 +235,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.explorer_optimizer.step()
 
         self.writer.add_scalar('actor', policy_loss, step)
-        self.writer.add_histogram('logp', log_pi, step)
-        self.writer.add_histogram('adv', log_pi - log_policy_target + v_pred, step)
+        # self.writer.add_histogram('logp', log_pi, step)
+        # self.writer.add_histogram('adv', log_pi - log_policy_target + v_pred, step)
 
         # save some statistics for eval
         if self.eval_statistics is None:
