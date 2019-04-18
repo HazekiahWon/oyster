@@ -9,21 +9,24 @@ import pathlib
 import os
 import sys
 sys.path.append('/home/zhjl/oyster')
+######################
+import joblib
+from scripts.shared import setup_nets
+exp_id = 'ant-goal'
+exp_d = 'pearl-190417-112013'
+resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
+########################
 from rlkit.envs.ant_goal import AntGoalEnv
-
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
-from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
-from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
-from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant):
+def experiment(variant, resume):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
@@ -40,48 +43,16 @@ def experiment(variant):
     net_size = variant['net_size']
     # start with linear task encoding
     recurrent = variant['algo_params']['recurrent']
-    encoder_model = RecurrentEncoder if recurrent else MlpEncoder
-    task_enc = encoder_model(
-            hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
-            input_size=obs_dim + action_dim + reward_dim,
-            output_size=task_enc_output_dim,
-    )
-    qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + z_dim,
-        output_size=1,
-    )
-    qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + z_dim,
-        output_size=1,
-    )
-    vf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + z_dim,
-        output_size=1,
-    )
-    policy = TanhGaussianPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + z_dim,
-        # latent_dim=z_dim,
-        action_dim=action_dim,
-    )
-    policy2 = DecomposedPolicy(obs_dim,
-                               z_dim=z_dim,
-                               latent_dim=64,
-                               eta_nlayer=None,
-                               num_expz=64,
-                               action_dim=action_dim,
-                               anet_sizes=[net_size, net_size, net_size])
 
-    agent = ProtoAgent(
-        z_dim,
-        [task_enc, policy, qf1, qf2, vf],
-        **variant['algo_params']
-    )
+    memo = ''
+    if resume and resume_dir is not None:
+        ret = joblib.load(resume_dir)
+        agent = ret['exploration_policy']
+        memo += f'this exp resumes {resume_dir}\n'
+    else:
+        agent = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant)
 
-    memo = '[ant_goal] this exp wants to reproduce pearl results'
+    memo += '[ant_goal] this exp wants to reproduce pearl results\n'
 
     variant['algo_params']['memo'] = memo
 
@@ -102,8 +73,9 @@ def experiment(variant):
 
 @click.command()
 @click.argument('gpu', default=0)
+@click.option('--resume', default=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
-def main(gpu, docker):
+def main(gpu, resume, docker):
     max_path_length = 200
     # noinspection PyTypeChecker
     variant = dict(
@@ -147,7 +119,7 @@ def main(gpu, docker):
     exp_name = 'pearl'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
-    exp_id = 'ant-goal'
+
     os.makedirs(os.path.join(log_dir, exp_id), exist_ok=True)
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id=exp_id, base_log_dir=log_dir)
 
@@ -160,7 +132,7 @@ def main(gpu, docker):
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant)
+    experiment(variant, resume)
 
 if __name__ == "__main__":
     main()

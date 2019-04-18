@@ -450,7 +450,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param observation: always a single vector
         :return:
         """
-        agent.set_num_steps_total(self._n_env_steps_total)
+        agent.set_num_steps_total(self._n_env_steps_total) # seems no effect
         return agent.get_action(observation)
 
     def _start_epoch(self, epoch):
