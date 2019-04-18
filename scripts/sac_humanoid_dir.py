@@ -14,7 +14,7 @@ import joblib
 from scripts.shared import setup_nets
 exp_id = 'ant-goal'
 exp_d = 'pearl-190417-112013'
-resume = True
+resume = False
 resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
 ########################
 from rlkit.envs.humanoid_dir import HumanoidDirEnv

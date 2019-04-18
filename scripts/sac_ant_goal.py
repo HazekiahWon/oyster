@@ -12,6 +12,7 @@ sys.path.append('/home/zhjl/oyster')
 ######################
 import joblib
 from scripts.shared import setup_nets
+resume = False
 exp_id = 'ant-goal'
 exp_d = 'pearl-190417-112013'
 resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
@@ -73,7 +74,7 @@ def experiment(variant, resume):
 
 @click.command()
 @click.argument('gpu', default=0)
-@click.option('--resume', default=True) # 0 is false, any other is true
+@click.option('--resume', default=resume) # 0 is false, any other is true
 @click.option('--docker', default=0)
 def main(gpu, resume, docker):
     max_path_length = 200
