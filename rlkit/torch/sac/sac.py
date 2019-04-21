@@ -188,7 +188,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
         qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
         qf_loss.backward()
-        self.writer.add_scalar('qf', qf_loss, step)
+        # self.writer.add_scalar('qf', qf_loss, step)
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
@@ -201,7 +201,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         self.vf_optimizer.zero_grad()
         vf_loss.backward()
-        self.writer.add_scalar('vf', vf_loss, step)
+        # self.writer.add_scalar('vf', vf_loss, step)
         self.vf_optimizer.step()
         self.agent._update_target_network()
 
@@ -235,7 +235,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.use_explorer:
             self.explorer_optimizer.step()
 
-        self.writer.add_scalar('actor', policy_loss, step)
+        # self.writer.add_scalar('actor', policy_loss, step)
         # self.writer.add_histogram('logp', log_pi, step)
         # self.writer.add_histogram('adv', log_pi - log_policy_target + v_pred, step)
 
