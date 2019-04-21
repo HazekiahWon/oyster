@@ -186,9 +186,17 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             elif self.eval_embedding_source == 'online_exploration_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
                 # task embedding sampled from prior and held fixed
-                self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=True)
+                if not self.use_explorer:
+                    self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+                                                          resample_z_every_n=self.max_path_length,
+                                                          eval_task=True)
+                else:
+                    self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+                                                          resample_z_every_n=self.max_path_length,
+                                                          eval_task=True, add_to=0)
+                    self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
+                                                          resample_z_every_n=self.max_path_length,
+                                                          eval_task=True, add_to=1)
             elif self.eval_embedding_source == 'online_on_policy_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
                 # half the data from z sampled from prior, the other half from z sampled from posterior
