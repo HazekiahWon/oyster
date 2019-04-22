@@ -50,3 +50,10 @@ We recommend viskit for visualizing learning curves: https://github.com/vitchyr/
 If you spot a bug or have a problem running the code, please open an issue.
 
 Please direct other correspondence to Kate Rakelly: rakelly@eecs.berkeley.edu
+
+#### installation
+`conda install --file requirements.txt`  
+
+`pip install -U 'mujoco-py<1.50.2,>=1.50.1'`
+
+`pip install gtimer tensorboardx gym`

@@ -1,7 +1,5 @@
 pytorch
 tensorboard
-tensorboardx
-gtimer
 click
 joblib
 mpi4py

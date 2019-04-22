@@ -50,7 +50,10 @@ def experiment(variant, resume):
         agent = ret['exploration_policy']
         memo += f'this exp resumes {resume_dir}\n'
     else:
-        agent = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant)
+        agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim,
+                                     variant, task_enc=None)
+        explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
+                              task_enc=task_enc)
 
 
     memo += '[humanoid_dir] this exp wants to reproduce pearl results in humanoid_dir'
@@ -59,7 +62,7 @@ def experiment(variant, resume):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        use_explorer=False,  # use the sequential encoder meaning using the new agent
+        explorer=explorer,  # use the sequential encoder meaning using the new agent
         train_tasks=tasks[:-30],
         eval_tasks=tasks[-30:],
         agent=agent,
