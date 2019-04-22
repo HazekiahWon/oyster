@@ -3,6 +3,7 @@ from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
 def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, task_enc=None):
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
+    is_actor = task_enc is None
     if task_enc is None:
         task_enc = encoder_model(
             hidden_sizes=[200, 200, 200],  # deeper net + higher dim space generalize better
@@ -43,5 +44,5 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         [task_enc, policy, qf1, qf2, vf],
         **variant['algo_params']
     )
-    if task_enc is None: return agent
-    else: return agent, task_enc
+    if is_actor: return agent, task_enc
+    else: return agent

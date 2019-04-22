@@ -244,7 +244,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         # run inference in networks
         q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data, indices)
-        new_actions, policy_mean, policy_log_std, log_pi, pre_tanh_value = policy_outputs[:5]
+        new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
+        pre_tanh_value = policy_outputs[-1]
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
         if self.use_information_bottleneck:
@@ -261,9 +262,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.writer.add_histogram('adv_actor', log_pi - log_pi_target + v_pred, step)
 
         if self.use_explorer:
-            self.explorer.z = task_z.detach()
-            q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc)
-            exp_actions, exp_mean, exp_log_std, exp_log_pi, exp_tanh_value = exp_outputs[:5]
+            task_z = task_z.detach()
+            self.explorer.z = task_z[::self.batch_size]
+            q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc, task_z=task_z)
+            exp_actions, exp_mean, exp_log_std, exp_log_pi = exp_outputs[:4]
+            exp_tanh_value = exp_outputs[-1]
             rewards_exp = -(error1 + error2) * self.exp_error_scale / 2. # small as possible
             rewards_exp = rewards_exp.detach()
             self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,

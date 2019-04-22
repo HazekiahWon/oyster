@@ -158,21 +158,23 @@ class ProtoAgent(nn.Module):
         self.set_z(enc_data, idx)
         return self.infer(obs, actions, next_obs)
 
-    def infer(self, obs, actions, next_obs):
+    def infer(self, obs, actions, next_obs, task_z=None):
         '''
         compute predictions of SAC networks for update
 
         regularize encoder with reward prediction from latent task embedding
-        '''
 
-        task_z = self.z
+        the returned task_z is txb,dim
+        '''
 
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
         actions = actions.view(t * b, -1)
         next_obs = next_obs.view(t * b, -1)
-        task_z = [z.repeat(b, 1) for z in task_z]
-        task_z = torch.cat(task_z, dim=0)
+        if task_z is None:
+            task_z = self.z
+            task_z = [z.repeat(b, 1) for z in task_z]
+            task_z = torch.cat(task_z, dim=0)
 
         # Q and V networks
         # encoder will only get gradients from Q nets
