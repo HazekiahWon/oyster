@@ -195,7 +195,8 @@ class ProtoAgent(nn.Module):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
     def forward(self, obs, actions, next_obs, enc_data, idx):
-        self.set_z(enc_data, idx)
+        # self.set_z(enc_data, idx)
+        self.infer_posterior(enc_data)
         return self.infer(obs, actions, next_obs)
 
     def infer(self, obs, actions, next_obs, task_z=None):
