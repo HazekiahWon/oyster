@@ -56,4 +56,6 @@ Please direct other correspondence to Kate Rakelly: rakelly@eecs.berkeley.edu
 
 `pip install -U 'mujoco-py<1.50.2,>=1.50.1'`
 
-`pip install gtimer tensorboardx gym`
+`pip install gtimer gym`
+
+`conda install -c conda-forge tensorboardx python-dateutil`

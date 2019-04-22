@@ -3,3 +3,4 @@ tensorboard
 click
 joblib
 mpi4py
+dateutil
