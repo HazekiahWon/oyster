@@ -96,13 +96,27 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
+        if not self.use_explorer:
+            self.eval_sampler = InPlacePathSampler(
+                env=env,
+                policy=agent,
+                max_samples=self.num_steps_per_eval,
+                max_path_length=self.max_path_length,
+            )
+        else:
+            self.exp_sampler = InPlacePathSampler(
+                env=env,
+                policy=self.explorer,
+                max_samples=self.num_steps_per_eval,
+                max_path_length=self.max_path_length,
+            )
 
-        self.eval_sampler = InPlacePathSampler(
-            env=env,
-            policy=agent,
-            max_samples=self.num_steps_per_eval,
-            max_path_length=self.max_path_length,
-        )
+            self.eval_sampler = InPlacePathSampler(
+                env=env,
+                policy=self.agent,
+                max_samples=self.num_steps_per_eval,
+                max_path_length=self.max_path_length,
+            )
 
         # separate replay buffers for
         # - training RL update

@@ -81,7 +81,33 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
         return test_paths
 
+        ##### Eval stuff #####
+    def obtain_eval_paths_new(self, idx, eval_task=False, deterministic=False):
+        '''
+        collect paths with explorer
+        if online, task encoding will be updated after each transition
+        otherwise, sample a task encoding once and keep it fixed
+        '''
+        is_online = (self.eval_embedding_source == 'online')
+        self.explorer.clear_z()
+        explore_paths = None
+        if not is_online:  # only using the enc buffer to generate z
+            self.sample_z_from_posterior(self.explorer, idx, eval_task=eval_task)
+            test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
+        else:
+            explore_paths = self.exp_sampler.obtain_samples2(explore=True, deterministic=deterministic, is_online=True)
+            # set z to the agent
+            self.agent.z = self.explorer.z
+            test_paths = self.eval_sampler.obtain_samples2(explore=False, deterministic=deterministic, is_online=False)
+        dprint('task encoding ', self.agent.z)
 
+
+        if self.sparse_rewards:
+            for p in test_paths:
+                p['rewards'] = ptu.sparsify_rewards(p['rewards'])
+        return test_paths, explore_paths
+
+    # not currently used
     # TODO: might be useful to use the logging info in this method for visualization and seeing how episodes progress as
     # stuff gets inferred, especially as we debug online evaluations
     def collect_data_for_embedding_online_with_logging(self, idx, epoch):
@@ -122,6 +148,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.eval_statistics['AverageInferenceReturns_test_task{}'.format(idx)] = average_inference_returns
 
     def collect_paths(self, idx, epoch, eval_task=False):
+        """
+        incorporated the explorer version
+        :param idx:
+        :param epoch:
+        :param eval_task:
+        :return:
+        """
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)
@@ -132,7 +165,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         paths = []
         for _ in range(num_evals):
-            paths += self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
+            if self.use_explorer: # TODO: note that when eval the policies are set deterministic
+                single_evalp = self.obtain_eval_paths_new(idx, eval_task=eval_task, deterministic=True)
+            else: single_evalp = self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
+            paths += single_evalp
         goal = self.env._goal
         for path in paths:
             path['goal'] = goal # goal
