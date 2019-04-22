@@ -291,7 +291,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             logger.log(f'iteration {it_}.')
             # Sample train tasks and compute gradient updates on parameters.
             # modified train steps
-            for train_step in range(1):
+            for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
                 self._do_training(indices)
                 self._n_train_steps_total += 1
