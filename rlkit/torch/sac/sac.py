@@ -342,14 +342,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.use_explorer: ret = ret + self.explorer.networks + [self.explorer]
         return ret
 
-    def get_epoch_snapshot(self, epoch):
-        snapshot = super().get_epoch_snapshot(epoch)
-        snapshot.update(
-            qf1=self.agent.qf1,
-            qf2=self.agent.qf2,
-            policy=self.agent.policy,
-            vf=self.agent.vf,
-            target_vf=self.agent.target_vf,
-            task_enc=self.agent.task_enc,
-        )
-        return snapshot
+    # def get_epoch_snapshot(self, epoch):
+    #     snapshot = OrderedDict(
+    #         qf1=self.qf1.state_dict(),
+    #         qf2=self.qf2.state_dict(),
+    #         policy=self.agent.policy.state_dict(),
+    #         vf=self.vf.state_dict(),
+    #         target_vf=self.target_vf.state_dict(),
+    #         context_encoder=self.agent.context_encoder.state_dict(),
+    #     )
+    #     return snapshot

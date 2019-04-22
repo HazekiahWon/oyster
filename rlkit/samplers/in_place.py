@@ -72,5 +72,8 @@ class InPlacePathSampler(object):
             path = rollout(
                 self.env, policy, max_path_length=self.max_path_length, is_online=is_online)
             paths.append(path)
+            if explore:
+                policy.infer_posterior(policy.context)
+                # policy.sample_z() # only allow the explorer to guess the z
             # n_steps_total += len(path['observations'])
         return paths

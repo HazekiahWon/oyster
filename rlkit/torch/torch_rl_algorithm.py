@@ -88,13 +88,15 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if online, task encoding will be updated after each transition
         otherwise, sample a task encoding once and keep it fixed
         '''
-        is_online = (self.eval_embedding_source == 'online')
+        is_online = self.eval_embedding_source.startswith('online') and eval_task
         self.explorer.clear_z()
         explore_paths = None
         if not is_online:  # only using the enc buffer to generate z
             self.sample_z_from_posterior(self.explorer, idx, eval_task=eval_task)
+            self.agent.z = self.explorer.z
             test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
         else:
+            # have clear z of explorer
             explore_paths = self.exp_sampler.obtain_samples2(explore=True, deterministic=deterministic, is_online=True)
             # set z to the agent
             self.agent.z = self.explorer.z
@@ -166,7 +168,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         paths = []
         for _ in range(num_evals):
             if self.use_explorer: # TODO: note that when eval the policies are set deterministic
-                single_evalp = self.obtain_eval_paths_new(idx, eval_task=eval_task, deterministic=True)
+                single_evalp,_ = self.obtain_eval_paths_new(idx, eval_task=eval_task, deterministic=True)
             else: single_evalp = self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
             paths += single_evalp
         goal = self.env._goal

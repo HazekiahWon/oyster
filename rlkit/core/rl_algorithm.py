@@ -39,7 +39,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             reward_scale=1,
             exp_err_scale=10,
             train_embedding_source='posterior_only',
-            eval_embedding_source='initial_pool',
+            eval_embedding_source='online',
             eval_deterministic=True,
             render=False,
             save_replay_buffer=False,
@@ -74,7 +74,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         self.env = env
         self.agent = agent
-        self.exploration_policy = agent # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
+        # self.exploration_policy = agent # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
         self.meta_batch = meta_batch
@@ -290,14 +290,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
             logger.log(f'iteration {it_}.')
             # Sample train tasks and compute gradient updates on parameters.
-            for train_step in range(self.num_train_steps_per_itr):
+            # modified train steps
+            for train_step in range(1):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
                 self._do_training(indices)
                 self._n_train_steps_total += 1
             gt.stamp('train')
 
             #self.training_mode(False)
-
             # eval
             trn_ret,tst_ret = self._try_to_eval(it_)
             self.writer.add_scalar('eval_trn_return', trn_ret, it_)
@@ -460,7 +460,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             trn_ret, tst_ret = self.evaluate(epoch)
 
             params = self.get_epoch_snapshot(epoch)
-            logger.save_itr_params(epoch, params)
+            logger.save_itr_params(epoch, params) #save params
             table_keys = logger.get_table_key_set()
             if self._old_table_keys is not None:
                 assert table_keys == self._old_table_keys, (
@@ -652,7 +652,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def get_epoch_snapshot(self, epoch):
         data_to_save = dict(
             epoch=epoch,
-            exploration_policy=self.exploration_policy,
+            actor=self.agent,
+            explorer=self.explorer,
+            # exploration_policy=self.exploration_policy,
         )
         if self.save_environment:
             data_to_save['env'] = self.training_env

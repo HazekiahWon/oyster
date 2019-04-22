@@ -59,12 +59,24 @@ class ProtoAgent(nn.Module):
             self.z_dists = [torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim))]
 
     def clear_z(self, num_tasks=1):
+        # if self.use_ib:
+        #     self.z_dists = [torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim)) for _ in range(num_tasks)]
+        #     z = [d.rsample() for d in self.z_dists]
+        #     self.z = torch.stack(z)
+        # else:
+        #     self.z = self.z.new_full((num_tasks, self.z_dim), 0)
+        # self.z_dim = None
+        mu = ptu.zeros(num_tasks, self.z_dim)
         if self.use_ib:
-            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim)) for _ in range(num_tasks)]
-            z = [d.rsample() for d in self.z_dists]
-            self.z = torch.stack(z)
+            var = ptu.ones(num_tasks, self.z_dim)
         else:
-            self.z = self.z.new_full((num_tasks, self.z_dim), 0)
+            var = ptu.zeros(num_tasks, self.z_dim)
+        self.z_means = mu
+        self.z_vars = var
+        # sample a new z from the prior
+        self.sample_z()
+        # reset the context collected so far
+        self.context = None
         self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
 
     def detach_z(self):
@@ -79,12 +91,39 @@ class ProtoAgent(nn.Module):
         if self.sparse_rewards:
             r = ptu.sparsify_rewards(r)
         o = ptu.from_numpy(o[None, None, ...])
-        a = ptu.from_numpy(o[None, None, ...])
+        a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])
         # TODO: we can make this a bit more efficient by simply storing the natural params of the current posterior and add the new sample to update
         # then in the info bottleneck, we compute the the normal after computing the mean/variance from the natural params stored
         data = torch.cat([o, a, r], dim=2)
-        self.update_z(data)
+        if self.context is None:
+            self.context = data
+        else: self.context = torch.cat([self.context, data], dim=1)
+        # self.update_z(data)
+
+    def infer_posterior(self, context):
+        ''' compute q(z|c) as a function of input context and sample new z from it'''
+        params = self.task_enc(context)
+        params = params.view(context.size(0), -1, self.task_enc.output_size)
+        # with probabilistic z, predict mean and variance of q(z | c)
+        if self.use_ib:
+            mu = params[..., :self.z_dim]
+            sigma_squared = F.softplus(params[..., self.z_dim:])
+            z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
+            self.z_means = torch.stack([p[0] for p in z_params])
+            self.z_vars = torch.stack([p[1] for p in z_params])
+        # sum rather than product of gaussians structure
+        else:
+            self.z_means = torch.mean(params, dim=1)
+        self.sample_z()
+
+    def sample_z(self):
+        if self.use_ib:
+            posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
+            z = [d.rsample() for d in posteriors]
+            self.z = torch.stack(z)
+        else:
+            self.z = self.z_means
 
     def information_bottleneck(self, z):
         # assume input and output to be task x batch x feat
@@ -106,6 +145,7 @@ class ProtoAgent(nn.Module):
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
 
+    # TODO replace all usage of this to infer posterior
     def set_z(self, in_, idx):
         ''' compute latent task embedding only from this input data '''
         new_z = self.task_enc(in_)
@@ -116,30 +156,30 @@ class ProtoAgent(nn.Module):
             new_z = torch.mean(new_z, dim=1)
         self.z = new_z
 
-
-    def update_z(self, in_):
-        '''
-        update current task embedding
-         - by running mean for prototypical encoder
-         - by updating hidden state for recurrent encoder
-        '''
-        z = self.z
-        num_z = self.num_z
-
-        # TODO this only works for single task (t == 1)
-        new_z = self.task_enc(in_)
-        if new_z.size(0) != 1:
-            raise Exception('incremental update for more than 1 task not supported')
-        if self.recurrent:
-            z = new_z
-        else:
-            new_z = new_z[0] # batch x feat
-            num_updates = new_z.size(0)
-            for i in range(num_updates):
-                num_z += 1
-                z += (new_z[i][None] - z) / num_z
-        if self.use_ib:
-            z = self.information_bottleneck(z)
+# not used
+    # def update_z(self, in_):
+    #     '''
+    #     update current task embedding
+    #      - by running mean for prototypical encoder
+    #      - by updating hidden state for recurrent encoder
+    #     '''
+    #     z = self.z
+    #     num_z = self.num_z
+    #
+    #     # TODO this only works for single task (t == 1)
+    #     new_z = self.task_enc(in_)
+    #     if new_z.size(0) != 1:
+    #         raise Exception('incremental update for more than 1 task not supported')
+    #     if self.recurrent:
+    #         z = new_z
+    #     else:
+    #         new_z = new_z[0] # batch x feat
+    #         num_updates = new_z.size(0)
+    #         for i in range(num_updates):
+    #             num_z += 1
+    #             z += (new_z[i][None] - z) / num_z
+    #     if self.use_ib:
+    #         z = self.information_bottleneck(z)
 
     def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
