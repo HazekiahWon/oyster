@@ -47,6 +47,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         super().__init__(
             env=env,
             agent=agent, # take only the agent, as self.policy, self.exploration_policy
+            explorer=explorer,
             train_tasks=train_tasks,
             eval_tasks=eval_tasks,
             **kwargs
@@ -71,11 +72,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
 
-        ### added
-        self.use_explorer = explorer is not None
-        self.explorer = agent
-        ####################################
-
         # TODO consolidate optimizers!
         self.policy_optimizer = optimizer_class(
             self.agent.policy.parameters(),
@@ -97,11 +93,27 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.agent.task_enc.parameters(),
             lr=context_lr,
         )
-
+        # if self.use_explorer:
+        #     self.explorer_optimizer = optimizer_class(
+        #         self.explorer.parameters(),
+        #         lr=explorer_lr,
+        #     )
         if self.use_explorer:
-            self.explorer_optimizer = optimizer_class(
-                self.agent.explorer.parameters(),
-                lr=explorer_lr,
+            self.exp_optimizer = optimizer_class(
+                self.explorer.policy.parameters(),
+                lr=policy_lr,
+            )
+            self.qf1exp_optimizer = optimizer_class(
+                self.explorer.qf1.parameters(),
+                lr=qf_lr,
+            )
+            self.qf2exp_optimizer = optimizer_class(
+                self.explorer.qf2.parameters(),
+                lr=qf_lr,
+            )
+            self.vfexp_optimizer = optimizer_class(
+                self.explorer.vf.parameters(),
+                lr=vf_lr,
             )
 
 
@@ -147,30 +159,92 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         batch = self.sample_data(indices, encoder=True)
 
         # zero out context and hidden encoder state
-        self.agent.clear_z(num_tasks=len(indices))
+        if self.use_explorer: self.explorer.clear_z(num_tasks=len(indices))
+        else: self.agent.clear_z(num_tasks=len(indices))
 
         for i in range(num_updates):
             # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
-            obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            obs_enc, act_enc, rewards_enc, nobs_enc, _ = mini_batch
+            if not self.use_explorer: nobs_enc = None
+            self._take_step(indices, obs_enc, act_enc, rewards_enc, nobs_enc)
 
             # stop backprop
             self.agent.detach_z()
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+    def optimize_q(self, qf1_optimizer, qf2_optimizer, rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred):
+        # qf and encoder update (note encoder does not get grads from policy or vf)
+        qf1_optimizer.zero_grad()
+        qf2_optimizer.zero_grad()
+        rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
+        # scale rewards for Bellman update
+        rewards_flat = rewards_flat * self.reward_scale
+        terms_flat = terms.view(self.batch_size * num_tasks, -1)
+        q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
+        error1 = (q1_pred - q_target) ** 2
+        error2 = (q2_pred - q_target) ** 2
+        qf_loss = torch.mean(error1) + torch.mean(error2)
+        qf_loss.backward()
+        # self.writer.add_scalar('qf', qf_loss, step)
+        qf1_optimizer.step()
+        qf2_optimizer.step()
+        return error1,error2,qf_loss
+        # context_optimizer.step()
+
+    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, new_actions, task_z, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value):
+        # compute min Q on the new actions
+        min_q_new_actions = self.agent.min_q(obs, new_actions, task_z)
+
+        # vf update
+        v_target = min_q_new_actions - log_pi
+        vf_loss = self.vf_criterion(v_pred, v_target.detach())
+        vf_optimizer.zero_grad()
+        vf_loss.backward()
+        # self.writer.add_scalar('vf', vf_loss, step)
+        vf_optimizer.step()
+        agent._update_target_network()
+
+        # policy update
+        # n.b. policy update includes dQ/da
+        log_policy_target = min_q_new_actions
+
+        if self.reparameterize:
+            policy_loss = (
+                    log_pi - log_policy_target + v_pred.detach()  # to make it around 0
+            ).mean()
+        else:
+            policy_loss = (
+                    log_pi * (log_pi - log_policy_target + v_pred).detach()
+            ).mean()
+
+        mean_reg_loss = self.policy_mean_reg_weight * (policy_mean ** 2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (policy_log_std ** 2).mean()
+        # pre_tanh_value = policy_outputs[-1]
+        pre_activation_reg_loss = self.policy_pre_activation_weight * (
+            (pre_tanh_value ** 2).sum(dim=1).mean()
+        )
+        policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
+        policy_loss = policy_loss + policy_reg_loss
+
+        # if self.use_explorer:
+        #     self.explorer_optimizer.zero_grad()
+        policy_optimizer.zero_grad()
+        policy_loss.backward()
+        policy_optimizer.step()
+        return log_policy_target, vf_loss, policy_loss
+
+    def _take_step(self, indices, obs_enc, act_enc, rewards_exp, nobs_enc):
         global step
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
-        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
+        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_exp)
 
         # run inference in networks
         q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data, indices)
-        new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
-
+        new_actions, policy_mean, policy_log_std, log_pi, pre_tanh_value = policy_outputs[:5]
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
         if self.use_information_bottleneck:
@@ -179,61 +253,27 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             kl_loss.backward(retain_graph=True)
 
         # qf and encoder update (note encoder does not get grads from policy or vf)
-        self.qf1_optimizer.zero_grad()
-        self.qf2_optimizer.zero_grad()
-        rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
-        # scale rewards for Bellman update
-        rewards_flat = rewards_flat * self.reward_scale
-        terms_flat = terms.view(self.batch_size * num_tasks, -1)
-        q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
-        qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
-        qf_loss.backward()
-        # self.writer.add_scalar('qf', qf_loss, step)
-        self.qf1_optimizer.step()
-        self.qf2_optimizer.step()
+        error1,error2,qf_loss = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
+                        rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred)
         self.context_optimizer.step()
-
-        # compute min Q on the new actions
-        min_q_new_actions = self.agent.min_q(obs, new_actions, task_z)
-
-        # vf update
-        v_target = min_q_new_actions - log_pi
-        vf_loss = self.vf_criterion(v_pred, v_target.detach())
-        self.vf_optimizer.zero_grad()
-        vf_loss.backward()
-        # self.writer.add_scalar('vf', vf_loss, step)
-        self.vf_optimizer.step()
-        self.agent._update_target_network()
-
-        # policy update
-        # n.b. policy update includes dQ/da
-        log_policy_target = min_q_new_actions
-
-        if self.reparameterize:
-            policy_loss = (
-                    log_pi - log_policy_target + v_pred.detach() # to make it around 0
-            ).mean()
-        else:
-            policy_loss = (
-                log_pi * (log_pi - log_policy_target + v_pred).detach()
-            ).mean()
-
-        mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
-        std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
-        pre_tanh_value = policy_outputs[-1]
-        pre_activation_reg_loss = self.policy_pre_activation_weight * (
-            (pre_tanh_value**2).sum(dim=1).mean()
-        )
-        policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
-        policy_loss = policy_loss + policy_reg_loss
+        log_pi_target,vf_loss, policy_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
+                        obs, new_actions, task_z, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value)
+        self.writer.add_histogram('adv_actor', log_pi - log_pi_target + v_pred, step)
 
         if self.use_explorer:
-            self.explorer_optimizer.zero_grad()
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        self.policy_optimizer.step()
-        if self.use_explorer:
-            self.explorer_optimizer.step()
+            self.explorer.z = task_z.detach()
+            q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc)
+            exp_actions, exp_mean, exp_log_std, exp_log_pi, exp_tanh_value = exp_outputs[:5]
+            rewards_exp = -(error1 + error2) * self.exp_error_scale / 2. # small as possible
+            rewards_exp = rewards_exp.detach()
+            self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
+                            rewards_exp, num_tasks, terms, target_v_exp, q1_exp, q2_exp)
+            exp_logp_target,_,_ = self.optimize_p(self.vfexp_optimizer, self.agent, self.exp_optimizer,
+                            obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value)
+            self.writer.add_histogram('exp_actor', exp_log_pi - exp_logp_target + v_exp, step)
+
+        # if self.use_explorer:
+        #     self.explorer_optimizer.step()
 
         # self.writer.add_scalar('actor', policy_loss, step)
         # self.writer.add_histogram('logp', log_pi, step)
@@ -295,7 +335,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
     @property
     def networks(self):
-        return self.agent.networks + [self.agent]
+        ret = self.agent.networks + [self.agent]
+        if self.use_explorer: ret = ret + self.explorer.networks + [self.explorer]
+        return ret
 
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)

@@ -46,22 +46,25 @@ def experiment(variant, resume):
     recurrent = variant['algo_params']['recurrent']
 
     memo = ''
+    explorer = None
     if resume and resume_dir is not None:
         ret = joblib.load(resume_dir)
         agent = ret['exploration_policy']
         memo += f'this exp resumes {resume_dir}\n'
     else:
-        agent = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant)
+        # share the task enc with these two agents
+        agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, task_enc=None)
+        explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, task_enc=task_enc)
 
     memo += '[ant_goal] this exp wants to reproduce pearl results\n'
 
     variant['algo_params']['memo'] = memo
-
+    # modified train tasks eval tasks
     algorithm = ProtoSoftActorCritic(
         env=env,
-        explorer=None,  # use the sequential encoder meaning using the new agent
-        train_tasks=tasks[:-30],
-        eval_tasks=tasks[-30:],
+        explorer=explorer,  # use the sequential encoder meaning using the new agent
+        train_tasks=tasks[:],
+        eval_tasks=tasks[:],
         agent=agent,
         latent_dim=z_dim,
         **variant['algo_params']
@@ -79,14 +82,15 @@ def experiment(variant, resume):
 def main(gpu, resume, docker):
     max_path_length = 200
     # noinspection PyTypeChecker
+    # modified ntasks, meta-batch
     variant = dict(
         task_params=dict(
-            n_tasks=180, # 20 works pretty well
+            n_tasks=8, # 20 works pretty well
             randomize_tasks=True,
             low_gear=False,
         ),
         algo_params=dict(
-            meta_batch=10,
+            meta_batch=5,
             num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,

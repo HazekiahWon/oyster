@@ -22,6 +22,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             agent,
             train_tasks,
             eval_tasks,
+            explorer=None,
             meta_batch=64,
             num_iterations=100,
             num_train_steps_per_itr=1000,
@@ -36,6 +37,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             discount=0.99,
             replay_buffer_size=10000,
             reward_scale=1,
+            exp_err_scale=10,
             train_embedding_source='posterior_only',
             eval_embedding_source='initial_pool',
             eval_deterministic=True,
@@ -89,6 +91,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
         self.reward_scale = reward_scale
+        self.exp_error_scale = exp_err_scale
         self.train_embedding_source = train_embedding_source
         self.eval_embedding_source = eval_embedding_source # TODO: add options for computing embeddings on train tasks too
         self.eval_deterministic = eval_deterministic
@@ -96,7 +99,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
+        self.use_explorer = explorer is not None
         if not self.use_explorer:
+            self.explorer = agent
             self.eval_sampler = InPlacePathSampler(
                 env=env,
                 policy=agent,
@@ -104,6 +109,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 max_path_length=self.max_path_length,
             )
         else:
+            self.explorer = explorer
             self.exp_sampler = InPlacePathSampler(
                 env=env,
                 policy=self.explorer,
