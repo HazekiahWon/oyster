@@ -2,6 +2,7 @@ import abc
 import time
 
 import gtimer as gt
+import torch
 import numpy as np
 
 from rlkit.core import logger
@@ -45,6 +46,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=False,
+            gamma_dim=None,
             **kwargs
     ):
         """
@@ -100,6 +102,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
         self.use_explorer = explorer is not None
+        self.gamma_dim = gamma_dim
         if not self.use_explorer:
             self.explorer = agent
             self.eval_sampler = InPlacePathSampler(
@@ -173,6 +176,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         else:
             idx = np.random.randint(len(self.train_tasks))
         return idx
+
+    # @staticmethod
+    def make_onehot(self, indices):
+        labels = indices.reshape((-1,1))
+        one_hot = torch.cuda.FloatTensor(labels.shape[0], self.gamma_dim).zero_()
+        target = one_hot.scatter_(1, torch.cuda.LongTensor(labels), 1)
+        return target
 
     def train(self):
         '''
@@ -293,7 +303,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # modified train steps
             for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
-                self._do_training(indices)
+                gammas = self.make_onehot(indices)
+                self._do_training(indices, gammas)
                 self._n_train_steps_total += 1
             gt.stamp('train')
 

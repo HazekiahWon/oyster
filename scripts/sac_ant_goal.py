@@ -17,7 +17,8 @@ exp_id = 'ant-goal'
 exp_d = 'pearl-190417-112013'
 resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
 debug = True
-use_explorer = False
+use_explorer = True
+use_ae = use_explorer and True
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -43,6 +44,8 @@ def experiment(variant, resume):
     task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
 
+    gamma_dim = len(tasks) if use_ae else None
+
     net_size = variant['net_size']
     # start with linear task encoding
     recurrent = variant['algo_params']['recurrent']
@@ -55,7 +58,7 @@ def experiment(variant, resume):
         memo += f'this exp resumes {resume_dir}\n'
     else:
         # share the task enc with these two agents
-        agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, task_enc=None)
+        agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim)
         explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, task_enc=task_enc)
 
     memo += '[ant_goal] this exp wants to reproduce pearl results\n'
@@ -69,6 +72,7 @@ def experiment(variant, resume):
         eval_tasks=tasks[:] if debug else tasks[-30:],
         agent=agent,
         latent_dim=z_dim,
+        gamma_dim=gamma_dim,
         **variant['algo_params']
     )
 

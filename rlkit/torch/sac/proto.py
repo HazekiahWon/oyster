@@ -34,11 +34,16 @@ class ProtoAgent(nn.Module):
     def __init__(self,
                  z_dim,
                  nets,
+                 use_ae=False,
                  **kwargs
                  ):
         super().__init__()
         self.z_dim = z_dim
-        self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets
+        self.use_ae = use_ae
+        if not self.use_ae:
+            self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets
+        else:
+            self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.gt_enc, self.gt_dec = nets
         self.target_vf = self.vf.copy()
         self.recurrent = kwargs['recurrent']
         self.reparam = kwargs['reparameterize']
@@ -83,6 +88,22 @@ class ProtoAgent(nn.Module):
         self.z = self.z.detach()
         if self.recurrent:
             self.task_enc.hidden = self.task_enc.hidden.detach()
+
+    def infer_gt_z(self, gammas):
+        """
+
+        :param gammas: mb,dim
+        :return: mb,z_dim
+        """
+        return self.gt_enc(gammas) #
+
+    def rec_gt_gamma(self, zs):
+        """
+
+        :param zs: mb,z_dim
+        :return: mb,dim
+        """
+        return self.gt_dec(zs)
 
     def update_context(self, inputs):
         ''' update task embedding with a single transition '''
@@ -139,8 +160,10 @@ class ProtoAgent(nn.Module):
         z = torch.stack(z)
         return z
 
-    def compute_kl_div(self):
-        prior = torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim))
+    def compute_kl_div(self, mean=None):
+        if mean is None:
+            mean = ptu.zeros(self.z_dim)
+        prior = torch.distributions.Normal(mean, ptu.ones(self.z_dim))
         kl_divs = [torch.distributions.kl.kl_divergence(z_dist, prior) for z_dist in self.z_dists]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum

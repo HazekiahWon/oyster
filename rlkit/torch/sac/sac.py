@@ -63,14 +63,17 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.latent_dim = latent_dim
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
-        self.vib_criterion = nn.MSELoss()
+        self.criterion = nn.MSELoss()
         self.l2_reg_criterion = nn.MSELoss()
+
         self.eval_statistics = None
         self.kl_lambda = kl_lambda
 
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
+
+        self.use_ae = self.agent.use_ae
 
         # TODO consolidate optimizers!
         self.policy_optimizer = optimizer_class(
@@ -115,6 +118,15 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.explorer.vf.parameters(),
                 lr=vf_lr,
             )
+            if self.use_ae:
+                self.enc_optimizer = optimizer_class(
+                self.agent.gt_enc.parameters(),
+                lr=context_lr,
+                )
+                self.dec_optimizer = optimizer_class(
+                    self.agent.gt_dec.parameters(),
+                    lr=context_lr,
+                )
 
 
     def sample_data(self, indices, encoder=False):
@@ -152,25 +164,26 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
-    def _do_training(self, indices):
+    def _do_training(self, indices, gammas=None):
         mb_size = self.embedding_mini_batch_size
         num_updates = self.embedding_batch_size // mb_size
 
         batch = self.sample_data(indices, encoder=True)
 
         # zero out context and hidden encoder state
+        self.agent.clear_z(num_tasks=len(indices))
         if self.use_explorer: self.explorer.clear_z(num_tasks=len(indices))
-        else: self.agent.clear_z(num_tasks=len(indices))
 
         for i in range(num_updates):
             # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, nobs_enc, _ = mini_batch
             if not self.use_explorer: nobs_enc = None
-            self._take_step(indices, obs_enc, act_enc, rewards_enc, nobs_enc)
+            self._take_step(indices, obs_enc, act_enc, rewards_enc, nobs_enc, gammas)
 
             # stop backprop
             self.agent.detach_z()
+            if self.use_explorer: self.explorer.detach_z()
 
     def optimize_q(self, qf1_optimizer, qf2_optimizer, rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred):
         # qf and encoder update (note encoder does not get grads from policy or vf)
@@ -234,7 +247,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         policy_optimizer.step()
         return log_policy_target, vf_loss, policy_loss
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_exp, nobs_enc):
+    def _take_step(self, indices, obs_enc, act_enc, rewards_exp, nobs_enc, gammas=None):
         global step
 
         num_tasks = len(indices)
@@ -248,22 +261,40 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
         pre_tanh_value = policy_outputs[-1]
         # KL constraint on z if probabilistic
+
         self.context_optimizer.zero_grad()
-        if self.use_information_bottleneck:
-            kl_div = self.agent.compute_kl_div()
-            kl_loss = self.kl_lambda * kl_div
-            kl_loss.backward(retain_graph=True)
+        # if self.use_information_bottleneck:
+        gt_z = None
+        kl_loss = None
+
+        if self.use_ae:
+            self.enc_optimizer.zero_grad()
+            self.dec_optimizer.zero_grad()
+            gt_z = self.agent.infer_gt_z(gammas)
+            rec_gam = self.agent.rec_gt_gamma(gt_z)
+            rec_loss = self.criterion(rec_gam, gammas)
+            kl_loss = rec_loss
+            self.writer.add_scalar('ae_rec_loss', rec_loss, step)
+        kl_div = self.agent.compute_kl_div(gt_z)
+        self.writer.add_scalar('vae_kl', kl_div, step)
+        if kl_loss is None: kl_loss = self.kl_lambda * kl_div
+        else: kl_loss += self.kl_lambda * kl_div
+        kl_loss.backward() # note that i remove retain-graph
 
         # qf and encoder update (note encoder does not get grads from policy or vf)
         error1,error2,qf_loss = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
                         rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred)
         self.context_optimizer.step()
+        if self.use_ae:
+            self.enc_optimizer.step()
+            self.dec_optimizer.step()
+
         log_pi_target,vf_loss, policy_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
                         obs, new_actions, task_z, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value)
         # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
-        # self.writer.add_histogram('logp',log_pi, step)
-        # self.writer.add_scalar('qf', qf_loss, step)
-        # self.writer.add_scalar('vf',vf_loss, step)
+        self.writer.add_histogram('logp',log_pi, step)
+        self.writer.add_scalar('qf', qf_loss, step)
+        self.writer.add_scalar('vf',vf_loss, step)
         if self.use_explorer:
             task_z = task_z.detach()
             self.explorer.z = task_z[::self.batch_size]
