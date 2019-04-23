@@ -16,6 +16,7 @@ resume = False
 exp_id = 'ant-goal'
 exp_d = 'pearl-190417-112013'
 resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
+debug = False
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -63,8 +64,8 @@ def experiment(variant, resume):
     algorithm = ProtoSoftActorCritic(
         env=env,
         explorer=explorer,  # use the sequential encoder meaning using the new agent
-        train_tasks=tasks[:-30],
-        eval_tasks=tasks[-30:],
+        train_tasks=tasks[:] if debug else tasks[:-30],
+        eval_tasks=tasks[:] if debug else tasks[-30:],
         agent=agent,
         latent_dim=z_dim,
         **variant['algo_params']
@@ -85,12 +86,12 @@ def main(gpu, resume, docker):
     # modified ntasks, meta-batch
     variant = dict(
         task_params=dict(
-            n_tasks=180, # 20 works pretty well
+            n_tasks=8 if debug else 180, # 20 works pretty well
             randomize_tasks=True,
             low_gear=False,
         ),
         algo_params=dict(
-            meta_batch=8,
+            meta_batch=5 if debug else 8,
             num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,

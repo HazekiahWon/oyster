@@ -191,12 +191,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         return error1,error2,qf_loss
         # context_optimizer.step()
 
-    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, new_actions, task_z, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value):
+    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, new_actions, task_z, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value, alpha=1):
         # compute min Q on the new actions
         min_q_new_actions = self.agent.min_q(obs, new_actions, task_z)
 
         # vf update
-        v_target = min_q_new_actions - log_pi
+        v_target = min_q_new_actions - log_pi*alpha
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         vf_optimizer.zero_grad()
         vf_loss.backward()
@@ -269,12 +269,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc, task_z=task_z)
             exp_actions, exp_mean, exp_log_std, exp_log_pi = exp_outputs[:4]
             exp_tanh_value = exp_outputs[-1]
-            rewards_exp = -(error1 + error2) * self.exp_error_scale / 2. # small as possible
+            rewards_exp = -torch.abs(error1 + error2) * self.exp_error_scale / 2. # small as possible
             rewards_exp = rewards_exp.detach()
             _,_,qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
                             rewards_exp, num_tasks, terms, target_v_exp, q1_exp, q2_exp)
             exp_logp_target,vf_exp,exp_loss = self.optimize_p(self.vfexp_optimizer, self.agent, self.exp_optimizer,
-                            obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value)
+                            obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value, alpha=100)
             if step%20==0:
                 self.writer.add_histogram('exp_adv', exp_log_pi - exp_logp_target + v_exp, step)
                 self.writer.add_histogram('logp_exp', exp_log_pi,step)
