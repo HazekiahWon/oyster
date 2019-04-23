@@ -181,9 +181,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         rewards_flat = rewards_flat * self.reward_scale
         terms_flat = terms.view(self.batch_size * num_tasks, -1)
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
-        error1 = (q1_pred - q_target) ** 2
-        error2 = (q2_pred - q_target) ** 2
-        qf_loss = torch.mean(error1) + torch.mean(error2)
+        error1 = (q1_pred - q_target)
+        error2 = (q2_pred - q_target)
+        qf_loss = torch.mean(error1**2) + torch.mean(error2**2)
         qf_loss.backward()
         # self.writer.add_scalar('qf', qf_loss, step)
         qf1_optimizer.step()
@@ -259,8 +259,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.context_optimizer.step()
         log_pi_target,vf_loss, policy_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
                         obs, new_actions, task_z, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value)
-        self.writer.add_histogram('adv_actor', log_pi - log_pi_target + v_pred, step)
-
+        # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
+        # self.writer.add_histogram('logp',log_pi, step)
+        # self.writer.add_scalar('qf', qf_loss, step)
+        # self.writer.add_scalar('vf',vf_loss, step)
         if self.use_explorer:
             task_z = task_z.detach()
             self.explorer.z = task_z[::self.batch_size]
@@ -269,11 +271,14 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             exp_tanh_value = exp_outputs[-1]
             rewards_exp = -(error1 + error2) * self.exp_error_scale / 2. # small as possible
             rewards_exp = rewards_exp.detach()
-            self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
+            _,_,qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
                             rewards_exp, num_tasks, terms, target_v_exp, q1_exp, q2_exp)
-            exp_logp_target,_,_ = self.optimize_p(self.vfexp_optimizer, self.agent, self.exp_optimizer,
+            exp_logp_target,vf_exp,exp_loss = self.optimize_p(self.vfexp_optimizer, self.agent, self.exp_optimizer,
                             obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value)
-            self.writer.add_histogram('exp_actor', exp_log_pi - exp_logp_target + v_exp, step)
+            # self.writer.add_histogram('exp_adv', exp_log_pi - exp_logp_target + v_exp, step)
+            self.writer.add_histogram('logp_exp', exp_log_pi,step)
+            # self.writer.add_scalar('qf_exp', qf_exp,step)
+            self.writer.add_scalar('vf_exp', vf_exp,step)
 
         # if self.use_explorer:
         #     self.explorer_optimizer.step()
