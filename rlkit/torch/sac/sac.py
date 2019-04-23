@@ -275,9 +275,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                             rewards_exp, num_tasks, terms, target_v_exp, q1_exp, q2_exp)
             exp_logp_target,vf_exp,exp_loss = self.optimize_p(self.vfexp_optimizer, self.agent, self.exp_optimizer,
                             obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value)
-            # self.writer.add_histogram('exp_adv', exp_log_pi - exp_logp_target + v_exp, step)
-            self.writer.add_histogram('logp_exp', exp_log_pi,step)
-            # self.writer.add_scalar('qf_exp', qf_exp,step)
+            if step%20==0:
+                self.writer.add_histogram('exp_adv', exp_log_pi - exp_logp_target + v_exp, step)
+                self.writer.add_histogram('logp_exp', exp_log_pi,step)
+            self.writer.add_scalar('qf_exp', qf_exp,step)
             self.writer.add_scalar('vf_exp', vf_exp,step)
 
         # if self.use_explorer:
