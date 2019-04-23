@@ -16,7 +16,8 @@ resume = False
 exp_id = 'ant-goal'
 exp_d = 'pearl-190417-112013'
 resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
-debug = False
+debug = True
+use_explorer = False
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -63,7 +64,7 @@ def experiment(variant, resume):
     # modified train tasks eval tasks
     algorithm = ProtoSoftActorCritic(
         env=env,
-        explorer=explorer,  # use the sequential encoder meaning using the new agent
+        explorer=explorer if use_explorer else None,  # use the sequential encoder meaning using the new agent
         train_tasks=tasks[:] if debug else tasks[:-30],
         eval_tasks=tasks[:] if debug else tasks[-30:],
         agent=agent,

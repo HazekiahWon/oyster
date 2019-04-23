@@ -228,6 +228,60 @@ class Attn(nn.Module):
             energy = self.other.dot(energy)
             return energy
 
+class FAUCore:
+    @staticmethod
+    def v2l(key_feature, func):
+        """
+        visible to latent
+        :param key_feature: mb,1,c
+        :param func: transform k to d dim, mb,1,c => mb,1,d
+        :return: mb,d,c
+        """
+        B, _,_ = key_feature.shape
+        graph_adj_v2l = func(key_feature)  # mb,1,d
+        latent_nodes = torch.bmm(graph_adj_v2l.reshape((B,-1,1)),key_feature) # mb,d,c
+
+        return latent_nodes
+    @staticmethod
+    def l2l( a, b):
+        """
+
+        :param a: be the values exactly
+        :param b:
+        :return:
+        """
+        a_normalized = F.normalize(a, dim=-1) # mb,d,c
+        b_normalized = F.normalize(b, dim=-1) # mb,d,c
+        # Step2: latent-to-latent message passing
+        ###### afm=ln \dot ln: d c . c d - d d
+        ###### ln =afm \dot ln: d d . d c - d c => bt,d,c => b, td, c =>
+        affinity_matrix = torch.bmm(a_normalized,
+                                    b_normalized.permute(0, 2, 1))  # mb,d,d
+        # import pdb; pdb.set_trace()
+        affinity_matrix = F.softmax(affinity_matrix, dim=-1)
+        # latent_nodes = torch.bmm(affinity_matrix/self.latent_dim, latent_nodes)
+        a = torch.bmm(affinity_matrix, a)  # d,c
+
+        return a
+    @staticmethod
+    def l2v(query_feature, latent_nodes, func):
+        """
+        latent to visible
+        :param query_feature: b,c,h,w
+        :param latent_nodes: b,d,c
+        :param func: transform q to d dim, b,c,hw => b,d,hw
+        :return: b,c,h,w
+        """
+        # Step3: latent-to-visible message passing
+        ###### gal=aff(q): c h w - d h w - d hw
+        ###### vn =ln \dot gal: c d . d hw - c hw - c h w
+        graph_adj_l2v = func(query_feature)  # mb,1,d
+        B, _, _ = query_feature.shape
+        graph_adj_l2v = F.normalize(graph_adj_l2v.view(B, 1, -1), dim=-1)  # mb,1,d
+
+        visible_nodes = torch.bmm(graph_adj_l2v, latent_nodes) # mb,1,c
+        return visible_nodes
+
 class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
     """
     Usage:
@@ -274,6 +328,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             z_nlayer=2,
             eta_nlayer=2,
             num_expz=None,
+            atn_type='low-rank',
             std=None,
 
             **kwargs
@@ -294,6 +349,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         # self.init_w = init_w
         self.last_fc = self.construct_fc(anet_sizes[-1], action_dim)
         self.use_atn = eta_nlayer is None
+        self.lrank = atn_type == 'low-rank'
         if std is None:
             # last_hidden_size = latent_dim
             # if len(hidden_sizes) > 0:
@@ -326,19 +382,35 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             self.eta_fc = nn.ModuleList(eta_fc)
             # self.use_atn = False
         else:
-            # should be the same as the embedded observation
-            z_fc = [self.construct_hidden(z_dim, obs_emb_dim)]
-            for i in range(z_nlayer):
-                z_fc.append(self.construct_hidden(obs_emb_dim, obs_emb_dim))
-            # specify the action network's net sizes
-            self.z_fc = nn.ModuleList(z_fc)
-            self.wsw = nn.Sequential(nn.Linear(obs_emb_dim, num_expz),
-                                     # nn.BatchNorm1d(num_expz), # cannnot batch norm when batch=1
-                                     nn.ReLU()
-                                     )
-            # self.bn = nn.BatchNorm1d(num_expz)
+            if atn_type!='low-rank':
+                # should be the same as the embedded observation
+                z_fc = [self.construct_hidden(z_dim, obs_emb_dim)]
+                for i in range(z_nlayer):
+                    z_fc.append(self.construct_hidden(obs_emb_dim, obs_emb_dim))
+                # specify the action network's net sizes
+                self.z_fc = nn.ModuleList(z_fc)
+                self.wsw = nn.Sequential(nn.Linear(obs_emb_dim, num_expz),
+                                         # nn.BatchNorm1d(num_expz), # cannnot batch norm when batch=1
+                                         nn.ReLU()
+                                         )
+                # self.bn = nn.BatchNorm1d(num_expz)
 
-            self.atn = Attn('general', hidden_size=obs_emb_dim)
+                self.atn = Attn('general', hidden_size=obs_emb_dim)
+            else:
+                self.pre_transform_o = self.construct_hidden(obs_emb_dim, eta_dim)
+                self.pre_transform_z = self.construct_hidden(z_dim, eta_dim)
+                self.k_lin = nn.Sequential(
+                    self.construct_hidden(eta_dim, num_expz), # number of vectors in latent space
+                    # nn.BatchNorm1d(num_expz),
+                    nn.ReLU())
+                self.q_lin = nn.Sequential(
+                    self.construct_hidden(eta_dim, num_expz), # number of vectors in latent space
+                    # nn.BatchNorm1d(num_expz),
+                    nn.ReLU())
+                self.q_lin2 = nn.Sequential(
+                    self.construct_hidden(eta_dim, num_expz), # number of vectors in latent space
+                    # nn.BatchNorm1d(num_expz),
+                    nn.ReLU())
             # self.use_atn = True
         ######### action net
         ### eta_dim+obsemb_dim - action_dim
@@ -389,6 +461,25 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         eta = torch.bmm(weights, z)  # b,1,c
         return eta.squeeze(1)
 
+    def fau_atn(self, z, obs):
+        """
+        should ensure eta dim is the same as obs emb dim
+        :param z:
+        :param obs:
+        :return:
+        """
+        #######
+        # embed z to have same dim as obs
+        #######
+        obs = self.hidden_activation(self.pre_transform_o(obs)).unsqueeze(1) # mb,1,
+        z = self.hidden_activation(self.pre_transform_z(z)).unsqueeze(1) # mb,1
+        # query = obs
+        keys = FAUCore.v2l(z, self.k_lin) # make z: dxc
+        queries = FAUCore.v2l(obs, self.q_lin)
+        aff = FAUCore.l2l(keys, queries) # dxd
+        res = FAUCore.l2v(obs, aff, self.q_lin2) # as I think eta depends more on state: 1xc
+        return res.squeeze(1) # mb,c
+
     def direct_eta(self, z, obs):
         #######
         # direct concat
@@ -424,7 +515,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         #######
         # get eta
         #######
-        eta = self.atn_eta(z,obs) if self.use_atn else self.direct_eta(z,obs) # latent dim
+        eta = self.direct_eta(z,obs) if not self.use_atn else (self.fau_atn(z,obs) if self.lrank else self.atn_eta(z,obs)) # latent dim
         # eta = z
         #######
         # p(a|s,eta)

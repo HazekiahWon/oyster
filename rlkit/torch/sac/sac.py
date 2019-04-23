@@ -196,7 +196,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         min_q_new_actions = self.agent.min_q(obs, new_actions, task_z)
 
         # vf update
-        v_target = min_q_new_actions - log_pi*alpha
+        log_pi = log_pi*alpha
+        v_target = min_q_new_actions - log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         vf_optimizer.zero_grad()
         vf_loss.backward()
@@ -210,7 +211,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         if self.reparameterize:
             policy_loss = (
-                    log_pi - log_policy_target + v_pred.detach()  # to make it around 0
+                    log_pi - log_policy_target  # to make it around 0
             ).mean()
         else:
             policy_loss = (
@@ -276,7 +277,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             exp_logp_target,vf_exp,exp_loss = self.optimize_p(self.vfexp_optimizer, self.agent, self.exp_optimizer,
                             obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value, alpha=100)
             if step%20==0:
-                self.writer.add_histogram('exp_adv', exp_log_pi - exp_logp_target + v_exp, step)
+                self.writer.add_histogram('exp_adv', exp_logp_target - v_exp, step)
                 self.writer.add_histogram('logp_exp', exp_log_pi,step)
             self.writer.add_scalar('qf_exp', qf_exp,step)
             self.writer.add_scalar('vf_exp', vf_exp,step)

@@ -35,13 +35,14 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                                z_dim=z_dim,
                                latent_dim=64,
                                eta_nlayer=None,
-                               num_expz=64,
+                               num_expz=32,
+                               atn_type='low-rank',
                                action_dim=action_dim,
                                anet_sizes=[net_size, net_size, net_size])
 
     agent = ProtoAgent(
         z_dim,
-        [task_enc, policy, qf1, qf2, vf],
+        [task_enc, policy2, qf1, qf2, vf],
         **variant['algo_params']
     )
     if is_actor: return agent, task_enc
