@@ -113,13 +113,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         explore_paths = None
         if not is_online:  # only using the enc buffer to generate z
             self.sample_z_from_posterior(self.explorer, idx, eval_task=eval_task)
-            self.agent.z = self.explorer.z
+            self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
             test_paths = self.eval_sampler.obtain_samples(self.agent, deterministic=deterministic, is_online=is_online)
         else:
             # have clear z of explorer
             explore_paths = self.exp_sampler.obtain_samples2(self.explorer, explore=True, deterministic=deterministic, is_online=True)
             # set z to the agent
-            self.agent.z = self.explorer.z
+            self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
             test_paths = self.eval_sampler.obtain_samples2(self.agent, explore=False, deterministic=deterministic, is_online=False)
         dprint('task encoding ', self.agent.z)
 
@@ -270,8 +270,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
 
             if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_dists[0].mean)))
-                z_sig = np.mean(ptu.get_numpy(self.agent.z_dists[0].variance))
+                z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
+                z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
                 self.eval_statistics['Z mean eval'] = z_mean
                 self.eval_statistics['Z variance eval'] = z_sig
 

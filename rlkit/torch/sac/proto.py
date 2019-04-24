@@ -84,6 +84,12 @@ class ProtoAgent(nn.Module):
         self.context = None
         self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
 
+    def trans_z(self, mu, var):
+        self.z_means = mu
+        self.z_vars = var
+        # sample a new z from the prior
+        self.sample_z()
+
     def detach_z(self):
         self.z = self.z.detach()
         if self.recurrent:
@@ -271,51 +277,51 @@ class ProtoAgent(nn.Module):
     def networks(self):
         return [self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.target_vf]
 
-class NewAgent(ProtoAgent):
-    def __init__(self, explorer, seq_max_length, env, **kwargs):
-        super().__init__(**kwargs)
-        # self.seq_encoder = seq_encoder
-        self.explorer = explorer
-        self.envs = env
-        self.seq_max_length = seq_max_length
-
-    def set_z(self, in_, indices):
-        """
-        sequentially set z
-        :param in_: does not need new data at all
-        :return:
-        """
-        # TODO Attention: there is no need for data here
-        # s,a,ns,r = in_
-        # zs = list()
-        # z_dists = list()
-        # this means for each train step, the z is reproduced
-        if not isinstance(indices, Iterable): indices = (indices,)
-
-        s = [self.envs[i].reset_task(idx) for i,idx in enumerate(indices)] # a list of vectors
-        new_z = None
-        for _ in range(self.seq_max_length):
-            s = ptu.from_numpy(np.asarray(s)) # mb,dim
-            # a should be mb,1,dim
-            a,np_a = self.explorer.get_actions((s,new_z), reparameterize=self.reparam) # the situation where new_z is None is handled inside explorer.forward()
-            ns,r,term,env_info = zip(*[self.envs[i].step(ai) for i,ai in enumerate(np_a)])
-            r = ptu.from_numpy(np.asarray(r).reshape((-1,1)))
-            # inp = (s, a, r)
-            new_z = self.task_enc(s,a,r) # mb,dim
-            s = ns
-
-            if True in term: break # TODO currently break once there is any terminal
-            # zs.append(new_z)
-            # z_dists.append(self.task_enc.z_dists[0]) # the sequential encoder by default processes one z at one time
-        self.z = new_z # mb,zdim
-        self.z_dists = self.task_enc.z_dists
-        # Attention here !
-        self.task_enc.clear() # clear the z of seq_encoder
-
-    def forward(self, obs, actions, next_obs, enc_data, idx):
-        # TODO: the current issue is that in algo it uses indices, but currently we only support single
-        self.set_z(enc_data, idx)
-        return self.infer(obs, actions, next_obs)
+# class NewAgent(ProtoAgent):
+#     def __init__(self, explorer, seq_max_length, env, **kwargs):
+#         super().__init__(**kwargs)
+#         # self.seq_encoder = seq_encoder
+#         self.explorer = explorer
+#         self.envs = env
+#         self.seq_max_length = seq_max_length
+#
+#     def set_z(self, in_, indices):
+#         """
+#         sequentially set z
+#         :param in_: does not need new data at all
+#         :return:
+#         """
+#         # TODO Attention: there is no need for data here
+#         # s,a,ns,r = in_
+#         # zs = list()
+#         # z_dists = list()
+#         # this means for each train step, the z is reproduced
+#         if not isinstance(indices, Iterable): indices = (indices,)
+#
+#         s = [self.envs[i].reset_task(idx) for i,idx in enumerate(indices)] # a list of vectors
+#         new_z = None
+#         for _ in range(self.seq_max_length):
+#             s = ptu.from_numpy(np.asarray(s)) # mb,dim
+#             # a should be mb,1,dim
+#             a,np_a = self.explorer.get_actions((s,new_z), reparameterize=self.reparam) # the situation where new_z is None is handled inside explorer.forward()
+#             ns,r,term,env_info = zip(*[self.envs[i].step(ai) for i,ai in enumerate(np_a)])
+#             r = ptu.from_numpy(np.asarray(r).reshape((-1,1)))
+#             # inp = (s, a, r)
+#             new_z = self.task_enc(s,a,r) # mb,dim
+#             s = ns
+#
+#             if True in term: break # TODO currently break once there is any terminal
+#             # zs.append(new_z)
+#             # z_dists.append(self.task_enc.z_dists[0]) # the sequential encoder by default processes one z at one time
+#         self.z = new_z # mb,zdim
+#         self.z_dists = self.task_enc.z_dists
+#         # Attention here !
+#         self.task_enc.clear() # clear the z of seq_encoder
+#
+#     def forward(self, obs, actions, next_obs, enc_data, idx):
+#         # TODO: the current issue is that in algo it uses indices, but currently we only support single
+#         self.set_z(enc_data, idx)
+#         return self.infer(obs, actions, next_obs)
 
 
 

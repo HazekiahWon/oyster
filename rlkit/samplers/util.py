@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def rollout(env, agent, max_path_length=np.inf, animated=False, is_online=False):
+def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
