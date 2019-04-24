@@ -84,12 +84,12 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy):
 
 @click.command()
 @click.argument('gpu', default=0)
-@click.argument('debug', default=debug)
-@click.argument('use_explorer', default=use_explorer)
-@click.argument('use_ae',default=use_ae)
-@click.argument('dif_policy', default=dif_policy)
+@click.argument('debug', default=debug, type=bool)
+@click.argument('use_explorer', default=use_explorer, type=bool)
+@click.argument('use_ae',default=use_ae, type=bool)
+@click.argument('dif_policy', default=dif_policy, type=bool)
 @click.option('--note', default='-')
-@click.option('--resume', default=resume) # 0 is false, any other is true
+@click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
 def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker):
     max_path_length = 200
