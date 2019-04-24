@@ -1,6 +1,7 @@
 from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
+from torch import nn
 def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=False, task_enc=None, gt_ae=None, gamma_dim=10):
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     is_actor = task_enc is None
@@ -44,14 +45,20 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
     nets = [task_enc, policy2 if dif_policy else policy, qf1, qf2, vf]
     if is_actor and gt_ae is not None:
         gt_encoder = encoder_model(
-            hidden_sizes=[200, 200, 200],  # deeper net + higher dim space generalize better
+            hidden_sizes=[128, 64],  # deeper net + higher dim space generalize better
             input_size=gamma_dim,
             output_size=task_enc_output_dim//2,
+            hidden_init=nn.init.xavier_normal_,
+            layer_norm=True
+
         )
         gt_decoder = encoder_model(
-            hidden_sizes=[200, 200, 200],  # deeper net + higher dim space generalize better
+            hidden_sizes=[128, 64],  # deeper net + higher dim space generalize better
             input_size=task_enc_output_dim//2,
             output_size=gamma_dim,
+            # output_activation=nn.Softmax(dim=-1), # predict as label
+        hidden_init = nn.init.xavier_normal_,
+            layer_norm=True
         )
         nets = nets + [gt_encoder, gt_decoder]
 

@@ -31,6 +31,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             context_lr=1e-3,
             explorer_lr=1e-3,
             kl_lambda=1.,
+            rec_lambda=10.,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
@@ -63,11 +64,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.latent_dim = latent_dim
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
-        self.criterion = nn.MSELoss()
+        self.onehot_criterion = nn.CrossEntropyLoss()
         self.l2_reg_criterion = nn.MSELoss()
 
         self.eval_statistics = None
         self.kl_lambda = kl_lambda
+        self.rec_lambda = rec_lambda
 
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
@@ -279,8 +281,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # gamma - z - gamma
             gt_z = self.agent.infer_gt_z(gammas)
             rec_gam = self.agent.rec_gt_gamma(gt_z)
-            rec_loss = torch.sum((rec_gam-gammas)**2) # because it is quite small if averaged
-            kl_loss = rec_loss
+            # rec_gam = torch.nn.Softmax(rec_gam,dim=1)
+            self.writer.add_histogram('rec_gamma', rec_gam, step)
+            self.writer.add_histogram('gt_z', gt_z[0], step)
+            self.writer.add_histogram('task_z',self.agent.z_means[0], step)
+            rec_loss = self.onehot_criterion(rec_gam, torch.cuda.LongTensor(indices)) # because it is quite small if averaged
+            kl_loss = rec_loss*self.rec_lambda
             self.writer.add_scalar('ae_rec_loss', rec_loss, step)
         # enc_data - z <> z
         kl_div = self.agent.compute_kl_div(gt_z)

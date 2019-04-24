@@ -52,6 +52,7 @@ class ProtoAgent(nn.Module):
         self.reward_scale = kwargs['reward_scale']
         self.sparse_rewards = kwargs['sparse_rewards']
         self.det_z = False
+        self.context = None
 
         # initialize task embedding to zero
         # (task, latent dim)
@@ -172,7 +173,10 @@ class ProtoAgent(nn.Module):
         prior = torch.distributions.Normal(mean, ptu.ones(self.z_dim))
         posteriors = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in
                       zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
-        kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
+        if mean is None:
+            kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
+        else:
+            kl_divs = [torch.distributions.kl.kl_divergence(prior, post) for post in posteriors]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
 

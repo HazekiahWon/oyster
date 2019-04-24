@@ -1,7 +1,7 @@
 import numpy as np
+from rlkit.core import eval_util
 
-
-def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False):
+def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False, need_cupdate=True):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -37,7 +37,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False):
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
-        if is_online:
+        if is_online and need_cupdate:
             agent.update_context([o, a, r, next_o, d])
         observations.append(o)
         rewards.append(r)
@@ -74,6 +74,46 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False):
         agent_infos=agent_infos,
         env_infos=env_infos,
     )
+
+def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path_length=np.inf, animated=False, is_online=False):
+    """
+    rollout actor for 3 times while explorer exploring another 20 transitions
+
+    :param env:
+    :param agent:
+    :param max_path_length:
+    :param animated:
+    :param is_online: if True, update the task embedding after each transition
+    :return:
+    """
+
+    o = env.reset()
+    path_length = 0
+    if animated:
+        env.render()
+    ret_seq = list()
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o)
+        next_o, r, d, env_info = env.step(a)
+
+        agent.update_context([o, a, r, next_o, d])
+        if (path_length+1)%freq==0:
+            agent.infer_posterior(agent.context)
+            actor.trans_z(agent.z_means, agent.z_vars)
+            test_paths = list()
+            for _ in range(num_avg_test):
+                test_paths.append(rollout(env2, actor, max_path_length, animated, is_online, need_cupdate=False))
+            ret = eval_util.get_average_returns(test_paths) # average multiple paths
+            ret_seq.append(ret)
+
+        path_length += 1
+        if d:
+            break
+        o = next_o
+        if animated:
+            env.render()
+
+    return ret_seq
 
 
 def split_paths(paths):

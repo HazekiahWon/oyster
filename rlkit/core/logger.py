@@ -18,6 +18,7 @@ import json
 import pickle
 import base64
 import errno
+import matplotlib.pyplot as plt
 
 from rlkit.core.tabulate import tabulate
 # sys.stdout = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
@@ -275,6 +276,13 @@ def save_itr_params(itr, params):
         else:
             raise NotImplementedError
 
+def save_test_results(seq):
+    filename = osp.join(_snapshot_dir, 'test_res.pkl')
+    joblib.dump(seq, filename, compress=3)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(seq)
+    fig.savefig(osp.join(_snapshot_dir, 'test_res.png'))
 
 class MyEncoder(json.JSONEncoder):
     def default(self, o):

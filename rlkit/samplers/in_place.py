@@ -1,4 +1,4 @@
-from rlkit.samplers.util import rollout
+from rlkit.samplers.util import rollout, act_while_explore
 from rlkit.torch.sac.policies import MakeDeterministic
 from rlkit.core import logger, eval_util
 import numpy as np
@@ -31,7 +31,7 @@ class InPlacePathSampler(object):
     def shutdown_worker(self):
         pass
 
-    def obtain_samples(self, agent, deterministic=False, num_samples=None, is_online=False):
+    def obtain_samples(self, agent, deterministic=False, num_samples=None, is_online=False, need_cupdate=True):
         """
         sample n_eval traj for task exploration
         the env should be reset by the outer function
@@ -49,12 +49,12 @@ class InPlacePathSampler(object):
             max_samp = num_samples
         while n_steps_total + self.max_path_length < max_samp: # to leave out one more path
             path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, is_online=is_online)
+                self.env, policy, max_path_length=self.max_path_length, is_online=is_online, need_cupdate=need_cupdate)
             paths.append(path)
             n_steps_total += len(path['observations'])
         return paths
 
-    def obtain_samples2(self, agent, explore=True, deterministic=False, is_online=False):
+    def obtain_samples2(self, agent, explore=True, deterministic=False, is_online=False, need_cupdate=True):
         """
         sample n_eval traj for task exploration
         :param deterministic:
@@ -73,7 +73,7 @@ class InPlacePathSampler(object):
         #     max_samp = num_samples
         for i in range(num_roll): # to leave out one more path
             path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, is_online=is_online)
+                self.env, policy, max_path_length=self.max_path_length, is_online=is_online, need_cupdate=need_cupdate)
             paths.append(path)
             if explore:
                 policy.infer_posterior(policy.context)
@@ -81,7 +81,7 @@ class InPlacePathSampler(object):
             # n_steps_total += len(path['observations'])
         return paths
 
-    def obtain_test_samples(self, explorer, actor, max_explore, freq=20, num_test_avg=3, deterministic=False, is_online=False):
+    def obtain_test_samples(self, explorer, actor, newenv, max_explore, freq=20, num_test_avg=3, deterministic=False, is_online=False):
         """
         sample n_eval traj for task exploration
         :param deterministic:
@@ -91,22 +91,9 @@ class InPlacePathSampler(object):
         """
         actor = MakeDeterministic(actor) if deterministic else actor
         explorer = MakeDeterministic(explorer) if deterministic else explorer
-        paths = []
-        cum_path_len = 0
         seq = list()
+        explorer.clear_z()
         for i in range(max_explore): # to leave out one more path
-            path = rollout(
-                self.env, explorer, max_path_length=self.max_path_length, is_online=is_online)
-            paths.append(path)
-            for end in range(cum_path_len+freq,cum_path_len+len(path), freq):
-                explorer.infer_posterior(explorer.context[:end])
-                actor.trans_z(explorer.z_means, explorer.z_vars)
-                test_paths = list()
-                for j in range(num_test_avg):
-                    test_paths.append(rollout(
-                    self.env, actor, max_path_length=self.max_path_length, is_online=is_online))
-                ret = eval_util.get_average_returns(test_paths)
-                seq.append(ret)
-                # policy.sample_z() # only allow the explorer to guess the z
-            # n_steps_total += len(path['observations'])
+            seq.extend(act_while_explore(self.env, explorer, newenv, actor, freq, num_test_avg,
+                                         max_path_length=self.max_path_length, is_online=is_online))
         return np.asarray(seq)

@@ -10,6 +10,7 @@ from rlkit.torch.core import np_ify
 from torch.nn import functional as F
 from rlkit.torch.core import PyTorchModule
 from torch.autograd import Variable
+from rlkit.torch.modules import LayerNorm
 from rlkit.torch import pytorch_util as ptu
 
 USE_CUDA = True
@@ -308,9 +309,9 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         tmp.bias.data.uniform_(-init_w, init_w)
         return tmp
 
-    def construct_hidden(self, in_size, next_size, hidden_init=ptu.fanin_init, b_init_value=0.1):
+    def construct_hidden(self, in_size, next_size, b_init_value=0.1):
         fc = nn.Linear(in_size, next_size)
-        hidden_init(fc.weight)
+        self.hidden_init(fc.weight)
         fc.bias.data.fill_(b_init_value)
         return fc
 
@@ -330,7 +331,9 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
             num_expz=None,
             atn_type='low-rank',
             std=None,
-
+            hidden_init=ptu.fanin_init,
+            layer_norm=False,
+            layer_norm_kwargs=None,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -342,7 +345,12 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         #     init_w=init_w,
         #     **kwargs
         # )
+        if layer_norm_kwargs is None:
+            layer_norm_kwargs = dict()
+        self.layer_norm = layer_norm
+        self.layer_norms = []
         self.hidden_activation = F.relu
+        self.hidden_init = hidden_init
         # self.latent_dim = latent_dim
         self.log_std = None
         self.std = std
@@ -364,8 +372,15 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
         ############# embed observation, obs_dim - obsemb_dim (direct) or z_dim (atn)
         latent_dim = obs_emb_dim
         obs_fc = [self.construct_hidden(obs_dim, latent_dim)]
+        ln_cnt = 0
         for i in range(obs_nlayer):
             obs_fc.append(self.construct_hidden(latent_dim,latent_dim))
+            # TODO layer norm
+            if self.layer_norm:
+                ln = LayerNorm(latent_dim)
+                self.__setattr__("layer_norm{}".format(i), ln_cnt)
+                self.layer_norms.append(ln)
+                ln_cnt += 1
         # if self.use_atn: obs_fc.append(self.construct_hidden(latent_dim, obs_emb_dim))
         # else: obs_fc.append(self.construct_hidden(latent_dim, latent_dim))
         self.obs_fc = nn.ModuleList(obs_fc)

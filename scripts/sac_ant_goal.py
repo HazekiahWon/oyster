@@ -34,6 +34,7 @@ def datetimestamp(divider=''):
 def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
+    newenv = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
     tasks = env.get_all_task_idx()
@@ -55,14 +56,16 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     explorer = None
     if (resume or test) and resume_dir is not None:
         ret = joblib.load(resume_dir)
-        agent = ret['exploration_policy']
+        agent_ = ret['exploration_policy']
         memo += f'this exp resumes {resume_dir}\n'
-    else:
-        # share the task enc with these two agents
-        agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim)
-        explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=dif_policy, task_enc=task_enc)
-
-    memo += f'[ant_goal] this exp wants to {note}\n'
+    # else:
+    # share the task enc with these two agents
+    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim)
+    explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=dif_policy, task_enc=task_enc)
+    if resume or test:
+        for snet,tnet in zip(agent_.networks,agent.networks):
+            ptu.soft_update_from_to(snet, tnet, tau=1.)
+    memo += f'[ant_goal] this exp wants to {note}: lr is as original, using softmax, reverse kl, \n'
 
     variant['algo_params']['memo'] = memo
     # modified train tasks eval tasks
@@ -79,7 +82,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 
     if ptu.gpu_enabled():
         algorithm.to()
-    if test: algorithm.test()
+    if test: algorithm.test(newenv)
     else: algorithm.train()
 
 
@@ -92,7 +95,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
-@click.option('--test', default=True, is_flag=True)
+@click.option('--test', default=False, is_flag=True)
 def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker

@@ -11,6 +11,7 @@ from rlkit.core.rl_algorithm import MetaRLAlgorithm
 from rlkit.torch import pytorch_util as ptu
 from rlkit.torch.core import PyTorchModule, np_ify, torch_ify
 from rlkit.core import logger, eval_util
+import copy
 
 
 class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
@@ -75,7 +76,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         dprint('task encoding ', self.agent.z)
 
-        test_paths = self.eval_sampler.obtain_samples(self.agent, deterministic=deterministic, is_online=is_online)
+        test_paths = self.eval_sampler.obtain_samples(self.agent, deterministic=deterministic, is_online=is_online, need_cupdate=False)
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
@@ -114,13 +115,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if not is_online:  # only using the enc buffer to generate z
             self.sample_z_from_posterior(self.explorer, idx, eval_task=eval_task)
             self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
-            test_paths = self.eval_sampler.obtain_samples(self.agent, deterministic=deterministic, is_online=is_online)
+            test_paths = self.eval_sampler.obtain_samples(self.agent, deterministic=deterministic, is_online=is_online, need_cupdate=True)
         else:
             # have clear z of explorer
-            explore_paths = self.exp_sampler.obtain_samples2(self.explorer, explore=True, deterministic=deterministic, is_online=True)
+            explore_paths = self.exp_sampler.obtain_samples2(self.explorer, explore=True, deterministic=deterministic, is_online=True, need_cupdate=True)
             # set z to the agent
             self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
-            test_paths = self.eval_sampler.obtain_samples2(self.agent, explore=False, deterministic=deterministic, is_online=False)
+            test_paths = self.eval_sampler.obtain_samples2(self.agent, explore=False, deterministic=deterministic, is_online=False, need_cupdate=False)
         dprint('task encoding ', self.agent.z)
 
 
@@ -293,22 +294,25 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         return avg_train_return,avg_test_return
 
-    def test(self):
+    def test(self, newenv):
         statistics = OrderedDict()
-        statistics.update(self.eval_statistics)
+        if self.eval_statistics is not None:
+            statistics.update(self.eval_statistics)
         self.eval_statistics = statistics
 
-        ### train tasks
-        dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
-        train_avg_returns = []
-        for idx in self.train_tasks:
-            self.task_idx = idx
-            self.env.reset_task(idx)
-            dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
-
-            trn_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, max_explore=5, deterministic=True, is_online=True)
-            train_avg_returns.append(trn_res)
-        train_avg_returns = np.mean(train_avg_returns, axis=0)
+        # ### train tasks
+        # dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
+        # train_avg_returns = []
+        # for idx in self.train_tasks:
+        #     self.task_idx = idx
+        #     self.env.reset_task(idx)
+        #     newenv.reset_task(idx)
+        #     dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
+        #
+        #     trn_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, newenv,
+        #                                                     max_explore=5, deterministic=True, is_online=True)
+        #     train_avg_returns.append(trn_res)
+        # train_avg_returns = np.mean(train_avg_returns, axis=0)
 
         ### test tasks
         dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
@@ -316,23 +320,26 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # This is calculating the embedding online, because every iteration
         # we clear the encoding buffer for the test tasks.
         for idx in self.eval_tasks:
+            print(f'evaluating {idx}')
             self.task_idx = idx
             self.env.reset_task(idx)
-            tst_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, max_explore=5,
+            newenv.reset_task(idx)
+            tst_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, newenv,
+                                                            max_explore=2,
                                                             deterministic=True, is_online=True)
             test_avg_returns.append(tst_res)
         test_avg_returns = np.mean(test_avg_returns, axis=0)
 
-        self.eval_statistics['AverageReturn_all_train_tasks'] = train_avg_returns
+        # self.eval_statistics['AverageReturn_all_train_tasks'] = train_avg_returns
         self.eval_statistics['AverageReturn_all_test_tasks'] = test_avg_returns
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
         self.eval_statistics = None
-
+        logger.save_test_results(test_avg_returns)
         print(test_avg_returns)
 
-        return train_avg_returns,test_avg_returns
+        return test_avg_returns
 
 def _elem_or_tuple_to_variable(elem_or_tuple):
     if isinstance(elem_or_tuple, tuple):
