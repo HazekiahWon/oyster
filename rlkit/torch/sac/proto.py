@@ -60,8 +60,8 @@ class ProtoAgent(nn.Module):
         self.register_buffer('num_z', torch.zeros(1))
 
         # initialize posterior to the prior
-        if self.use_ib:
-            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim))]
+        # if self.use_ib:
+        #     self.z_dists = [torch.distributions.Normal(ptu.zeros(self.z_dim), ptu.ones(self.z_dim))]
 
     def clear_z(self, num_tasks=1):
         # if self.use_ib:
@@ -146,38 +146,41 @@ class ProtoAgent(nn.Module):
         else:
             self.z = self.z_means
 
-    def information_bottleneck(self, z):
-        # assume input and output to be task x batch x feat
-        mu = z[..., :self.z_dim]
-        sigma_squared = F.softplus(z[..., self.z_dim:])
-        z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
-        if not self.det_z:
-            z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
-            self.z_dists = z_dists
-            z = [d.rsample() for d in z_dists]
-        else:
-            z = [p[0] for p in z_params]
-        z = torch.stack(z)
-        return z
+    # def information_bottleneck(self, z):
+    #     # assume input and output to be task x batch x feat
+    #     mu = z[..., :self.z_dim]
+    #     sigma_squared = F.softplus(z[..., self.z_dim:])
+    #     z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
+    #     if not self.det_z:
+    #         z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
+    #         self.z_dists = z_dists
+    #         z = [d.rsample() for d in z_dists]
+    #     else:
+    #         z = [p[0] for p in z_params]
+    #     z = torch.stack(z)
+    #     return z
 
     def compute_kl_div(self, mean=None):
         if mean is None:
             mean = ptu.zeros(self.z_dim)
         prior = torch.distributions.Normal(mean, ptu.ones(self.z_dim))
-        kl_divs = [torch.distributions.kl.kl_divergence(z_dist, prior) for z_dist in self.z_dists]
+        posteriors = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in
+                      zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
+        kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
+        self.z_dists
         return kl_div_sum
 
     # TODO replace all usage of this to infer posterior
-    def set_z(self, in_, idx):
-        ''' compute latent task embedding only from this input data '''
-        new_z = self.task_enc(in_)
-        new_z = new_z.view(in_.size(0), -1, self.task_enc.output_size)
-        if self.use_ib:
-            new_z = self.information_bottleneck(new_z)
-        else:
-            new_z = torch.mean(new_z, dim=1)
-        self.z = new_z
+    # def set_z(self, in_, idx):
+    #     ''' compute latent task embedding only from this input data '''
+    #     new_z = self.task_enc(in_)
+    #     new_z = new_z.view(in_.size(0), -1, self.task_enc.output_size)
+    #     if self.use_ib:
+    #         new_z = self.information_bottleneck(new_z)
+    #     else:
+    #         new_z = torch.mean(new_z, dim=1)
+    #     self.z = new_z
 
 # not used
     # def update_z(self, in_):

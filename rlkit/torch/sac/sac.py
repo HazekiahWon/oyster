@@ -257,7 +257,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_exp)
 
         # run inference in networks
-        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data, indices)
+        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data.detach(), indices)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
         pre_tanh_value = policy_outputs[-1]
         # KL constraint on z if probabilistic
@@ -270,11 +270,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.use_ae:
             self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()
+            # gamma - z - gamma
             gt_z = self.agent.infer_gt_z(gammas)
             rec_gam = self.agent.rec_gt_gamma(gt_z)
             rec_loss = self.criterion(rec_gam, gammas)
             kl_loss = rec_loss
             self.writer.add_scalar('ae_rec_loss', rec_loss, step)
+        # enc_data - z <> z
         kl_div = self.agent.compute_kl_div(gt_z)
         self.writer.add_scalar('vae_kl', kl_div, step)
         if kl_loss is None: kl_loss = self.kl_lambda * kl_div
@@ -372,8 +374,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         rewards = batch['rewards'][None, ...]
         in_ = self.prepare_encoder_data(obs, act, rewards)
         # TODO: the sequential does not need a replay buffer actually
-        agent.set_z(in_, idx)
-
+        # agent.set_z(in_, idx)
+        agent.infer_posterior(in_)
     @property
     def networks(self):
         ret = self.agent.networks + [self.agent]
