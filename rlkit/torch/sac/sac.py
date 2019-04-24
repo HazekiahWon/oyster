@@ -72,8 +72,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
-
-        self.use_ae = self.agent.use_ae
+        self.use_ae = False
+        if hasattr(self.agent, 'use_ae'):
+            self.use_ae = self.agent.use_ae
 
         # TODO consolidate optimizers!
         self.policy_optimizer = optimizer_class(

@@ -14,7 +14,7 @@ import joblib
 from scripts.shared import setup_nets
 resume = False
 exp_id = 'ant-goal'
-exp_d = 'pearl-190417-112013'
+exp_d = 'pearl-190421-114059'
 resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
 debug = True
 use_explorer = True
@@ -31,7 +31,7 @@ def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy):
+def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
@@ -53,7 +53,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy):
 
     memo = ''
     explorer = None
-    if resume and resume_dir is not None:
+    if (resume or test) and resume_dir is not None:
         ret = joblib.load(resume_dir)
         agent = ret['exploration_policy']
         memo += f'this exp resumes {resume_dir}\n'
@@ -79,7 +79,8 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy):
 
     if ptu.gpu_enabled():
         algorithm.to()
-    algorithm.train()
+    if test: algorithm.test()
+    else: algorithm.train()
 
 
 @click.command()
@@ -91,7 +92,8 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy):
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
-def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker):
+@click.option('--test', default=True, is_flag=True)
+def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
     # modified ntasks, meta-batch
@@ -149,7 +151,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker):
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy)
+    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test)
 
 if __name__ == "__main__":
     main()

@@ -293,7 +293,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         return avg_train_return,avg_test_return
 
-    def test(self, epoch):
+    def test(self):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
         self.eval_statistics = statistics
@@ -329,6 +329,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
         self.eval_statistics = None
+
+        print(test_avg_returns)
 
         return train_avg_returns,test_avg_returns
 
