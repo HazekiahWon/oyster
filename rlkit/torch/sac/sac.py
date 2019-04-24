@@ -278,7 +278,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # gamma - z - gamma
             gt_z = self.agent.infer_gt_z(gammas)
             rec_gam = self.agent.rec_gt_gamma(gt_z)
-            rec_loss = self.criterion(rec_gam, gammas)
+            rec_loss = torch.sum((rec_gam-gammas)**2) # because it is quite small if averaged
             kl_loss = rec_loss
             self.writer.add_scalar('ae_rec_loss', rec_loss, step)
         # enc_data - z <> z

@@ -1,6 +1,7 @@
 from rlkit.samplers.util import rollout
 from rlkit.torch.sac.policies import MakeDeterministic
 from rlkit.core import logger, eval_util
+import numpy as np
 
 class InPlacePathSampler(object):
     """
@@ -108,4 +109,4 @@ class InPlacePathSampler(object):
                 seq.append(ret)
                 # policy.sample_z() # only allow the explorer to guess the z
             # n_steps_total += len(path['observations'])
-        return seq
+        return np.asarray(seq)

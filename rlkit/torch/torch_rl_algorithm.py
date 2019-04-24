@@ -275,10 +275,6 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 self.eval_statistics['Z mean eval'] = z_mean
                 self.eval_statistics['Z variance eval'] = z_sig
 
-            # TODO(KR) what does this do
-            if hasattr(self.env, "log_diagnostics"):
-                self.env.log_diagnostics(test_paths)
-
 
         avg_train_return = np.mean(train_avg_returns)
         avg_test_return = np.mean(test_avg_returns)
@@ -296,6 +292,45 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             self.plotter.draw()
 
         return avg_train_return,avg_test_return
+
+    def test(self, epoch):
+        statistics = OrderedDict()
+        statistics.update(self.eval_statistics)
+        self.eval_statistics = statistics
+
+        ### train tasks
+        dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
+        train_avg_returns = []
+        for idx in self.train_tasks:
+            self.task_idx = idx
+            self.env.reset_task(idx)
+            dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
+
+            trn_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, max_explore=5, deterministic=True, is_online=True)
+            train_avg_returns.append(trn_res)
+        train_avg_returns = np.mean(train_avg_returns, axis=0)
+
+        ### test tasks
+        dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
+        test_avg_returns = []
+        # This is calculating the embedding online, because every iteration
+        # we clear the encoding buffer for the test tasks.
+        for idx in self.eval_tasks:
+            self.task_idx = idx
+            self.env.reset_task(idx)
+            tst_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, max_explore=5,
+                                                            deterministic=True, is_online=True)
+            test_avg_returns.append(tst_res)
+        test_avg_returns = np.mean(test_avg_returns, axis=0)
+
+        self.eval_statistics['AverageReturn_all_train_tasks'] = train_avg_returns
+        self.eval_statistics['AverageReturn_all_test_tasks'] = test_avg_returns
+
+        for key, value in self.eval_statistics.items():
+            logger.record_tabular(key, value)
+        self.eval_statistics = None
+
+        return train_avg_returns,test_avg_returns
 
 def _elem_or_tuple_to_variable(elem_or_tuple):
     if isinstance(elem_or_tuple, tuple):

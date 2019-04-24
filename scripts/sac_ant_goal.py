@@ -19,6 +19,7 @@ resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # script
 debug = True
 use_explorer = True
 use_ae = use_explorer and True
+dif_policy = False
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -30,7 +31,7 @@ def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant, resume):
+def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
@@ -58,10 +59,10 @@ def experiment(variant, resume):
         memo += f'this exp resumes {resume_dir}\n'
     else:
         # share the task enc with these two agents
-        agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim)
-        explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, task_enc=task_enc)
+        agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim)
+        explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=dif_policy, task_enc=task_enc)
 
-    memo += '[ant_goal] this exp wants to reproduce pearl results\n'
+    memo += f'[ant_goal] this exp wants to {note}\n'
 
     variant['algo_params']['memo'] = memo
     # modified train tasks eval tasks
@@ -83,9 +84,14 @@ def experiment(variant, resume):
 
 @click.command()
 @click.argument('gpu', default=0)
+@click.argument('debug', default=debug)
+@click.argument('use_explorer', default=use_explorer)
+@click.argument('use_ae',default=use_ae)
+@click.argument('dif_policy', default=dif_policy)
+@click.option('--note', default='-')
 @click.option('--resume', default=resume) # 0 is false, any other is true
 @click.option('--docker', default=0)
-def main(gpu, resume, docker):
+def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker):
     max_path_length = 200
     # noinspection PyTypeChecker
     # modified ntasks, meta-batch
@@ -143,7 +149,7 @@ def main(gpu, resume, docker):
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant, resume)
+    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy)
 
 if __name__ == "__main__":
     main()
