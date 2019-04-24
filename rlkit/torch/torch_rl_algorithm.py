@@ -75,7 +75,27 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         dprint('task encoding ', self.agent.z)
 
-        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
+        test_paths = self.eval_sampler.obtain_samples(self.agent, deterministic=deterministic, is_online=is_online)
+        if self.sparse_rewards:
+            for p in test_paths:
+                p['rewards'] = ptu.sparsify_rewards(p['rewards'])
+        return test_paths
+
+    def obtain_test_paths(self, idx, eval_task=False, deterministic=False):
+        '''
+        collect paths with current policy
+        if online, task encoding will be updated after each transition
+        otherwise, sample a task encoding once and keep it fixed
+        '''
+        is_online = (self.eval_embedding_source == 'online')
+        self.agent.clear_z()
+
+        if not is_online:  # only using the enc buffer to generate z
+            self.sample_z_from_posterior(self.agent, idx, eval_task=eval_task)
+
+        dprint('task encoding ', self.agent.z)
+
+        test_paths = self.eval_sampler.obtain_test_samples(deterministic=deterministic, is_online=is_online)
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
@@ -94,13 +114,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if not is_online:  # only using the enc buffer to generate z
             self.sample_z_from_posterior(self.explorer, idx, eval_task=eval_task)
             self.agent.z = self.explorer.z
-            test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
+            test_paths = self.eval_sampler.obtain_samples(self.agent, deterministic=deterministic, is_online=is_online)
         else:
             # have clear z of explorer
-            explore_paths = self.exp_sampler.obtain_samples2(explore=True, deterministic=deterministic, is_online=True)
+            explore_paths = self.exp_sampler.obtain_samples2(self.explorer, explore=True, deterministic=deterministic, is_online=True)
             # set z to the agent
             self.agent.z = self.explorer.z
-            test_paths = self.eval_sampler.obtain_samples2(explore=False, deterministic=deterministic, is_online=False)
+            test_paths = self.eval_sampler.obtain_samples2(self.agent, explore=False, deterministic=deterministic, is_online=False)
         dprint('task encoding ', self.agent.z)
 
 

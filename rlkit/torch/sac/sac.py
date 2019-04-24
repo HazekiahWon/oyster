@@ -194,13 +194,14 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         rewards_flat = rewards_flat * self.reward_scale
         terms_flat = terms.view(self.batch_size * num_tasks, -1)
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
-        error1 = (q1_pred - q_target)
-        error2 = (q2_pred - q_target)
+        error1 = (q1_pred - q_target.detach())
+        error2 = (q2_pred - q_target.detach())
+        # qpred qtarget=targetv
         qf_loss = torch.mean(error1**2) + torch.mean(error2**2)
-        qf_loss.backward()
+        # qf_loss.backward()
         # self.writer.add_scalar('qf', qf_loss, step)
-        qf1_optimizer.step()
-        qf2_optimizer.step()
+        # qf1_optimizer.step()
+        # qf2_optimizer.step()
         return error1,error2,qf_loss
         # context_optimizer.step()
 
@@ -208,7 +209,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # compute min Q on the new actions
         min_q_new_actions = self.agent.min_q(obs, new_actions, task_z)
 
-        # vf update
+        ######### vf loss involves the gradients of
+        # v
+        ###########
         log_pi = log_pi*alpha
         v_target = min_q_new_actions - log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
@@ -221,7 +224,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # policy update
         # n.b. policy update includes dQ/da
         log_policy_target = min_q_new_actions
-
+        ##### policy loss involves the gradients of
+        # actor, does not involve task encoder, q
+        #############################
         if self.reparameterize:
             policy_loss = (
                     log_pi - log_policy_target  # to make it around 0
@@ -279,13 +284,25 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # enc_data - z <> z
         kl_div = self.agent.compute_kl_div(gt_z)
         self.writer.add_scalar('vae_kl', kl_div, step)
+        ###########
+        # kl loss involve gradients of
+        # 1. no ae: task encoder (be close to prior)
+        # 2. ae: gt ae + task encoder
+        ###########
         if kl_loss is None: kl_loss = self.kl_lambda * kl_div
         else: kl_loss += self.kl_lambda * kl_div
-        kl_loss.backward() # note that i remove retain-graph
+        # kl_loss.backward() # note that i remove retain-graph
 
         # qf and encoder update (note encoder does not get grads from policy or vf)
+        ##########
+        # qf loss involves gradients of
+        # q1 q2 task encoder
+        ##########
         error1,error2,qf_loss = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
                         rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred)
+        (kl_loss+qf_loss).backward()
+        self.qf1_optimizer.step()
+        self.qf2_optimizer.step()
         self.context_optimizer.step()
         if self.use_ae:
             self.enc_optimizer.step()
@@ -307,6 +324,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             rewards_exp = rewards_exp.detach()
             _,_,qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
                             rewards_exp, num_tasks, terms, target_v_exp, q1_exp, q2_exp)
+            self.qf1exp_optimizer.step()
+            self.qf2exp_optimizer.step()
             exp_logp_target,vf_exp,exp_loss = self.optimize_p(self.vfexp_optimizer, self.agent, self.exp_optimizer,
                             obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value, alpha=100)
             if step%20==0:
@@ -330,8 +349,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # across all the train steps?
             self.eval_statistics = OrderedDict()
             if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_dists[0].mean)))
-                z_sig = np.mean(ptu.get_numpy(self.agent.z_dists[0].variance))
+                z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
+                z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
                 self.eval_statistics['Z mean train'] = z_mean
                 self.eval_statistics['Z variance train'] = z_sig
                 self.eval_statistics['KL Divergence'] = ptu.get_numpy(kl_div)

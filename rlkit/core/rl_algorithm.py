@@ -107,7 +107,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.explorer = agent
             self.eval_sampler = InPlacePathSampler(
                 env=env,
-                policy=agent,
+                # policy=agent,
                 max_samples=self.num_steps_per_eval,
                 max_path_length=self.max_path_length,
             )
@@ -115,14 +115,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.explorer = explorer
             self.exp_sampler = InPlacePathSampler(
                 env=env,
-                policy=self.explorer,
+                # policy=self.explorer,
                 max_samples=self.num_steps_per_eval,
                 max_path_length=self.max_path_length,
             )
 
             self.eval_sampler = InPlacePathSampler(
                 env=env,
-                policy=self.agent,
+                # policy=self.agent,
                 max_samples=self.num_steps_per_eval,
                 max_path_length=self.max_path_length,
             )

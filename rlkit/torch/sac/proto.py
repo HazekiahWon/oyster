@@ -168,7 +168,6 @@ class ProtoAgent(nn.Module):
                       zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
         kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
-        self.z_dists
         return kl_div_sum
 
     # TODO replace all usage of this to infer posterior
