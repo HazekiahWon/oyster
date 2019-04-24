@@ -303,7 +303,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # modified train steps
             for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
-                gammas = self.make_onehot(indices)
+                # defined in sac
+                gammas = self.make_onehot(indices) if self.use_ae else None
                 self._do_training(indices, gammas)
                 self._n_train_steps_total += 1
             gt.stamp('train')
