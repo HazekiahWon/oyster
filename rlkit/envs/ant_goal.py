@@ -31,7 +31,7 @@ class AntGoalEnv(MultitaskAntEnv):
         a = np.random.random(num_tasks) * 2 * np.pi
         r = 3 * np.random.random(num_tasks) ** 0.5
         goals = np.stack((r * np.cos(a), r * np.sin(a)), axis=-1)
-        tasks = [{'goal': goal} for goal in goals]
+        tasks = [{'goal': goal, 'variation':np.array((ae,re,re*np.cos(ae),re*np.sin(ae)))} for goal,ae,re in zip(goals,a,r)]
         return tasks
 
     def _get_obs(self):

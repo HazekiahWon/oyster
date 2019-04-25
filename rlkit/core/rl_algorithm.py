@@ -47,6 +47,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_algorithm=False,
             save_environment=False,
             gamma_dim=None,
+            exp_offp=False,
             **kwargs
     ):
         """
@@ -103,6 +104,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_environment = save_environment
         self.use_explorer = explorer is not None
         self.gamma_dim = gamma_dim
+        self.exp_offp = exp_offp
         if not self.use_explorer:
             self.explorer = agent
             self.eval_sampler = InPlacePathSampler(
@@ -184,6 +186,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         target = one_hot.scatter_(1, torch.cuda.LongTensor(labels), 1)
         return target
 
+    def make_variation(self, indices):
+        var = np.array([self.env.tasks[i]['variation'] for i in indices])
+        inp = torch.cuda.FloatTensor(var)
+        return inp
+
     def train(self):
         '''
         meta-training loop
@@ -212,99 +219,60 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     self.env.reset_task(idx)
                     # initial pool add both
                     if not self.use_explorer: # pearl
-                        self.collect_data_sampling_from_prior(self.agent, num_samples=self.max_path_length * 10,
-                                                              resample_z_every_n=self.max_path_length,
-                                                              eval_task=False)
+                        self.collect_data2(self.eval_sampler, self.agent,
+                                           self.max_path_length*10, resample_z_rate=1,
+                                           update_posterior_rate=np.inf, add_to=2)
                     else:
-                        self.collect_data_sampling_from_prior(self.agent,
-                                                              num_samples=self.max_path_length * 10,
-                                                              resample_z_every_n=self.max_path_length,
-                                                              eval_task=False,
-                                                              add_to=0) # only rl buffer
-                        self.collect_data_sampling_from_prior(self.explorer,
-                                                              num_samples=self.max_path_length * 10,
-                                                              resample_z_every_n=self.max_path_length,
-                                                              eval_task=False,
-                                                              add_to=1) # only enc buffer
-                """
-                for idx in self.eval_tasks:
-                    self.task_idx = idx
-                    self.env.reset_task(idx)
-                    # TODO: make number of initial trajectories a parameter
-                    self.collect_data_sampling_from_prior(num_samples=self.max_path_length * 20,
-                                                          resample_z_every_n=self.max_path_length,
-                                                          eval_task=True)
-                """
-
+                        self.collect_data2(self.eval_sampler, self.agent,
+                                           self.max_path_length * 10, resample_z_rate=1,
+                                           update_posterior_rate=np.inf, add_to=0)
+                        self.collect_data2(self.exp_sampler, self.explorer,
+                                           self.max_path_length * 10, resample_z_rate=1,
+                                           update_posterior_rate=np.inf, add_to=1)
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 self.env.reset_task(idx)
-
-                # TODO: there may be more permutations of sampling/adding to encoding buffer we may wish to try
-                if self.train_embedding_source == 'initial_pool':
-                    # embeddings are computed using only the initial pool of data
-                    # sample data from posterior to train RL algorithm
-                    self.collect_data_from_task_posterior(self.agent, idx=idx,
-                                                          num_samples=self.num_steps_per_task,
-                                                          add_to=0) # no ambiguity for two algo
-                elif self.train_embedding_source == 'posterior_only':
-                    if not self.use_explorer:
-                        self.collect_data_from_task_posterior(self.agent,
-                                                              idx=idx, num_samples=self.num_steps_per_task, eval_task=False,
-                                                              add_to=2)
-                    else:
-                        self.collect_data_from_task_posterior(self.agent,
-                                                              idx=idx, num_samples=self.num_steps_per_task,
-                                                              eval_task=False,
-                                                              add_to=0)
-                        self.collect_data_from_task_posterior(self.explorer,
-                                                              idx=idx, num_samples=self.num_steps_per_task,
-                                                              eval_task=False,
-                                                              add_to=1)
-                elif self.train_embedding_source == 'online_exploration_trajectories':
-                    # embeddings are computed using only data collected using the prior
-                    # sample data from posterior to train RL algorithm
+                # resamples using current policy, conditioned on prior
+                ####### TODO
+                if not self.use_explorer:
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    # resamples using current policy, conditioned on prior
-                    if not self.use_explorer:
-                        self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                                                                      resample_z_every_n=self.max_path_length,
-                                                                      add_to=2)
-                    else:
-                        self.collect_data_sampling_from_prior(self.agent,
-                                                              num_samples=self.num_steps_per_task,
-                                                              resample_z_every_n=self.max_path_length,
-                                                              add_to=0)
-                        self.collect_data_sampling_from_prior(self.explorer,
-                                                              num_samples=self.num_steps_per_task,
-                                                              resample_z_every_n=self.max_path_length,
-                                                              add_to=1)
-                    poret = self.collect_data_from_task_posterior(self.agent, idx=idx,
-                                                                  num_samples=self.num_steps_per_task,
-                                                                  add_to=0)
+                    # sample any z is ok, because the learning for the q function only require samples from the env,
+                    # and the rollout for actor requires z.
+                    self.collect_data2(self.eval_sampler, self.agent,
+                                       self.max_path_length * 2, resample_z_rate=1,
+                                       update_posterior_rate=np.inf, add_to=2)
+                    ##########################
+                    # code: sample from posterior of z
+                    ########################
+                    self.collect_data2(self.eval_sampler, self.agent,
+                                       self.max_path_length*3, resample_z_rate=1, update_posterior_rate=1, add_to=0)
 
-                    global step
-                    # self.writer.add_scalar('prior_ret', np.mean(prret), step)
-                    self.writer.add_scalar('post_ret', np.mean(poret), step)
-                    step += 1
-                elif self.train_embedding_source == 'online_on_policy_trajectories':
-                    # sample from prior, then sample more from the posterior
-                    # embeddings computed from both prior and posterior data
-                    self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data_online(idx=idx,
-                                             num_samples=self.num_steps_per_task,
-                                             add_to=2)
                 else:
-                    raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
+                    if not self.exp_offp:
+                        self.enc_replay_buffer.task_buffers[idx].clear()
+                    self.collect_data2(self.eval_sampler, self.agent,
+                                       self.max_path_length * 2, resample_z_rate=1,
+                                       update_posterior_rate=np.inf, add_to=0)
+                    # sample for enc buffer
+                    # currently using online exploration
+                    # otherwise sample z from posterior inferred given the enc buffer data
+                    self.collect_data2(self.exp_sampler, self.explorer,
+                                       self.num_steps_per_task, resample_z_rate=1, update_posterior_rate=1, add_to=1)
+
+                # poret = self.collect_data_from_task_posterior(self.agent, idx=idx,
+                #                                               num_samples=self.num_steps_per_task,
+                #                                               add_to=0)
+
             logger.log(f'iteration {it_}.')
             # Sample train tasks and compute gradient updates on parameters.
             # modified train steps
             for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
                 # defined in sac
-                gammas = self.make_onehot(indices) if self.use_ae else None
+                # gammas = self.make_onehot(indices) if self.use_ae else None
+                gammas = self.make_variation(indices) if self.use_ae else None
                 self._do_training(indices, gammas)
                 self._n_train_steps_total += 1
             gt.stamp('train')
@@ -467,6 +435,43 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             gt.stamp('sample')
 
         return np.mean(returns)
+
+    def collect_data2(self, sampler, agent, num_samples, resample_z_rate, update_posterior_rate, add_to=2):
+        '''
+        get trajectories from current env in batch mode with given policy
+        collect complete trajectories until the number of collected transitions >= num_samples
+
+        :param agent: policy to rollout
+        :param num_samples: total number of transitions to sample
+        :param resample_z_rate: how often to resample latent context z (in units of trajectories)
+        :param update_posterior_rate: how often to update q(z | c) from which z is sampled (in units of trajectories)
+        :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
+        '''
+        # start from the prior
+        agent.clear_z()
+
+        num_transitions = 0
+        while num_transitions < num_samples:
+            paths, n_samples = sampler.obtain_samples3(agent, max_samples=num_samples - num_transitions,
+                                                                max_trajs=update_posterior_rate,
+                                                                accum_context=False,
+                                                                resample=resample_z_rate)
+            num_transitions += n_samples
+            # add to enc buffer
+            # 0: rl buffer
+            # 1: enc buffer
+            if add_to==0:
+                self.replay_buffer.add_paths(self.task_idx, paths)
+            elif add_to==1:
+                self.enc_replay_buffer.add_paths(self.task_idx, paths)
+            else:
+                self.replay_buffer.add_paths(self.task_idx, paths)
+                self.enc_replay_buffer.add_paths(self.task_idx, paths)
+            if update_posterior_rate != np.inf:
+                context = self.prepare_context(self.task_idx) #defined in sac
+                agent.infer_posterior(context)
+        self._n_env_steps_total += num_transitions
+        gt.stamp('sample')
 
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))

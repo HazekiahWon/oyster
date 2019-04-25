@@ -21,6 +21,7 @@ use_explorer = True
 use_ae = use_explorer and True
 dif_policy = False
 fast_debug = debug and False
+exp_offp = False
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -47,7 +48,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
 
-    gamma_dim = len(tasks) if use_ae else None
+    gamma_dim = 4 if use_ae else None # (a,r,rcosa,rsina)
 
     net_size = variant['net_size']
     # start with linear task encoding
@@ -78,6 +79,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
         agent=agent,
         latent_dim=z_dim,
         gamma_dim=gamma_dim,
+        exp_offp=exp_offp,
         **variant['algo_params']
     )
 
@@ -134,6 +136,14 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker, tes
             train_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
+        ),
+        cmd_params=dict(
+            debug=debug,
+            use_explorer = use_explorer,
+            use_ae = use_explorer and use_ae,
+            dif_policy = dif_policy,
+            fast_debug = debug and False,
+            exp_offp = exp_offp,
         ),
         net_size=300,
         use_gpu=True,

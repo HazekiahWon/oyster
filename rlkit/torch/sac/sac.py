@@ -65,6 +65,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
         self.onehot_criterion = nn.CrossEntropyLoss()
+        self.mse_criterion = nn.MSELoss()
         self.l2_reg_criterion = nn.MSELoss()
 
         self.eval_statistics = None
@@ -166,6 +167,15 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             rewards = ptu.sparsify_rewards(rewards)
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
+
+    def prepare_context(self, idx):
+        ''' sample context from replay buffer and prepare it '''
+        batch = ptu.np_to_pytorch_batch(self.enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, trajs=self.recurrent))
+        obs = batch['observations'][None, ...]
+        act = batch['actions'][None, ...]
+        rewards = batch['rewards'][None, ...]
+        context = self.prepare_encoder_data(obs, act, rewards)
+        return context
 
     def _do_training(self, indices, gammas=None):
         mb_size = self.embedding_mini_batch_size
@@ -285,7 +295,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.writer.add_histogram('rec_gamma', rec_gam, step)
             self.writer.add_histogram('gt_z', gt_z[0], step)
             self.writer.add_histogram('task_z',self.agent.z_means[0], step)
-            rec_loss = self.onehot_criterion(rec_gam, torch.cuda.LongTensor(indices)) # because it is quite small if averaged
+            # rec_loss = self.onehot_criterion(rec_gam, torch.cuda.LongTensor(indices)) # because it is quite small if averaged
+            rec_loss = self.mse_criterion(rec_gam, gammas)
             kl_loss = rec_loss*self.rec_lambda
             self.writer.add_scalar('ae_rec_loss', rec_loss, step)
         # enc_data - z <> z
