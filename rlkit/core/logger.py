@@ -276,13 +276,13 @@ def save_itr_params(itr, params):
         else:
             raise NotImplementedError
 
-def save_test_results(seq):
-    filename = osp.join(_snapshot_dir, 'test_res.pkl')
+def save_test_results(seq, fname):
+    filename = osp.join(_snapshot_dir, f'{fname}.pkl')
     joblib.dump(seq, filename, compress=3)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(seq)
-    fig.savefig(osp.join(_snapshot_dir, 'test_res.png'))
+    fig.savefig(osp.join(_snapshot_dir, f'{fname}.png'))
 
 class MyEncoder(json.JSONEncoder):
     def default(self, o):

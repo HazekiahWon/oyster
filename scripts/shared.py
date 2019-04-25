@@ -45,7 +45,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
     nets = [task_enc, policy2 if dif_policy else policy, qf1, qf2, vf]
     if is_actor and gt_ae is not None:
         gt_encoder = encoder_model(
-            hidden_sizes=[128, 64],  # deeper net + higher dim space generalize better
+            hidden_sizes=[64, 32],  # deeper net + higher dim space generalize better
             input_size=gamma_dim,
             output_size=task_enc_output_dim//2,
             hidden_init=nn.init.xavier_normal_,
@@ -53,7 +53,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
 
         )
         gt_decoder = encoder_model(
-            hidden_sizes=[128, 64],  # deeper net + higher dim space generalize better
+            hidden_sizes=[32, 64],  # deeper net + higher dim space generalize better
             input_size=task_enc_output_dim//2,
             output_size=gamma_dim,
             # output_activation=nn.Softmax(dim=-1), # predict as label

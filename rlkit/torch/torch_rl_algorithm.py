@@ -261,6 +261,55 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         return paths
 
+    def collect_test_paths(self, idx, max_attempt):
+        """
+        used only in do eval
+        :param idx:
+        :param epoch:
+        :param run:
+        :return:
+        """
+        self.task_idx = idx
+        self.env.reset_task(idx)
+
+        self.agent.clear_z()
+        if self.use_explorer: self.explorer.clear_z()
+        returns = [] # a list of return for different number of exploration
+        num_transitions = 0
+
+        actor, explorer = self.agent, self.explorer if self.use_explorer else self.agent
+        act_sampler, exp_sampler = self.eval_sampler, self.exp_sampler if self.use_explorer else self.eval_sampler
+
+        # for a single eval, sample 400 trans==2traj, thus 1 traj for exp 1 for testing
+        for num_trajs in range(max_attempt):
+            exp,_ = exp_sampler.obtain_samples3(explorer, deterministic=self.eval_deterministic,
+                                                    max_samples=self.num_steps_per_eval - num_transitions,
+                                                    max_trajs=1, accum_context=True)
+            if num_trajs >= 1: # another exploration
+                explorer.infer_posterior(explorer.context)
+                # if explorer is used, need to transmit z from the explorer
+                if self.use_explorer: actor.trans_z(explorer.z_means, explorer.z_vars)
+                attempts = list() # list of returns for each trial
+                for _ in range(self.num_evals):
+                    attempt,_ = act_sampler.obtain_samples3(actor, deterministic=self.eval_deterministic,
+                                                        max_samples=self.num_steps_per_eval - num_transitions,
+                                                        max_trajs=1, accum_context=False)
+                    if self.sparse_rewards:
+                        for p in attempt:
+                            sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
+                            p['rewards'] = sparse_rewards
+                    attempts.append([eval_util.get_average_returns([p]) for p in attempt])
+                returns.append(np.mean(attempts))
+
+        # goal = self.env._goal
+        # for path in returns:
+        #     path['goal'] = goal # goal
+        # # save the paths for visualization, only useful for point mass
+        # if self.dump_eval_paths:
+        #     logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
+
+        return returns
+
     def _do_eval(self, indices, epoch):
         """
         # return the (averaged) testing traj return list
@@ -281,6 +330,25 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
             # final_returns.append(all_rets[-1])
             online_returns.append(all_rets)
+        return online_returns
+
+    def _do_test(self, indices):
+        """
+        # return the (averaged) testing traj return list
+        (n_ind,1)
+        :param indices:
+        :param epoch:
+        :return:
+        """
+        # final_returns = []
+        online_returns = []
+        for idx in indices:
+            # runs, all_rets = [], []
+            all_rets = self.collect_test_paths(idx, max_attempt=5)
+            # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.
+            # final_returns.append(all_rets[-1])
+            online_returns.append(all_rets)
+        online_returns = np.mean(np.stack(online_returns), axis=0)
         return online_returns
 
     def log_statistics(self, paths, split=''):
@@ -429,52 +497,92 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         #
         # return avg_train_return,avg_test_return
 
-    def test(self, newenv):
-        statistics = OrderedDict()
-        if self.eval_statistics is not None:
-            statistics.update(self.eval_statistics)
-        self.eval_statistics = statistics
+    def test(self, newenv=None):
+        if self.eval_statistics is None:
+            self.eval_statistics = OrderedDict()
 
-        # ### train tasks
-        # dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
-        # train_avg_returns = []
-        # for idx in self.train_tasks:
-        #     self.task_idx = idx
-        #     self.env.reset_task(idx)
-        #     newenv.reset_task(idx)
-        #     dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
-        #
-        #     trn_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, newenv,
-        #                                                     max_explore=5, deterministic=True, is_online=True)
-        #     train_avg_returns.append(trn_res)
-        # train_avg_returns = np.mean(train_avg_returns, axis=0)
+        indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
+        eval_util.dprint('testing on {} train tasks'.format(len(indices)))
+        ### eval train tasks with on-policy data to match eval of test tasks
+        train_online_returns = self._do_test(indices)
+        eval_util.dprint('train online returns')
+        eval_util.dprint(train_online_returns)
 
         ### test tasks
-        dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_avg_returns = []
-        # This is calculating the embedding online, because every iteration
-        # we clear the encoding buffer for the test tasks.
-        for idx in self.eval_tasks:
-            print(f'evaluating {idx}')
-            self.task_idx = idx
-            self.env.reset_task(idx)
-            newenv.reset_task(idx)
-            tst_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, newenv,
-                                                            max_explore=2,
-                                                            deterministic=True, is_online=True)
-            test_avg_returns.append(tst_res)
-        test_avg_returns = np.mean(test_avg_returns, axis=0)
+        eval_util.dprint('testing on {} test tasks'.format(len(self.eval_tasks)))
+        test_online_returns = self._do_test(self.eval_tasks)
+        eval_util.dprint('test online returns')
+        eval_util.dprint(test_online_returns)
 
-        # self.eval_statistics['AverageReturn_all_train_tasks'] = train_avg_returns
-        self.eval_statistics['AverageReturn_all_test_tasks'] = test_avg_returns
+        logger.save_test_results(train_online_returns, 'train_res')
+        logger.save_test_results(test_online_returns, 'test_res')
+        # avg_train_return = np.mean(train_final_returns)
+        # avg_test_return = np.mean(test_final_returns)
+        # first attempt and following attempts across tasks, averaged across tasks if axis set 0
+        # avg_train_online_return = np.mean(np.stack(train_online_returns))
+        # avg_test_online_return = np.mean(np.stack(test_online_returns))
+        # self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
+        self.eval_statistics['AverageReturn_all_train_tasks'] = train_online_returns
+        self.eval_statistics['AverageReturn_all_test_tasks'] = test_online_returns
+        # logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
+        # logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
         self.eval_statistics = None
-        logger.save_test_results(test_avg_returns)
-        print(test_avg_returns)
 
-        return test_avg_returns
+        # if self.render_eval_paths:
+        #     self.env.render_paths(paths)
+        #
+        # if self.plotter:
+        #     self.plotter.draw()
+
+        return avg_train_online_return, avg_test_online_return
+        # statistics = OrderedDict()
+        # if self.eval_statistics is not None:
+        #     statistics.update(self.eval_statistics)
+        # self.eval_statistics = statistics
+        #
+        # # ### train tasks
+        # # dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
+        # # train_avg_returns = []
+        # # for idx in self.train_tasks:
+        # #     self.task_idx = idx
+        # #     self.env.reset_task(idx)
+        # #     newenv.reset_task(idx)
+        # #     dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
+        # #
+        # #     trn_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, newenv,
+        # #                                                     max_explore=5, deterministic=True, is_online=True)
+        # #     train_avg_returns.append(trn_res)
+        # # train_avg_returns = np.mean(train_avg_returns, axis=0)
+        #
+        # ### test tasks
+        # dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
+        # test_avg_returns = []
+        # # This is calculating the embedding online, because every iteration
+        # # we clear the encoding buffer for the test tasks.
+        # for idx in self.eval_tasks:
+        #     print(f'evaluating {idx}')
+        #     self.task_idx = idx
+        #     self.env.reset_task(idx)
+        #     newenv.reset_task(idx)
+        #     tst_res = self.eval_sampler.obtain_test_samples(self.agent, self.explorer, newenv,
+        #                                                     max_explore=2,
+        #                                                     deterministic=True, is_online=True)
+        #     test_avg_returns.append(tst_res)
+        # test_avg_returns = np.mean(test_avg_returns, axis=0)
+        #
+        # # self.eval_statistics['AverageReturn_all_train_tasks'] = train_avg_returns
+        # self.eval_statistics['AverageReturn_all_test_tasks'] = test_avg_returns
+        #
+        # for key, value in self.eval_statistics.items():
+        #     logger.record_tabular(key, value)
+        # self.eval_statistics = None
+        # logger.save_test_results(test_avg_returns)
+        # print(test_avg_returns)
+        #
+        # return test_avg_returns
 
 def _elem_or_tuple_to_variable(elem_or_tuple):
     if isinstance(elem_or_tuple, tuple):

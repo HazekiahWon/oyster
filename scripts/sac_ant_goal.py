@@ -20,7 +20,7 @@ debug = True
 use_explorer = True
 use_ae = use_explorer and True
 dif_policy = False
-fast_debug = debug and True
+fast_debug = debug and False
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv

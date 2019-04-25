@@ -312,6 +312,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             #self.training_mode(False)
             # eval
             offline_trn, trn_ret,tst_ret = self._try_to_eval(it_)
+            # trn_ret,tst_ret = self.test(it_)
             self.writer.add_scalar('eval_trn_return', trn_ret, it_)
             self.writer.add_scalar('eval_tst_return', tst_ret, it_)
             self.writer.add_scalar('eval_trn_offline', offline_trn, it_)
