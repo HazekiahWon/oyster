@@ -1,7 +1,7 @@
 import numpy as np
 from rlkit.core import eval_util
 
-def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False, need_cupdate=True):
+def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -16,6 +16,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False, 
      - agent_infos
      - env_infos
 
+    will only resample z and collect context, but will not update z posterior
     :param env:
     :param agent:
     :param max_path_length:
@@ -37,7 +38,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False, 
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
-        if is_online and need_cupdate:
+        if need_cupdate:
             agent.update_context([o, a, r, next_o, d])
         observations.append(o)
         rewards.append(r)
@@ -75,7 +76,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, is_online=False, 
         env_infos=env_infos,
     )
 
-def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path_length=np.inf, animated=False, is_online=False):
+def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path_length=np.inf, animated=False):
     """
     rollout actor for 3 times while explorer exploring another 20 transitions
 
@@ -102,7 +103,7 @@ def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path
             actor.trans_z(agent.z_means, agent.z_vars)
             test_paths = list()
             for _ in range(num_avg_test):
-                test_paths.append(rollout(env2, actor, max_path_length, animated, is_online, need_cupdate=False))
+                test_paths.append(rollout(env2, actor, max_path_length, animated, need_cupdate=False))
             ret = eval_util.get_average_returns(test_paths) # average multiple paths
             ret_seq.append(ret)
 

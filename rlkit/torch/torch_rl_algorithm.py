@@ -15,7 +15,7 @@ import copy
 
 
 class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
-    def __init__(self, *args, render_eval_paths=False, plotter=None, dump_eval_paths=False, output_dir=None, recurrent=False, **kwargs):
+    def __init__(self, *args, num_exp_traj_eval=1, render_eval_paths=False, plotter=None, dump_eval_paths=False, output_dir=None, recurrent=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.eval_statistics = None
         self.render_eval_paths = render_eval_paths
@@ -23,6 +23,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.dump_eval_paths = dump_eval_paths
         self.output_dir = output_dir
         self.recurrent = recurrent
+        self.num_exp_traj_eval = num_exp_traj_eval
         logger.log(kwargs.get('memo', 'no memo'))
 
     ###### Torch stuff #####
@@ -62,24 +63,26 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         return np_to_pytorch_batch(batch)
 
     ##### Eval stuff #####
-    def obtain_eval_paths(self, idx, eval_task=False, deterministic=False):
+    def offline_eval_trn_paths(self, idx, eval_task=False, deterministic=False):
         '''
-        collect paths with current policy
-        if online, task encoding will be updated after each transition
-        otherwise, sample a task encoding once and keep it fixed
+        used in eval train
+        following the new pearl implementation
+        infer z from enc buffer and sample one traj without context updating
         '''
-        is_online = (self.eval_embedding_source == 'online')
+        # is_online = (self.eval_embedding_source.startswith('online'))
+        # the original pearl always infer z offline
         self.agent.clear_z()
-
-        if not is_online: # only using the enc buffer to generate z
-            self.sample_z_from_posterior(self.agent, idx, eval_task=eval_task)
-
-        dprint('task encoding ', self.agent.z)
-
-        test_paths = self.eval_sampler.obtain_samples(self.agent, deterministic=deterministic, is_online=is_online, need_cupdate=False)
-        if self.sparse_rewards:
-            for p in test_paths:
-                p['rewards'] = ptu.sparsify_rewards(p['rewards'])
+        # if not is_online: # only using the enc buffer to generate z
+        self.sample_z_from_posterior(self.agent, idx, eval_task=eval_task)
+        # dprint('task encoding ', self.agent.z)
+        test_paths,_ = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+                                                       is_online=False, accum_context=False,
+                                                       max_samples=self.max_path_length,
+                                                       max_trajs=1,
+                                                       resample=np.inf) # eval_sampler is also explorer for pearl
+        # if self.sparse_rewards:
+        #     for p in test_paths:
+        #         p['rewards'] = ptu.sparsify_rewards(p['rewards'])
         return test_paths
 
     def obtain_test_paths(self, idx, eval_task=False, deterministic=False):
@@ -148,13 +151,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for i in range(n_exploration_episodes):
             initial_z = self.sample_z_from_prior()
 
-            init_paths = self.obtain_eval_paths(idx, z=initial_z, eval_task=True)
+            init_paths = self.offline_eval_trn_paths(idx, z=initial_z, eval_task=True)
             all_init_paths += init_paths
             self.enc_replay_buffer.add_paths(idx, init_paths)
         dprint('enc_replay_buffer.task_buffers[idx]._size', self.enc_replay_buffer.task_buffers[idx]._size)
 
         for i in range(n_inference_episodes):
-            paths = self.obtain_eval_paths(idx, eval_task=True)
+            paths = self.offline_eval_trn_paths(idx, eval_task=True)
             all_inference_paths += paths
             self.enc_replay_buffer.add_paths(idx, init_paths)
 
@@ -170,7 +173,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         average_inference_returns = [eval_util.get_average_returns(paths) for paths in all_inference_paths]
         self.eval_statistics['AverageInferenceReturns_test_task{}'.format(idx)] = average_inference_returns
 
-    def collect_paths(self, idx, epoch, eval_task=False):
+    def collect_paths2(self, idx, epoch, eval_task=False):
         """
         incorporated the explorer version
         :param idx:
@@ -190,7 +193,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for _ in range(num_evals):
             if self.use_explorer: # TODO: note that when eval the policies are set deterministic
                 single_evalp,_ = self.obtain_eval_paths_new(idx, eval_task=eval_task, deterministic=True)
-            else: single_evalp = self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
+            else: single_evalp = self.offline_eval_trn_paths(idx, eval_task=eval_task, deterministic=True)
             paths += single_evalp
         goal = self.env._goal
         for path in paths:
@@ -201,6 +204,84 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             split = 'test' if eval_task else 'train'
             logger.save_extra_data(paths, path='eval_trajectories/{}-task{}-epoch{}'.format(split, idx, epoch))
         return paths
+
+    def collect_paths(self, idx, epoch, run):
+        """
+        used only in do eval
+        :param idx:
+        :param epoch:
+        :param run:
+        :return:
+        """
+        self.task_idx = idx
+        self.env.reset_task(idx)
+
+        self.agent.clear_z()
+        if self.use_explorer: self.explorer.clear_z()
+        paths = []
+        num_transitions = 0
+        num_trajs = 0
+        pair1 = (self.eval_sampler, self.agent)
+        if self.use_explorer: pair2 = (self.exp_sampler, self.explorer)
+        exploring = True
+        # for a single eval, sample 400 trans==2traj, thus 1 traj for exp 1 for testing
+        while num_transitions < self.num_steps_per_eval:
+            if num_trajs >= self.num_exp_traj_eval: # the end of exploring, 1 traj
+                agent.infer_posterior(agent.context)
+                exploring = False
+                # if explorer is used, need to transmit z from the explorer
+                if self.use_explorer: self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
+            # determine sampler and agent
+            # if not explorer: sampler==eval sampler, agent=self.agent
+            # else: if not exploring : sampler==eval sampler, agent=self.agent else (exp_sampler,self.explorer)
+            sampler,agent = pair2 if exploring and self.use_explorer else pair1
+            path, num = sampler.obtain_samples3(agent, deterministic=self.eval_deterministic,
+                                                    max_samples=self.num_steps_per_eval - num_transitions,
+                                                    max_trajs=1, accum_context=exploring)
+            # if use explorer: append when not exploring
+            # else: always append
+            # will not append when using explorer and exploring
+            if not (self.use_explorer and exploring):
+                paths.extend(path)
+            num_transitions += num
+            num_trajs += 1
+
+        if self.sparse_rewards:
+            for p in paths:
+                sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
+                p['rewards'] = sparse_rewards
+
+        goal = self.env._goal
+        for path in paths:
+            path['goal'] = goal # goal
+
+        # save the paths for visualization, only useful for point mass
+        if self.dump_eval_paths:
+            logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
+
+        return paths
+
+    def _do_eval(self, indices, epoch):
+        """
+        # return the (averaged) testing traj return list
+        (n_ind,1)
+        :param indices:
+        :param epoch:
+        :return:
+        """
+        # final_returns = []
+        online_returns = []
+        for idx in indices:
+            runs, all_rets = [], []
+            for r in range(self.num_evals):
+                paths = self.collect_paths(idx, epoch, r)
+                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
+                runs.append(paths)
+            # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.
+            all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
+            # final_returns.append(all_rets[-1])
+            online_returns.append(all_rets)
+        return online_returns
 
     def log_statistics(self, paths, split=''):
         self.eval_statistics.update(eval_util.get_generic_path_information(
@@ -218,81 +299,135 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
 
     def evaluate(self, epoch):
-        statistics = OrderedDict()
-        statistics.update(self.eval_statistics)
-        self.eval_statistics = statistics
+        if self.eval_statistics is None:
+            self.eval_statistics = OrderedDict()
 
-        ### train tasks
-        dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
-        train_avg_returns = []
-        for idx in self.train_tasks:
-            dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
-            paths = self.collect_paths(idx, epoch, eval_task=False) # involve explorer
-            train_avg_returns.append(eval_util.get_average_returns(paths))
-
-        ### test tasks
-        dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_avg_returns = []
-        # This is calculating the embedding online, because every iteration
-        # we clear the encoding buffer for the test tasks.
-        for idx in self.eval_tasks:
+        indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
+        eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
+        ### eval train tasks with on-policy data to match eval of test tasks
+        train_online_returns = self._do_eval(indices, epoch)
+        eval_util.dprint('train online returns')
+        eval_util.dprint(train_online_returns)
+        train_returns = []
+        for idx in indices:
             self.task_idx = idx
             self.env.reset_task(idx)
+            paths = []
+            for _ in range(self.num_steps_per_eval // self.max_path_length):
+                p = self.offline_eval_trn_paths(idx, deterministic=True)
+                paths += p
+            if self.sparse_rewards:
+                for p in paths:
+                    sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
+                    p['rewards'] = sparse_rewards
 
-            # collect data fo computing embedding if needed
-            if self.eval_embedding_source in ['online', 'initial_pool']:
-                pass
-            elif self.eval_embedding_source == 'online_exploration_trajectories':
-                self.eval_enc_replay_buffer.task_buffers[idx].clear()
-                # task embedding sampled from prior and held fixed
-                if not self.use_explorer:
-                    self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                                                          resample_z_every_n=self.max_path_length,
-                                                          eval_task=True)
-                else:
-                    self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                                                          resample_z_every_n=self.max_path_length,
-                                                          eval_task=True, add_to=0)
-                    self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
-                                                          resample_z_every_n=self.max_path_length,
-                                                          eval_task=True, add_to=1)
-            elif self.eval_embedding_source == 'online_on_policy_trajectories':
-                self.eval_enc_replay_buffer.task_buffers[idx].clear()
-                # half the data from z sampled from prior, the other half from z sampled from posterior
-                self.collect_data_online(idx=idx,
-                                         num_samples=self.num_steps_per_task,
-                                         eval_task=True)
-            else:
-                raise Exception("Invalid option for computing eval embedding")
+            train_returns.append(eval_util.get_average_returns(paths))
+        train_returns = np.mean(train_returns)
 
-            dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
-            test_paths = self.collect_paths(idx, epoch, eval_task=True)
+        ### test tasks
+        eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
+        test_online_returns = self._do_eval(self.eval_tasks, epoch)
+        eval_util.dprint('test online returns')
+        eval_util.dprint(test_online_returns)
 
-            test_avg_returns.append(eval_util.get_average_returns(test_paths))
-
-            if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
-                z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
-                self.eval_statistics['Z mean eval'] = z_mean
-                self.eval_statistics['Z variance eval'] = z_sig
-
-
-        avg_train_return = np.mean(train_avg_returns)
-        avg_test_return = np.mean(test_avg_returns)
-        self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
-        self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+        # avg_train_return = np.mean(train_final_returns)
+        # avg_test_return = np.mean(test_final_returns)
+        # first attempt and following attempts across tasks, averaged across tasks if axis set 0
+        avg_train_online_return = np.mean(np.stack(train_online_returns))
+        avg_test_online_return = np.mean(np.stack(test_online_returns))
+        self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
+        self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_online_return
+        self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_online_return
+        # logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
+        # logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
         self.eval_statistics = None
 
         if self.render_eval_paths:
-            self.env.render_paths(test_paths)
+            self.env.render_paths(paths)
 
         if self.plotter:
             self.plotter.draw()
 
-        return avg_train_return,avg_test_return
+        return train_returns, avg_train_online_return, avg_test_online_return
+        ###############
+        # statistics = OrderedDict()
+        # statistics.update(self.eval_statistics)
+        # self.eval_statistics = statistics
+        #
+        # ### train tasks
+        # dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
+        # train_avg_returns = []
+        # for idx in self.train_tasks:
+        #     dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
+        #     paths = self.collect_paths2(idx, epoch, eval_task=False) # involve explorer
+        #     train_avg_returns.append(eval_util.get_average_returns(paths))
+        #
+        # ### test tasks
+        # dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
+        # test_avg_returns = []
+        # # This is calculating the embedding online, because every iteration
+        # # we clear the encoding buffer for the test tasks.
+        # for idx in self.eval_tasks:
+        #     self.task_idx = idx
+        #     self.env.reset_task(idx)
+        #
+        #     # collect data fo computing embedding if needed
+        #     if self.eval_embedding_source in ['online', 'initial_pool']:
+        #         pass
+        #     elif self.eval_embedding_source == 'online_exploration_trajectories':
+        #         self.eval_enc_replay_buffer.task_buffers[idx].clear()
+        #         # task embedding sampled from prior and held fixed
+        #         if not self.use_explorer:
+        #             self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+        #                                                   resample_z_every_n=self.max_path_length,
+        #                                                   eval_task=True)
+        #         else:
+        #             self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+        #                                                   resample_z_every_n=self.max_path_length,
+        #                                                   eval_task=True, add_to=0)
+        #             self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
+        #                                                   resample_z_every_n=self.max_path_length,
+        #                                                   eval_task=True, add_to=1)
+        #     elif self.eval_embedding_source == 'online_on_policy_trajectories':
+        #         self.eval_enc_replay_buffer.task_buffers[idx].clear()
+        #         # half the data from z sampled from prior, the other half from z sampled from posterior
+        #         self.collect_data_online(idx=idx,
+        #                                  num_samples=self.num_steps_per_task,
+        #                                  eval_task=True)
+        #     else:
+        #         raise Exception("Invalid option for computing eval embedding")
+        #
+        #     dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
+        #     test_paths = self.collect_paths2(idx, epoch, eval_task=True)
+        #
+        #     test_avg_returns.append(eval_util.get_average_returns(test_paths))
+        #
+        #     if self.use_information_bottleneck:
+        #         z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
+        #         z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
+        #         self.eval_statistics['Z mean eval'] = z_mean
+        #         self.eval_statistics['Z variance eval'] = z_sig
+        #
+        #
+        # avg_train_return = np.mean(train_avg_returns)
+        # avg_test_return = np.mean(test_avg_returns)
+        # self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
+        # self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+        #
+        # for key, value in self.eval_statistics.items():
+        #     logger.record_tabular(key, value)
+        # self.eval_statistics = None
+        #
+        # if self.render_eval_paths:
+        #     self.env.render_paths(test_paths)
+        #
+        # if self.plotter:
+        #     self.plotter.draw()
+        #
+        # return avg_train_return,avg_test_return
 
     def test(self, newenv):
         statistics = OrderedDict()

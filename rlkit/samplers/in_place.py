@@ -36,7 +36,7 @@ class InPlacePathSampler(object):
         sample n_eval traj for task exploration
         the env should be reset by the outer function
         :param deterministic:
-        :param num_samples:
+        :param num_samples: num_steps_per_eval==2*traj==400
         :param is_online:
         :return:
         """
@@ -49,7 +49,7 @@ class InPlacePathSampler(object):
             max_samp = num_samples
         while n_steps_total + self.max_path_length < max_samp: # to leave out one more path
             path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, is_online=is_online, need_cupdate=need_cupdate)
+                self.env, policy, max_path_length=self.max_path_length, need_cupdate=need_cupdate)
             paths.append(path)
             n_steps_total += len(path['observations'])
         return paths
@@ -80,6 +80,30 @@ class InPlacePathSampler(object):
                 # policy.sample_z() # only allow the explorer to guess the z
             # n_steps_total += len(path['observations'])
         return paths
+
+    def obtain_samples3(self, agent, deterministic=False, max_samples=np.inf, max_trajs=np.inf, accum_context=True, is_online=True, resample=1):
+        """
+        Obtains samples in the environment until either we reach either max_samples transitions or
+        num_traj trajectories.
+        The resample argument specifies how often (in trajectories) the agent will resample it's context.
+        """
+        assert max_samples < np.inf or max_trajs < np.inf, "either max_samples or max_trajs must be finite"
+        policy = MakeDeterministic(agent) if deterministic else agent
+        paths = []
+        n_steps_total = 0
+        n_trajs = 0
+        while n_steps_total < max_samples and n_trajs < max_trajs:
+            path = rollout(
+                self.env, policy, max_path_length=self.max_path_length, need_cupdate=accum_context)
+            # save the latent context that generated this trajectory
+            path['context'] = policy.z.detach().cpu().numpy()
+            paths.append(path)
+            n_steps_total += len(path['observations'])
+            n_trajs += 1
+            # don't we also want the option to resample z ever transition?
+            if n_trajs % resample == 0:
+                policy.sample_z()
+        return paths, n_steps_total
 
     def obtain_test_samples(self, explorer, actor, newenv, max_explore, freq=20, num_test_avg=3, deterministic=False, is_online=False):
         """

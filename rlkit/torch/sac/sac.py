@@ -31,7 +31,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             context_lr=1e-3,
             explorer_lr=1e-3,
             kl_lambda=1.,
-            rec_lambda=10.,
+            rec_lambda=1.,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,

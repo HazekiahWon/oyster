@@ -20,6 +20,7 @@ debug = True
 use_explorer = True
 use_ae = use_explorer and True
 dif_policy = False
+fast_debug = debug and True
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -111,7 +112,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker, tes
             num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=4000,
+            num_train_steps_per_itr=4000 if not fast_debug else 1,
             num_evals=2,
             num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
             embedding_batch_size=256,

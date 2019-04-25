@@ -311,9 +311,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             #self.training_mode(False)
             # eval
-            trn_ret,tst_ret = self._try_to_eval(it_)
+            offline_trn, trn_ret,tst_ret = self._try_to_eval(it_)
             self.writer.add_scalar('eval_trn_return', trn_ret, it_)
             self.writer.add_scalar('eval_tst_return', tst_ret, it_)
+            self.writer.add_scalar('eval_trn_offline', offline_trn, it_)
             gt.stamp('eval')
 
             self._end_epoch()
@@ -469,7 +470,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
-            trn_ret, tst_ret = self.evaluate(epoch)
+            offline_trn, trn_ret, tst_ret = self.evaluate(epoch)
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params) #save params
@@ -508,7 +509,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             logger.record_tabular("Epoch", epoch)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
-            return trn_ret,tst_ret
+            return offline_trn, trn_ret,tst_ret
         else:
             logger.log("Skipping eval for now.")
 
