@@ -475,49 +475,46 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
-        if self._can_evaluate():
-            offline_trn, trn_ret, tst_ret = self.evaluate(epoch)
+        offline_trn, trn_ret, tst_ret = self.evaluate(epoch)
 
-            params = self.get_epoch_snapshot(epoch)
-            logger.save_itr_params(epoch, params) #save params
-            table_keys = logger.get_table_key_set()
-            if self._old_table_keys is not None:
-                assert table_keys == self._old_table_keys, (
-                    "Table keys cannot change from iteration to iteration."
-                )
-            self._old_table_keys = table_keys
-
-            logger.record_tabular(
-                "Number of train steps total",
-                self._n_train_steps_total,
+        params = self.get_epoch_snapshot(epoch)
+        logger.save_itr_params(epoch, params) #save params
+        table_keys = logger.get_table_key_set()
+        if self._old_table_keys is not None:
+            assert table_keys == self._old_table_keys, (
+                "Table keys cannot change from iteration to iteration."
             )
-            logger.record_tabular(
-                "Number of env steps total",
-                self._n_env_steps_total,
-            )
-            logger.record_tabular(
-                "Number of rollouts total",
-                self._n_rollouts_total,
-            )
+        self._old_table_keys = table_keys
 
-            times_itrs = gt.get_times().stamps.itrs
-            train_time = times_itrs['train'][-1]
-            sample_time = times_itrs['sample'][-1]
-            eval_time = times_itrs['eval'][-1] if epoch > 0 else 0
-            epoch_time = train_time + sample_time + eval_time
-            total_time = gt.get_times().total
+        logger.record_tabular(
+            "Number of train steps total",
+            self._n_train_steps_total,
+        )
+        logger.record_tabular(
+            "Number of env steps total",
+            self._n_env_steps_total,
+        )
+        logger.record_tabular(
+            "Number of rollouts total",
+            self._n_rollouts_total,
+        )
 
-            logger.record_tabular('Train Time (s)', train_time)
-            logger.record_tabular('(Previous) Eval Time (s)', eval_time)
-            logger.record_tabular('Sample Time (s)', sample_time)
-            logger.record_tabular('Epoch Time (s)', epoch_time)
-            logger.record_tabular('Total Train Time (s)', total_time)
+        times_itrs = gt.get_times().stamps.itrs
+        train_time = times_itrs['train'][-1]
+        sample_time = times_itrs['sample'][-1]
+        eval_time = times_itrs['eval'][-1] if epoch > 0 else 0
+        epoch_time = train_time + sample_time + eval_time
+        total_time = gt.get_times().total
 
-            logger.record_tabular("Epoch", epoch)
-            logger.dump_tabular(with_prefix=False, with_timestamp=False)
-            return offline_trn, trn_ret,tst_ret
-        else:
-            logger.log("Skipping eval for now.")
+        logger.record_tabular('Train Time (s)', train_time)
+        logger.record_tabular('(Previous) Eval Time (s)', eval_time)
+        logger.record_tabular('Sample Time (s)', sample_time)
+        logger.record_tabular('Epoch Time (s)', epoch_time)
+        logger.record_tabular('Total Train Time (s)', total_time)
+
+        logger.record_tabular("Epoch", epoch)
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
+        return offline_trn, trn_ret,tst_ret
 
     def _can_evaluate(self):
         """
