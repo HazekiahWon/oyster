@@ -56,10 +56,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         is_online = (self.eval_embedding_source == 'online')
         if idx is None:
             idx = self.task_idx
-        if eval_task:
-            batch = self.eval_enc_replay_buffer.random_batch(idx, self.embedding_batch_size, trajs=is_online)
-        else:
-            batch = self.enc_replay_buffer.random_batch(idx, self.embedding_batch_size, trajs=is_online)
+        batch = self.enc_replay_buffer.random_batch(idx, self.embedding_batch_size, trajs=is_online)
         return np_to_pytorch_batch(batch)
 
     ##### Eval stuff #####
