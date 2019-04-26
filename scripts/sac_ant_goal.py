@@ -34,7 +34,7 @@ def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c):
+def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
     newenv = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
@@ -84,6 +84,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
         latent_dim=z_dim,
         gamma_dim=gamma_dim,
         exp_offp=exp_offp,
+        eq_enc=eq_enc,
         **variant['algo_params']
     )
 
@@ -101,12 +102,14 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.argument('dif_policy', default=dif_policy, type=bool)
 @click.argument('exp_offp', default=exp_offp, type=bool)
 @click.argument('confine_num_c', default=confine_num_c, type=bool)
+@click.argument('eq_enc', default=False, type=bool)
 @click.option('--fast_debug', default=fast_debug, type=bool)
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
-def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, fast_debug, note, resume, docker, test):
+def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc,
+         fast_debug, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
     # modified ntasks, meta-batch
@@ -154,6 +157,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
             fast_debug = fast_debug,
             exp_offp = exp_offp,
             confine_num_c=confine_num_c,
+            eq_enc=eq_enc,
         ),
         net_size=300,
         use_gpu=True,
@@ -175,7 +179,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c)
+    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc)
 
 if __name__ == "__main__":
     main()

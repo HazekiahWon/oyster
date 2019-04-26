@@ -33,6 +33,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             kl_lambda=1.,
             rec_lambda=1.,
             gam_rew_lambda=.5,
+            eq_enc=False,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
@@ -73,7 +74,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.kl_lambda = kl_lambda
         self.rec_lambda = rec_lambda
         self.gam_rew_lambda = gam_rew_lambda
-
+        self.eq_enc = eq_enc
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
@@ -291,22 +292,26 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()
             # gamma - z - gamma
-            gt_z = self.agent.infer_gt_z(gammas)
-            ########################
-            dists = [torch.distributions.Normal(z, ptu.ones(self.agent.z_dim)) for z in gt_z]
-            gt_z2 = torch.stack([dist.rsample() for dist in dists], dim=0)
-            rec_gam = self.agent.rec_gt_gamma(gt_z2)
-            task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
-            gam_rew = -torch.sum((task_z_gam-gammas)**2,dim=1, keepdim=True) # mb,1
-            gam_rew = gam_rew.repeat(1,self.batch_size)
-            gam_rew = gam_rew.view(-1, 1)
-            #####################
-            # rec_gam = torch.nn.Softmax(rec_gam,dim=1)
-            self.writer.add_histogram('rec_gamma', rec_gam, step)
-            self.writer.add_histogram('gt_z', gt_z[0], step)
-            self.writer.add_histogram('task_z',self.agent.z_means[0], step)
-            # rec_loss = self.onehot_criterion(rec_gam, torch.cuda.LongTensor(indices)) # because it is quite small if averaged
-            rec_loss = self.mse_criterion(rec_gam, gammas)
+            if self.eq_enc:
+                task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
+                rec_loss = self.mse_criterion(task_z_gam, gammas)
+            else:
+                gt_z = self.agent.infer_gt_z(gammas)
+                ########################
+                dists = [torch.distributions.Normal(z, ptu.ones(self.agent.z_dim)) for z in gt_z]
+                gt_z2 = torch.stack([dist.rsample() for dist in dists], dim=0)
+                rec_gam = self.agent.rec_gt_gamma(gt_z2)
+                task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
+                gam_rew = -torch.sum((task_z_gam-gammas)**2,dim=1, keepdim=True) # mb,1
+                gam_rew = gam_rew.repeat(1,self.batch_size)
+                gam_rew = gam_rew.view(-1, 1)
+                #####################
+                # rec_gam = torch.nn.Softmax(rec_gam,dim=1)
+                self.writer.add_histogram('rec_gamma', rec_gam, step)
+                self.writer.add_histogram('gt_z', gt_z[0], step)
+                self.writer.add_histogram('task_z',self.agent.z_means[0], step)
+                # rec_loss = self.onehot_criterion(rec_gam, torch.cuda.LongTensor(indices)) # because it is quite small if averaged
+                rec_loss = self.mse_criterion(rec_gam, gammas)
             kl_loss = rec_loss*self.rec_lambda
             self.writer.add_scalar('ae_rec_loss', rec_loss, step)
         # enc_data - z <> z
@@ -350,7 +355,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             exp_tanh_value = exp_outputs[-1]
             ###############
             rew1 = -torch.abs(error1 + error2) * self.exp_error_scale / 2.
-            rew2 = gam_rew
+            rew2 = 0. if self.eq_enc else gam_rew
 
             rewards_exp = self.gam_rew_lambda*rew2-(1-self.gam_rew_lambda)*rew1+.1*rewards.view(-1,1) # small as possible
             rewards_exp = rewards_exp.detach()
