@@ -48,6 +48,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_environment=False,
             gamma_dim=None,
             exp_offp=False,
+            infer_freq=20,
             **kwargs
     ):
         """
@@ -105,6 +106,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.use_explorer = explorer is not None
         self.gamma_dim = gamma_dim
         self.exp_offp = exp_offp
+        self.infer_freq = infer_freq
         if not self.use_explorer:
             self.explorer = agent
             self.eval_sampler = InPlacePathSampler(
@@ -222,7 +224,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                         self.collect_data2(self.eval_sampler, self.agent,
                                            self.max_path_length*10, resample_z_rate=1,
                                            update_posterior_rate=np.inf, add_to=2)
-                    else:
+                    else: # the initial pool does not infer good posterior
                         self.collect_data2(self.eval_sampler, self.agent,
                                            self.max_path_length * 10, resample_z_rate=1,
                                            update_posterior_rate=np.inf, add_to=0)
@@ -259,7 +261,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # currently using online exploration
                     # otherwise sample z from posterior inferred given the enc buffer data
                     self.collect_data2(self.exp_sampler, self.explorer,
-                                       self.num_steps_per_task, resample_z_rate=1, update_posterior_rate=1, add_to=1)
+                                       self.num_steps_per_task, resample_z_rate=1,
+                                       accum_context=True, infer_freq=self.infer_freq,
+                                       update_posterior_rate=1, add_to=1)
 
                 # poret = self.collect_data_from_task_posterior(self.agent, idx=idx,
                 #                                               num_samples=self.num_steps_per_task,
@@ -436,11 +440,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         return np.mean(returns)
 
-    def collect_data2(self, sampler, agent, num_samples, resample_z_rate, update_posterior_rate, add_to=2):
+    def collect_data2(self, sampler, agent, num_samples, resample_z_rate, update_posterior_rate, add_to=2, accum_context=False, infer_freq=0):
         '''
         get trajectories from current env in batch mode with given policy
         collect complete trajectories until the number of collected transitions >= num_samples
-
+        self.task_idx is set upon this function's usage
         :param agent: policy to rollout
         :param num_samples: total number of transitions to sample
         :param resample_z_rate: how often to resample latent context z (in units of trajectories)
@@ -454,7 +458,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         while num_transitions < num_samples:
             paths, n_samples = sampler.obtain_samples3(agent, max_samples=num_samples - num_transitions,
                                                                 max_trajs=update_posterior_rate,
-                                                                accum_context=False,
+                                                                accum_context=accum_context,
+                                                                infer_freq=infer_freq,
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
             # add to enc buffer
@@ -468,8 +473,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.replay_buffer.add_paths(self.task_idx, paths)
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
             if update_posterior_rate != np.inf:
-                context = self.prepare_context(self.task_idx) #defined in sac
-                agent.infer_posterior(context)
+                # context = self.prepare_context(self.task_idx) #defined in sac
+                # agent.infer_posterior(context)
+                self.sample_z_from_posterior(agent, self.task_idx, eval_task=False)
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
 

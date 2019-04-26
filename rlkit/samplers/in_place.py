@@ -81,7 +81,7 @@ class InPlacePathSampler(object):
             # n_steps_total += len(path['observations'])
         return paths
 
-    def obtain_samples3(self, agent, deterministic=False, max_samples=np.inf, max_trajs=np.inf, accum_context=True, is_online=True, resample=1):
+    def obtain_samples3(self, agent, deterministic=False, max_samples=np.inf, max_trajs=np.inf, accum_context=True, infer_freq=0, resample=1):
         """
         Obtains samples in the environment until either we reach either max_samples transitions or
         num_traj trajectories.
@@ -94,7 +94,7 @@ class InPlacePathSampler(object):
         n_trajs = 0
         while n_steps_total < max_samples and n_trajs < max_trajs:
             path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, need_cupdate=accum_context)
+                self.env, policy, max_path_length=self.max_path_length, need_cupdate=accum_context, infer_freq=infer_freq)
             # save the latent context that generated this trajectory
             path['context'] = policy.z.detach().cpu().numpy()
             paths.append(path)
@@ -105,7 +105,7 @@ class InPlacePathSampler(object):
                 policy.sample_z()
         return paths, n_steps_total
 
-    def obtain_test_samples(self, explorer, actor, newenv, max_explore, freq=20, num_test_avg=3, deterministic=False, is_online=False):
+    def obtain_test_samples(self, explorer, actor, newenv, max_explore, freq=20, num_test_avg=3, deterministic=False, infer_freq=0):
         """
         sample n_eval traj for task exploration
         :param deterministic:
@@ -119,5 +119,5 @@ class InPlacePathSampler(object):
         explorer.clear_z()
         for i in range(max_explore): # to leave out one more path
             seq.extend(act_while_explore(self.env, explorer, newenv, actor, freq, num_test_avg,
-                                         max_path_length=self.max_path_length, is_online=is_online))
+                                         max_path_length=self.max_path_length, infer_freq=infer_freq))
         return np.asarray(seq)

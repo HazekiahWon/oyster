@@ -1,7 +1,7 @@
 import numpy as np
 from rlkit.core import eval_util
 
-def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True):
+def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True, infer_freq=0):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -40,6 +40,8 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
         next_o, r, d, env_info = env.step(a)
         if need_cupdate:
             agent.update_context([o, a, r, next_o, d])
+            if infer_freq>0 and path_length%infer_freq==0:
+                agent.infer_posterior(agent.context)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -76,7 +78,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
         env_infos=env_infos,
     )
 
-def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path_length=np.inf, animated=False):
+def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path_length=np.inf, animated=False, infer_freq=0):
     """
     rollout actor for 3 times while explorer exploring another 20 transitions
 
@@ -103,7 +105,7 @@ def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path
             actor.trans_z(agent.z_means, agent.z_vars)
             test_paths = list()
             for _ in range(num_avg_test):
-                test_paths.append(rollout(env2, actor, max_path_length, animated, need_cupdate=False))
+                test_paths.append(rollout(env2, actor, max_path_length, animated, need_cupdate=False, infer_freq=infer_freq))
             ret = eval_util.get_average_returns(test_paths) # average multiple paths
             ret_seq.append(ret)
 

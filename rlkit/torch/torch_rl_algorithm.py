@@ -76,7 +76,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.sample_z_from_posterior(self.agent, idx, eval_task=eval_task)
         # dprint('task encoding ', self.agent.z)
         test_paths,_ = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
-                                                       is_online=False, accum_context=False,
+                                                       is_online=False, accum_context=False, infer_freq=0,
                                                        max_samples=self.max_path_length,
                                                        max_trajs=1,
                                                        resample=np.inf) # eval_sampler is also explorer for pearl
@@ -99,7 +99,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         dprint('task encoding ', self.agent.z)
 
-        test_paths = self.eval_sampler.obtain_test_samples(deterministic=deterministic, is_online=is_online)
+        test_paths = self.eval_sampler.obtain_test_samples(deterministic=deterministic, infer_freq=self.infer_freq)
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
@@ -237,12 +237,14 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             sampler,agent = pair2 if exploring and self.use_explorer else pair1
             path, num = sampler.obtain_samples3(agent, deterministic=self.eval_deterministic,
                                                     max_samples=self.num_steps_per_eval - num_transitions,
-                                                    max_trajs=1, accum_context=exploring)
+                                                    max_trajs=1, accum_context=exploring, infer_freq=self.infer_freq)
             # if use explorer: append when not exploring
             # else: always append
             # will not append when using explorer and exploring
             if not (self.use_explorer and exploring):
                 paths.extend(path)
+            elif self.use_explorer:
+                self.enc_replay_buffer.add_path(idx, path)
             num_transitions += num
             num_trajs += 1
 
@@ -258,7 +260,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths:
             logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
-
+        print(len(self.explorer.context) if self.explorer.context is not None else 'None')
         return paths
 
     def collect_test_paths(self, idx, max_attempt):
@@ -284,7 +286,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for num_trajs in range(max_attempt):
             exp,_ = exp_sampler.obtain_samples3(explorer, deterministic=self.eval_deterministic,
                                                     max_samples=self.num_steps_per_eval - num_transitions,
-                                                    max_trajs=1, accum_context=True)
+                                                    max_trajs=1, accum_context=True, infer_freq=self.infer_freq)
             if num_trajs >= 1: # another exploration
                 explorer.infer_posterior(explorer.context)
                 # if explorer is used, need to transmit z from the explorer
@@ -293,7 +295,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 for _ in range(self.num_evals):
                     attempt,_ = act_sampler.obtain_samples3(actor, deterministic=self.eval_deterministic,
                                                         max_samples=self.num_steps_per_eval - num_transitions,
-                                                        max_trajs=1, accum_context=False)
+                                                        max_trajs=1, accum_context=False, infer_freq=0)
                     if self.sparse_rewards:
                         for p in attempt:
                             sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
@@ -323,6 +325,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for idx in indices:
             runs, all_rets = [], []
             for r in range(self.num_evals):
+                # print(len(self.explorer.context) if self.explorer.context is not None else 'None')
                 paths = self.collect_paths(idx, epoch, r)
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
                 runs.append(paths)

@@ -20,7 +20,7 @@ debug = True
 use_explorer = True
 use_ae = use_explorer and True
 dif_policy = False
-fast_debug = debug and False
+fast_debug = debug and True
 exp_offp = False
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
