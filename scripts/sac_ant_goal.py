@@ -151,6 +151,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
             dif_policy = dif_policy,
             fast_debug = debug and False,
             exp_offp = exp_offp,
+            confine_num_c=confine_num_c
         ),
         net_size=300,
         use_gpu=True,
