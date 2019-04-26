@@ -244,7 +244,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             if not (self.use_explorer and exploring):
                 paths.extend(path)
             elif self.use_explorer:
-                self.enc_replay_buffer.add_path(idx, path)
+                self.enc_replay_buffer.add_paths(idx, path)
             num_transitions += num
             num_trajs += 1
 
