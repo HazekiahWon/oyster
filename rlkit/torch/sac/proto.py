@@ -231,6 +231,7 @@ class ProtoAgent(nn.Module):
 
     def forward(self, obs, actions, next_obs, enc_data, idx):
         # self.set_z(enc_data, idx)
+        enc_data
         self.infer_posterior(enc_data)
         return self.infer(obs, actions, next_obs)
 

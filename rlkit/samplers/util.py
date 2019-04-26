@@ -1,5 +1,10 @@
 import numpy as np
 from rlkit.core import eval_util
+def random_choice(tensor, size=256):
+    if size>tensor.size(-2): return tensor
+    else:
+        indices = np.random.choice(np.arange(tensor.size(-2)), size, replace=False)
+    return tensor[...,indices,:]
 
 def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True, infer_freq=0):
     """
@@ -41,7 +46,9 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
         if need_cupdate:
             agent.update_context([o, a, r, next_o, d])
             if infer_freq>0 and path_length%infer_freq==0:
-                agent.infer_posterior(agent.context)
+                # c = random_choice(agent.context)
+                c = agent.context
+                agent.infer_posterior(c)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -101,7 +108,9 @@ def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path
 
         agent.update_context([o, a, r, next_o, d])
         if (path_length+1)%freq==0:
-            agent.infer_posterior(agent.context)
+            # c = random_choice(agent.context)
+            c = agent.context
+            agent.infer_posterior(c)
             actor.trans_z(agent.z_means, agent.z_vars)
             test_paths = list()
             for _ in range(num_avg_test):

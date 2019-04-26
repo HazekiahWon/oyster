@@ -398,7 +398,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         ### test tasks
         eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_online_returns = self._do_eval(self.eval_tasks, epoch)
+        test_online_returns = self._do_eval(self.eval_tasks, epoch, eval_task=True)
         eval_util.dprint('test online returns')
         eval_util.dprint(test_online_returns)
 
