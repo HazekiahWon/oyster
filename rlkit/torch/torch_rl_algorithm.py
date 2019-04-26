@@ -202,9 +202,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             logger.save_extra_data(paths, path='eval_trajectories/{}-task{}-epoch{}'.format(split, idx, epoch))
         return paths
 
-    def collect_paths(self, idx, epoch, run):
+    def collect_paths(self, idx, epoch, run, eval_task=False):
         """
-        used only in do eval
+        with a budget of n,
+        allow the explorer to explore n-1 traj, and use the remaining 1 for evaluation
         :param idx:
         :param epoch:
         :param run:
@@ -223,6 +224,9 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         exploring = True
         # for a single eval, sample 400 trans==2traj, thus 1 traj for exp 1 for testing
         while num_transitions < self.num_steps_per_eval:
+            ###########
+            # update the posterior with explorer's collected transitions
+            #############
             if num_trajs >= self.num_exp_traj_eval: # the end of exploring, 1 traj
                 agent.infer_posterior(agent.context)
                 exploring = False
@@ -240,7 +244,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             # will not append when using explorer and exploring
             if not (self.use_explorer and exploring):
                 paths.extend(path)
-            elif self.use_explorer:
+            elif self.use_explorer and not eval_task:
                 self.enc_replay_buffer.add_paths(idx, path)
             num_transitions += num
             num_trajs += 1
@@ -309,7 +313,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         return returns
 
-    def _do_eval(self, indices, epoch):
+    def _do_eval(self, indices, epoch, eval_task=False):
         """
         # return the (averaged) testing traj return list
         (n_ind,1)
@@ -323,7 +327,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             runs, all_rets = [], []
             for r in range(self.num_evals):
                 # print(len(self.explorer.context) if self.explorer.context is not None else 'None')
-                paths = self.collect_paths(idx, epoch, r)
+                paths = self.collect_paths(idx, epoch, r, eval_task)
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
                 runs.append(paths)
             # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.

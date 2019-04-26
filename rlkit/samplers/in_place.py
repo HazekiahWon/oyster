@@ -31,55 +31,55 @@ class InPlacePathSampler(object):
     def shutdown_worker(self):
         pass
 
-    def obtain_samples(self, agent, deterministic=False, num_samples=None, is_online=False, need_cupdate=True):
-        """
-        sample n_eval traj for task exploration
-        the env should be reset by the outer function
-        :param deterministic:
-        :param num_samples: num_steps_per_eval==2*traj==400
-        :param is_online:
-        :return:
-        """
-        # self.env.reset_task(idx)
-        policy = MakeDeterministic(agent) if deterministic else agent
-        paths = []
-        n_steps_total = 0
-        max_samp = self.max_samples
-        if num_samples is not None:
-            max_samp = num_samples
-        while n_steps_total + self.max_path_length < max_samp: # to leave out one more path
-            path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, need_cupdate=need_cupdate)
-            paths.append(path)
-            n_steps_total += len(path['observations'])
-        return paths
-
-    def obtain_samples2(self, agent, explore=True, deterministic=False, is_online=False, need_cupdate=True):
-        """
-        sample n_eval traj for task exploration
-        :param deterministic:
-        :param num_samples:
-        :param is_online:
-        :return:
-        """
-        policy = MakeDeterministic(agent) if deterministic else agent
-        paths = []
-        if explore:
-            num_roll = self.max_samples//self.max_path_length-1
-        else: num_roll = 1
-        # n_steps_total = 0
-        # max_samp = self.max_samples
-        # if num_samples is not None:
-        #     max_samp = num_samples
-        for i in range(num_roll): # to leave out one more path
-            path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, is_online=is_online, need_cupdate=need_cupdate)
-            paths.append(path)
-            if explore:
-                policy.infer_posterior(policy.context)
-                # policy.sample_z() # only allow the explorer to guess the z
-            # n_steps_total += len(path['observations'])
-        return paths
+    # def obtain_samples(self, agent, deterministic=False, num_samples=None, is_online=False, need_cupdate=True):
+    #     """
+    #     sample n_eval traj for task exploration
+    #     the env should be reset by the outer function
+    #     :param deterministic:
+    #     :param num_samples: num_steps_per_eval==2*traj==400
+    #     :param is_online:
+    #     :return:
+    #     """
+    #     # self.env.reset_task(idx)
+    #     policy = MakeDeterministic(agent) if deterministic else agent
+    #     paths = []
+    #     n_steps_total = 0
+    #     max_samp = self.max_samples
+    #     if num_samples is not None:
+    #         max_samp = num_samples
+    #     while n_steps_total + self.max_path_length < max_samp: # to leave out one more path
+    #         path = rollout(
+    #             self.env, policy, max_path_length=self.max_path_length, need_cupdate=need_cupdate)
+    #         paths.append(path)
+    #         n_steps_total += len(path['observations'])
+    #     return paths
+    #
+    # def obtain_samples2(self, agent, explore=True, deterministic=False, is_online=False, need_cupdate=True):
+    #     """
+    #     sample n_eval traj for task exploration
+    #     :param deterministic:
+    #     :param num_samples:
+    #     :param is_online:
+    #     :return:
+    #     """
+    #     policy = MakeDeterministic(agent) if deterministic else agent
+    #     paths = []
+    #     if explore:
+    #         num_roll = self.max_samples//self.max_path_length-1
+    #     else: num_roll = 1
+    #     # n_steps_total = 0
+    #     # max_samp = self.max_samples
+    #     # if num_samples is not None:
+    #     #     max_samp = num_samples
+    #     for i in range(num_roll): # to leave out one more path
+    #         path = rollout(
+    #             self.env, policy, max_path_length=self.max_path_length, is_online=is_online, need_cupdate=need_cupdate)
+    #         paths.append(path)
+    #         if explore:
+    #             policy.infer_posterior(policy.context)
+    #             # policy.sample_z() # only allow the explorer to guess the z
+    #         # n_steps_total += len(path['observations'])
+    #     return paths
 
     def obtain_samples3(self, agent, deterministic=False, max_samples=np.inf, max_trajs=np.inf, accum_context=True, infer_freq=0, resample=1):
         """
