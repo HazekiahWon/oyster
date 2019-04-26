@@ -73,7 +73,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.sample_z_from_posterior(self.agent, idx, eval_task=eval_task)
         # dprint('task encoding ', self.agent.z)
         test_paths,_ = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
-                                                       is_online=False, accum_context=False, infer_freq=0,
+                                                       accum_context=False, infer_freq=0,
                                                        max_samples=self.max_path_length,
                                                        max_trajs=1,
                                                        resample=np.inf) # eval_sampler is also explorer for pearl
@@ -257,7 +257,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths:
             logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
-        print(len(self.explorer.context) if self.explorer.context is not None else 'None')
+        # print(len(self.explorer.context) if self.explorer.context is not None else 'None')
         return paths
 
     def collect_test_paths(self, idx, max_attempt):
