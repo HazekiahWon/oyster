@@ -32,6 +32,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             explorer_lr=1e-3,
             kl_lambda=1.,
             rec_lambda=1.,
+            gam_rew_lambda=.5,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
@@ -71,6 +72,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.eval_statistics = None
         self.kl_lambda = kl_lambda
         self.rec_lambda = rec_lambda
+        self.gam_rew_lambda = gam_rew_lambda
 
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
@@ -290,7 +292,15 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.dec_optimizer.zero_grad()
             # gamma - z - gamma
             gt_z = self.agent.infer_gt_z(gammas)
-            rec_gam = self.agent.rec_gt_gamma(gt_z)
+            ########################
+            dists = [torch.distributions.Normal(z, ptu.ones(self.agent.z_dim)) for z in gt_z]
+            gt_z2 = torch.stack([dist.rsample() for dist in dists], dim=0)
+            rec_gam = self.agent.rec_gt_gamma(gt_z2)
+            task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
+            gam_rew = -torch.sum((task_z_gam-gammas)**2,dim=1, keepdim=True) # mb,1
+            gam_rew = gam_rew.repeat(1,self.batch_size)
+            gam_rew = gam_rew.view(-1, 1)
+            #####################
             # rec_gam = torch.nn.Softmax(rec_gam,dim=1)
             self.writer.add_histogram('rec_gamma', rec_gam, step)
             self.writer.add_histogram('gt_z', gt_z[0], step)
@@ -338,8 +348,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc, task_z=task_z)
             exp_actions, exp_mean, exp_log_std, exp_log_pi = exp_outputs[:4]
             exp_tanh_value = exp_outputs[-1]
-            rewards_exp = -torch.abs(error1 + error2) * self.exp_error_scale / 2. # small as possible
+            ###############
+            rew1 = -torch.abs(error1 + error2) * self.exp_error_scale / 2.
+            rew2 = gam_rew
+
+            rewards_exp = self.gam_rew_lambda*rew2-(1-self.gam_rew_lambda)*rew1+.1*rewards.view(-1,1) # small as possible
             rewards_exp = rewards_exp.detach()
+            ###############
             _,_,qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
                             rewards_exp, num_tasks, terms, target_v_exp, q1_exp, q2_exp)
             self.qf1exp_optimizer.step()

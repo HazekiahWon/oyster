@@ -101,14 +101,16 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.argument('dif_policy', default=dif_policy, type=bool)
 @click.argument('exp_offp', default=exp_offp, type=bool)
 @click.argument('confine_num_c', default=confine_num_c, type=bool)
+@click.option('--fast_debug', default=fast_debug, type=bool)
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
-def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, note, resume, docker, test):
+def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, fast_debug, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
     # modified ntasks, meta-batch
+    fast_debug = debug and fast_debug
     variant = dict(
         task_params=dict(
             n_tasks=8 if debug else 180, # 20 works pretty well
