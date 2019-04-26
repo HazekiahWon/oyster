@@ -22,6 +22,7 @@ use_ae = use_explorer and True
 dif_policy = False
 fast_debug = debug and True
 exp_offp = False
+confine_num_c = False
 ########################
 from rlkit.envs.ant_goal import AntGoalEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -33,7 +34,7 @@ def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test):
+def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
     newenv = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
@@ -62,8 +63,11 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
         memo += f'this exp resumes {resume_dir}\n'
     # else:
     # share the task enc with these two agents
-    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim)
-    explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=dif_policy, task_enc=task_enc)
+    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
+                                 dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim,
+                                 confine_num_c=confine_num_c)
+    explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
+                          dif_policy=dif_policy, task_enc=task_enc, confine_num_c=confine_num_c)
     if resume or test:
         for snet,tnet in zip(agent_.networks,agent.networks):
             ptu.soft_update_from_to(snet, tnet, tau=1.)
@@ -95,11 +99,13 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.argument('use_explorer', default=use_explorer, type=bool)
 @click.argument('use_ae',default=use_ae, type=bool)
 @click.argument('dif_policy', default=dif_policy, type=bool)
+@click.argument('exp_offp', default=exp_offp, type=bool)
+@click.argument('confine_num_c', default=confine_num_c, type=bool)
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
-def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker, test):
+def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
     # modified ntasks, meta-batch
@@ -166,7 +172,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, note, resume, docker, tes
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test)
+    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c)
 
 if __name__ == "__main__":
     main()

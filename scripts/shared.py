@@ -2,7 +2,7 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
 from torch import nn
-def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=False, task_enc=None, gt_ae=None, gamma_dim=10):
+def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=False, task_enc=None, gt_ae=None, gamma_dim=10, confine_num_c=False):
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     is_actor = task_enc is None
     if task_enc is None:
@@ -68,6 +68,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         z_dim,
         nets,
         use_ae=gt_ae is not None,
+        confine_num_c=confine_num_c,
         **variant['algo_params']
     )
     if is_actor: return agent, task_enc

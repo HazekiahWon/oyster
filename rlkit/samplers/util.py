@@ -47,8 +47,8 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
             agent.update_context([o, a, r, next_o, d])
             if infer_freq>0 and path_length%infer_freq==0:
                 # c = random_choice(agent.context)
-                c = agent.context
-                agent.infer_posterior(c)
+                # c = agent.context
+                agent.infer_posterior(agent.context)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -109,8 +109,8 @@ def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path
         agent.update_context([o, a, r, next_o, d])
         if (path_length+1)%freq==0:
             # c = random_choice(agent.context)
-            c = agent.context
-            agent.infer_posterior(c)
+            # c = agent.context
+            agent.infer_posterior(agent.context)
             actor.trans_z(agent.z_means, agent.z_vars)
             test_paths = list()
             for _ in range(num_avg_test):

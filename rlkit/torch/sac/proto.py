@@ -6,6 +6,7 @@ from torch import nn as nn
 import torch.nn.functional as F
 
 import rlkit.torch.pytorch_util as ptu
+from rlkit.samplers.util import random_choice
 from collections import Iterable
 from rlkit.torch.core import np_ify, torch_ify
 
@@ -35,6 +36,7 @@ class ProtoAgent(nn.Module):
                  z_dim,
                  nets,
                  use_ae=False,
+                 confine_num_c=False,
                  **kwargs
                  ):
         super().__init__()
@@ -53,7 +55,7 @@ class ProtoAgent(nn.Module):
         self.sparse_rewards = kwargs['sparse_rewards']
         self.det_z = False
         self.context = None
-
+        self.confine_num_c = confine_num_c
         # initialize task embedding to zero
         # (task, latent dim)
         self.register_buffer('z', torch.zeros(1, z_dim))
@@ -131,6 +133,7 @@ class ProtoAgent(nn.Module):
 
     def infer_posterior(self, context):
         ''' compute q(z|c) as a function of input context and sample new z from it'''
+        if self.confine_num_c: random_choice(context)
         params = self.task_enc(context)
         params = params.view(context.size(0), -1, self.task_enc.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)
