@@ -202,7 +202,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
     def collect_data_for_embedding_online_with_logging(self, idx, epoch):
         self.task_idx = idx
         dprint('Task:', idx)
-        self.env.reset_task(idx)
+        self.task = self.env.reset_task(idx)
 
         n_exploration_episodes = 10
         n_inference_episodes = 10

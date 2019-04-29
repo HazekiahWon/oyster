@@ -281,8 +281,8 @@ class ProtoAgent(nn.Module):
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
 
-        q1 = self.qf1(obs, actions, task_z.detach())
-        q2 = self.qf2(obs, actions, task_z.detach())
+        q1 = self.qf1(obs, actions, task_z)
+        q2 = self.qf2(obs, actions, task_z)
         min_q = torch.min(q1, q2)
         return min_q
 
