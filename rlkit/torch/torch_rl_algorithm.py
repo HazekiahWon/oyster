@@ -460,7 +460,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
             train_returns.append(eval_util.get_average_returns(paths))
             ############ old version
-            self.eval_enc_replay_buffer.task_buffers[idx].clear()
+            # self.eval_enc_replay_buffer.task_buffers[idx].clear()
             # task embedding sampled from prior and held fixed
             if not self.use_explorer:
                 self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
@@ -493,7 +493,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for idx in self.eval_tasks:
             self.task_idx = idx
             self.env.reset_task(idx)
-            self.eval_enc_replay_buffer.task_buffers[idx].clear()
+            # self.eval_enc_replay_buffer.task_buffers[idx].clear()
             if not self.use_explorer:
                 self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
                                                       resample_z_every_n=self.max_path_length,

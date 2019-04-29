@@ -20,7 +20,7 @@ debug = True
 use_explorer = True
 use_ae = use_explorer and True
 dif_policy = False
-fast_debug = debug and True
+fast_debug = debug and Fals
 exp_offp = False
 confine_num_c = False
 ########################

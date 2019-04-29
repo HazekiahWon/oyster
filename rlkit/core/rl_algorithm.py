@@ -146,11 +146,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 env,
                 self.train_tasks,
         )
-        self.eval_enc_replay_buffer = MultiTaskReplayBuffer(
-            self.replay_buffer_size,
-            env,
-            self.eval_tasks
-        )
+        # self.eval_enc_replay_buffer = MultiTaskReplayBuffer(
+        #     self.replay_buffer_size,
+        #     env,
+        #     self.eval_tasks+self.train_tasks
+        # )
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0

@@ -286,7 +286,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.context_optimizer.zero_grad() # for task encoder
         gt_z = None
         kl_loss = None
-
+        ### q improvement
+        # q error is normally computed on sampled data from enc buffer
+        # now online collect data via explorer, and compute z, and compute q-error conditioned on z
+        # use the q error improvement as the reward for explorercat ant
         if self.use_ae:
             self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()
@@ -316,6 +319,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 rec_loss = self.mse_criterion(rec_gam, gammas)
             kl_loss = rec_loss*self.rec_lambda
             self.writer.add_scalar('ae_rec_loss', rec_loss, step)
+
         # enc_data - z <> z
         kl_div = self.agent.compute_kl_div(gt_z)
         self.writer.add_scalar('vae_kl', kl_div, step)
