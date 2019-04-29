@@ -20,7 +20,7 @@ debug = True
 use_explorer = True
 use_ae = use_explorer and True
 dif_policy = False
-fast_debug = debug and Fals
+fast_debug = debug and True
 exp_offp = False
 confine_num_c = False
 ########################
@@ -78,8 +78,8 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     algorithm = ProtoSoftActorCritic(
         env=env,
         explorer=explorer if use_explorer else None,  # use the sequential encoder meaning using the new agent
-        train_tasks=tasks[:] if debug else tasks[:-30],
-        eval_tasks=tasks[:] if debug else tasks[-30:],
+        train_tasks=tasks[:-2] if debug else tasks[:-30],
+        eval_tasks=tasks[-2:] if debug else tasks[-30:],
         agent=agent,
         latent_dim=z_dim,
         gamma_dim=gamma_dim,

@@ -134,6 +134,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
             self.explorer.update_context([o, a, r, None, None])
             self.explorer.infer_posterior(self.explorer.context)
+            if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
         self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
         test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
                                                                 accum_context=False, infer_freq=0,
@@ -141,6 +142,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                                                                 max_trajs=1,
                                                                 resample=np.inf)  # eval_sampler is also explorer for pearl
 
+        if not eval_task: self.replay_buffer.add_paths(idx, test_paths)
         # if self.sparse_rewards:
         #     for p in test_paths:
         #         p['rewards'] = ptu.sparsify_rewards(p['rewards'])
@@ -451,7 +453,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             self.env.reset_task(idx)
             paths = []
             for _ in range(self.num_steps_per_eval // self.max_path_length):
-                p = self.offline_eval_trn_paths(idx, deterministic=True)
+                p = self.offline_eval_trn_paths(idx, deterministic=True) # generated z from enc buffer
                 paths += p
             if self.sparse_rewards:
                 for p in paths:
@@ -462,17 +464,17 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             ############ old version
             # self.eval_enc_replay_buffer.task_buffers[idx].clear()
             # task embedding sampled from prior and held fixed
-            if not self.use_explorer:
+            if not self.use_explorer: # collect data during evaluating for train tasks
                 self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
                                                       resample_z_every_n=self.max_path_length,
                                                       eval_task=False)
-            else:
-                self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=False, add_to=0)
-                self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=False, add_to=1)
+            # else:
+                # self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+                #                                       resample_z_every_n=self.max_path_length,
+                #                                       eval_task=False, add_to=0)
+                # self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
+                #                                       resample_z_every_n=self.max_path_length,
+                #                                       eval_task=False, add_to=1)
             test_paths = self.collect_paths2(idx, epoch, eval_task=False)
             train_online_returns.append(eval_util.get_average_returns(test_paths))
 
@@ -498,13 +500,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
                                                       resample_z_every_n=self.max_path_length,
                                                       eval_task=True)
-            else:
-                self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=True, add_to=0)
-                self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=True, add_to=1)
+            # else:
+                # self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+                #                                       resample_z_every_n=self.max_path_length,
+                #                                       eval_task=True, add_to=0)
+                # self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
+                #                                       resample_z_every_n=self.max_path_length,
+                #                                       eval_task=True, add_to=1)
             test_paths = self.collect_paths2(idx, epoch, eval_task=True)
 
             test_online_returns.append(eval_util.get_average_returns(test_paths))

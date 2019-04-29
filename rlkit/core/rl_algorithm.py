@@ -594,18 +594,18 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             agent_infos=agent_info,
             env_infos=env_info,
         )
-        if eval_task:
-            self.eval_enc_replay_buffer.add_sample(
-                task=task_idx,
-                observation=observation,
-                action=action,
-                reward=reward,
-                terminal=terminal,
-                next_observation=next_observation,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-        else:
+        if not eval_task:
+            # self.eval_enc_replay_buffer.add_sample(
+            #     task=task_idx,
+            #     observation=observation,
+            #     action=action,
+            #     reward=reward,
+            #     terminal=terminal,
+            #     next_observation=next_observation,
+            #     agent_info=agent_info,
+            #     env_info=env_info,
+            # )
+        # else:
             # add to enc buffer
             # 0: rl buffer
             # 1: enc buffer

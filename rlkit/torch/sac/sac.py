@@ -289,7 +289,16 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         ### q improvement
         # q error is normally computed on sampled data from enc buffer
         # now online collect data via explorer, and compute z, and compute q-error conditioned on z
-        # use the q error improvement as the reward for explorercat ant
+        # use the q error improvement as the reward for explorer
+        # the gradients should not affect q network
+        # the gradients can include task encoder
+        # if self.use_explorer and self.q_imp:
+        #     paths = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, max_trajs=1, accum_context=False)
+        #     self.explorer.clear_z() # in case of trouble
+        #     path = paths[0]
+        #     o,a,r = path['observations'],path['actions'],path['rewards']
+        #     self.agent.update_context([o,a,r,None,None])
+        #     self.agent.infer_posterior(self.agent.context)
         if self.use_ae:
             self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()
