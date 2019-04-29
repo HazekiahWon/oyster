@@ -201,10 +201,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.agent.detach_z()
             if self.use_explorer: self.explorer.detach_z()
 
-    def optimize_q(self, qf1_optimizer, qf2_optimizer, rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred):
+    def optimize_q(self, qf1_optimizer, qf2_optimizer, rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred, return_loss=True):
         # qf and encoder update (note encoder does not get grads from policy or vf)
-        qf1_optimizer.zero_grad()
-        qf2_optimizer.zero_grad()
+        if return_loss:
+            qf1_optimizer.zero_grad()
+            qf2_optimizer.zero_grad()
         rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
         # scale rewards for Bellman update
         rewards_flat = rewards_flat * self.reward_scale
@@ -212,13 +213,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
         error1 = (q1_pred - q_target.detach())
         error2 = (q2_pred - q_target.detach())
-        # qpred qtarget=targetv
-        qf_loss = torch.mean(error1**2) + torch.mean(error2**2)
-        # qf_loss.backward()
-        # self.writer.add_scalar('qf', qf_loss, step)
-        # qf1_optimizer.step()
-        # qf2_optimizer.step()
-        return error1,error2,qf_loss
+        if return_loss:
+            # qpred qtarget=targetv
+            qf_loss = torch.mean(error1**2) + torch.mean(error2**2)
+            return error1,error2,qf_loss
+        else: return error1,error2
         # context_optimizer.step()
 
     def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, new_actions, task_z, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value, alpha=1):
@@ -296,9 +295,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         #     paths = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, max_trajs=1, accum_context=False)
         #     self.explorer.clear_z() # in case of trouble
         #     path = paths[0]
-        #     o,a,r = path['observations'],path['actions'],path['rewards']
+        #     o,a,r,terms = path['observations'],path['actions'],path['rewards'],path['terminals']
         #     self.agent.update_context([o,a,r,None,None])
         #     self.agent.infer_posterior(self.agent.context)
+        #     q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, _ = self.agent.infer(obs, actions, next_obs)
+        #     error1, error2 = self.optimize_q(None, None, ptu.from_numpy(r[None,...]), num_tasks, terms,
+        #                                      target_v_values, q1_pred, q2_pred, return_loss=False)
         if self.use_ae:
             self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()

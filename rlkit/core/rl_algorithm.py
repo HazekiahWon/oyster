@@ -658,9 +658,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         Implement anything that needs to happen after every rollout.
         """
-        if eval_task:
-            self.eval_enc_replay_buffer.terminate_episode(self.task_idx)
-        else:
+        if not eval_task:
+            # self.eval_enc_replay_buffer.terminate_episode(self.task_idx)
+        # else:
             self.replay_buffer.terminate_episode(self.task_idx)
             self.enc_replay_buffer.terminate_episode(self.task_idx)
 

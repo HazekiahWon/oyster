@@ -468,13 +468,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
                                                       resample_z_every_n=self.max_path_length,
                                                       eval_task=False)
-            # else:
-                # self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                #                                       resample_z_every_n=self.max_path_length,
-                #                                       eval_task=False, add_to=0)
-                # self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
-                #                                       resample_z_every_n=self.max_path_length,
-                #                                       eval_task=False, add_to=1)
+
             test_paths = self.collect_paths2(idx, epoch, eval_task=False)
             train_online_returns.append(eval_util.get_average_returns(test_paths))
 
@@ -495,18 +489,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for idx in self.eval_tasks:
             self.task_idx = idx
             self.env.reset_task(idx)
-            # self.eval_enc_replay_buffer.task_buffers[idx].clear()
-            if not self.use_explorer:
-                self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=True)
-            # else:
-                # self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                #                                       resample_z_every_n=self.max_path_length,
-                #                                       eval_task=True, add_to=0)
-                # self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
-                #                                       resample_z_every_n=self.max_path_length,
-                #                                       eval_task=True, add_to=1)
+
             test_paths = self.collect_paths2(idx, epoch, eval_task=True)
 
             test_online_returns.append(eval_util.get_average_returns(test_paths))
