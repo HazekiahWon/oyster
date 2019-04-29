@@ -280,6 +280,8 @@ class ProtoAgent(nn.Module):
     def min_q(self, obs, actions, task_z):
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
+        task_z = [z.repeat(b, 1) for z in task_z]
+        task_z = torch.cat(task_z, dim=0)
 
         q1 = self.qf1(obs, actions, task_z)
         q2 = self.qf2(obs, actions, task_z)

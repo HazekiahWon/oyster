@@ -195,9 +195,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         for i in range(num_updates):
             # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
-            obs_enc, act_enc, rewards_enc, nobs_enc, _ = mini_batch
+            obs_enc, act_enc, rewards_enc, nobs_enc, terms_enc = mini_batch
             if not self.use_explorer: nobs_enc = None
-            self._take_step(indices, obs_enc, act_enc, rewards_enc, nobs_enc, gammas)
+            self._take_step(indices, obs_enc, act_enc, rewards_enc, nobs_enc, terms_enc, gammas)
 
             # stop backprop
             self.agent.detach_z()
@@ -269,7 +269,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         policy_optimizer.step()
         return log_policy_target, vf_loss, policy_loss
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_exp, nobs_enc, gammas=None):
+    def _take_step(self, indices, obs_enc, act_enc, rewards_exp, nobs_enc, terms_enc, gammas=None):
         global step
 
         num_tasks = len(indices)
@@ -295,7 +295,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # the gradients can include task encoder
 
         if self.use_ae:
-            self.enc_optimizer.zero_grad()
+            if not self.eq_enc: self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()
             # gamma - z - gamma
             if self.eq_enc:
@@ -351,39 +351,51 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.use_explorer:
             # task_z = task_z.detach()
             # modified direct assignment of z
-            mu,var = self.agent.z_means, self.agent.z_vars
-            self.explorer.trans_z(mu,var)
+            mu, var = self.agent.z_means, self.agent.z_vars
+            self.explorer.trans_z(mu, var)
             # self.explorer.z = task_z[::self.batch_size]
-            q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc,
-                                                                                      task_z=None)
-            exp_actions, exp_mean, exp_log_std, exp_log_pi = exp_outputs[:4]
-            exp_tanh_value = exp_outputs[-1]
-
             # i suppose this would be quite slow, as every iteration needs sampling
             if self.q_imp:
-                old_rew = torch.abs(error2 + error1)
+                # sample new data from current exp, to generate z, and get q error
+                # old data to generate z, get q error
+                # the improvement as the reward for sampling the new data
+                old_rew = qf_loss.detach()
                 trans = list()
                 for idx in range(len(indices)):
                     self.env.reset_task(idx)
                     self.task_idx = idx
-                    self.explorer.trans_z(mu[idx].unsqueeze(0),var[idx].unsqueeze(0))
-                    paths,_ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, max_trajs=1,
-                                                              accum_context=False)
+                    self.explorer.trans_z(mu[idx].unsqueeze(0), var[idx].unsqueeze(0))
+                    paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, max_trajs=1,
+                                                                 accum_context=False)
                     path = paths[0]
-                    trans.append((path['observations'], path['actions'], path['rewards'], path['terminals'], path['next_observations']))
-                o,a,r,terms,no = [np.stack(x) for x in zip(*trans)] # o,a,r,terms, shaped 3dim
-                context = [o,a,r,None,None]
-                o,a,r,no = [ptu.from_numpy(x) for x in (o,a,r,no)]
-                terms = ptu.from_numpy(terms.astype(np.uint8))
+                    trans.append((path['observations'], path['actions'], path['rewards'], path['terminals'],
+                                  path['next_observations']))
+                o, a, r, exp_terms, no = [np.stack(x) for x in zip(*trans)]  # o,a,r,terms, shaped 3dim
+                context = [o, a, r, None, None]
+                o, a, r, no = [ptu.from_numpy(x) for x in (o, a, r, no)]
+                exp_terms = ptu.from_numpy(exp_terms.astype(np.int32))
                 self.agent.update_context(context)
                 self.agent.infer_posterior(self.agent.context)
-                q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, _ = self.agent.infer(o, a, no)
-                error1, error2 = self.optimize_q(None, None, r, num_tasks, terms,
+                q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, _ = self.agent.infer(obs, actions, next_obs)
+                error1, error2 = self.optimize_q(None, None, rewards, num_tasks, terms,
                                                  target_v_values, q1_pred, q2_pred, return_loss=False)
-                new_rew = torch.abs(error1 + error2)
+                new_rew = torch.mean(error1 ** 2) + torch.mean(error2**2)
                 imp = (old_rew - new_rew) / torch.sqrt(old_rew ** 2 + new_rew ** 2)
-                rewards_exp = imp
+                imp = imp.view(1,1,1)
+                rew1 = imp.repeat(o.size(0),o.size(1),1)
+                rew2 = -imp.repeat(obs_enc.size(0),obs_enc.size(1),1)
+                rewards_exp = torch.cat((rew1,rew2),dim=1)
+                exp_obs = torch.cat((o,obs_enc),dim=1)
+                exp_a = torch.cat((a, act_enc), dim=1)
+                exp_no = torch.cat((no, nobs_enc), dim=1)
+                self.explorer.trans_z(mu,var)
+                q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(exp_obs, exp_a, exp_no,
+                                                                                          task_z=None)
+                terms_enc = torch.cat((exp_terms,terms_enc), dim=1)
+                obs_enc, act_enc,nobs_enc = exp_obs, exp_a, exp_no
             else:
+                q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc,
+                                                                                          task_z=None)
                 ###############
                 rew1 = -torch.abs(error1 + error2) * self.exp_error_scale / 2.
                 rew2 = 0. if self.eq_enc else gam_rew
@@ -392,8 +404,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                                                                                                                 1)  # small as possible
                 rewards_exp = rewards_exp.detach()
                 ###############
+            exp_actions, exp_mean, exp_log_std, exp_log_pi = exp_outputs[:4]
+            exp_tanh_value = exp_outputs[-1]
             _, _, qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
-                                           rewards_exp, num_tasks, terms, target_v_exp, q1_exp, q2_exp)
+                                           rewards_exp, num_tasks, terms_enc, target_v_exp, q1_exp, q2_exp)
             self.qf1exp_optimizer.step()
             self.qf2exp_optimizer.step()
             exp_logp_target, vf_exp, exp_loss = self.optimize_p(self.vfexp_optimizer, self.explorer, self.exp_optimizer,
@@ -407,7 +421,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         #################################
         self.context_optimizer.step()
         if self.use_ae:
-            self.enc_optimizer.step()
+            if not self.eq_enc: self.enc_optimizer.step()
             self.dec_optimizer.step()
         # TODO necessary to use explicit task_z ?
         log_pi_target,vf_loss, policy_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
