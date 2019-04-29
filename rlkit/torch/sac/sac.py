@@ -356,9 +356,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # self.explorer.z = task_z[::self.batch_size]
             # i suppose this would be quite slow, as every iteration needs sampling
             if self.q_imp:
-                # sample new data from current exp, to generate z, and get q error
-                # old data to generate z, get q error
-                # the improvement as the reward for sampling the new data
+
                 old_rew = qf_loss.detach()
                 trans = list()
                 for idx in range(len(indices)):
@@ -368,6 +366,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                     paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, max_trajs=1,
                                                                  accum_context=False)
                     path = paths[0]
+                    self.enc_replay_buffer.add_path(idx, path)
                     trans.append((path['observations'], path['actions'], path['rewards'], path['terminals'],
                                   path['next_observations']))
                 o, a, r, exp_terms, no = [np.stack(x) for x in zip(*trans)]  # o,a,r,terms, shaped 3dim
@@ -376,6 +375,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 exp_terms = ptu.from_numpy(exp_terms.astype(np.int32))
                 self.agent.update_context(context)
                 self.agent.infer_posterior(self.agent.context)
+                # reevaluate on the new inferred z
                 q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, _ = self.agent.infer(obs, actions, next_obs)
                 error1, error2 = self.optimize_q(None, None, rewards, num_tasks, terms,
                                                  target_v_values, q1_pred, q2_pred, return_loss=False)
