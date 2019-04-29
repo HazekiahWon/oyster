@@ -283,8 +283,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         pre_tanh_value = policy_outputs[-1]
         # KL constraint on z if probabilistic
 
-        self.context_optimizer.zero_grad()
-        # if self.use_information_bottleneck:
+        self.context_optimizer.zero_grad() # for task encoder
         gt_z = None
         kl_loss = None
 
@@ -293,9 +292,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.dec_optimizer.zero_grad()
             # gamma - z - gamma
             if self.eq_enc:
+                #### task_enc > z > decoder > rec_gama <mse> gt_gamma
                 task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
                 rec_loss = self.mse_criterion(task_z_gam, gammas)
             else:
+                #### gt_gamma > gt_enc > gt_z > samp_z > decoder > rec_gam <mse> gt_gamma
+                #### task_enc > z > decoder > task_z_gam <se> gt_gamma
                 gt_z = self.agent.infer_gt_z(gammas)
                 ########################
                 dists = [torch.distributions.Normal(z, ptu.ones(self.agent.z_dim)) for z in gt_z]
@@ -365,7 +367,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.qf1exp_optimizer.step()
             self.qf2exp_optimizer.step()
             exp_logp_target,vf_exp,exp_loss = self.optimize_p(self.vfexp_optimizer, self.agent, self.exp_optimizer,
-                            obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value, alpha=100)
+                            obs_enc, exp_actions, task_z, exp_log_pi, v_exp, exp_mean, exp_log_std, exp_tanh_value, alpha=10)
             if step%20==0:
                 self.writer.add_histogram('exp_adv', exp_logp_target - v_exp, step)
                 self.writer.add_histogram('logp_exp', exp_log_pi,step)

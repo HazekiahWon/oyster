@@ -102,7 +102,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.argument('use_ae',default=use_ae, type=bool)
 @click.argument('dif_policy', default=dif_policy, type=bool)
 @click.argument('exp_offp', default=exp_offp, type=bool)
-@click.argument('confine_num_c', default=confine_num_c, type=bool)
+@click.argument('confine_num_c', default=confine_num_c, type=bool) # make effect only when allowing extended exploration
 @click.argument('eq_enc', default=False, type=bool)
 @click.argument('infer_freq', default=0, type=int)
 @click.option('--fast_debug', default=fast_debug, type=bool)
