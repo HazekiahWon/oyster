@@ -82,6 +82,70 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         #         p['rewards'] = ptu.sparsify_rewards(p['rewards'])
         return test_paths
 
+    def online_eval_trn_paths(self, idx, eval_task=False, deterministic=False):
+        '''
+        used in eval train
+        following the new pearl implementation
+        infer z from enc buffer and sample one traj without context updating
+        '''
+
+        self.agent.clear_z()
+
+        test_paths,_ = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+                                                       accum_context=False, infer_freq=0,
+                                                       max_samples=self.max_path_length,
+                                                       max_trajs=1,
+                                                       resample=np.inf) # eval_sampler is also explorer for pearl
+
+        test_paths = test_paths[0]
+        o,a,r = test_paths['observations'],test_paths['actions'],test_paths['rewards']
+        self.agent.update_context([o,a,r,None,None])
+        self.agent.infer_posterior(self.agent.context)
+        test_paths,n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+                                                       accum_context=False, infer_freq=0,
+                                                       max_samples=self.max_path_length,
+                                                       max_trajs=1,
+                                                       resample=np.inf) # eval_sampler is also explorer for pearl
+
+        # if self.sparse_rewards:
+        #     for p in test_paths:
+        #         p['rewards'] = ptu.sparsify_rewards(p['rewards'])
+        return test_paths,n_steps
+
+    def online_eval_paths_exp(self, idx, eval_task=False, num_exp=1, deterministic=False):
+        '''
+        used in eval train
+        following the new pearl implementation
+        infer z from enc buffer and sample one traj without context updating
+        '''
+
+        self.explorer.clear_z()
+        # i think explorer should not be deterministic
+        for _ in range(num_exp):
+            # whether the exp update once every traj is determined by the infer freq
+            # resample doesnt matter cuz max_traj is set 1
+            test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False,
+                                                              accum_context=self.infer_freq!=0, infer_freq=self.infer_freq,
+                                                              max_samples=self.max_path_length,
+                                                              max_trajs=1,
+                                                              resample=np.inf)  # eval_sampler is also explorer for pearl
+
+            test_paths = test_paths[0]
+            o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
+            self.explorer.update_context([o, a, r, None, None])
+            self.explorer.infer_posterior(self.explorer.context)
+        self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
+        test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+                                                                accum_context=False, infer_freq=0,
+                                                                max_samples=self.max_path_length,
+                                                                max_trajs=1,
+                                                                resample=np.inf)  # eval_sampler is also explorer for pearl
+
+        # if self.sparse_rewards:
+        #     for p in test_paths:
+        #         p['rewards'] = ptu.sparsify_rewards(p['rewards'])
+        return test_paths, n_steps
+
     def obtain_test_paths(self, idx, eval_task=False, deterministic=False):
         '''
         collect paths with current policy
@@ -189,8 +253,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         paths = []
         for _ in range(num_evals):
             if self.use_explorer: # TODO: note that when eval the policies are set deterministic
-                single_evalp,_ = self.obtain_eval_paths_new(idx, eval_task=eval_task, deterministic=True)
-            else: single_evalp = self.offline_eval_trn_paths(idx, eval_task=eval_task, deterministic=True)
+                single_evalp,_ = self.online_eval_paths_exp(idx, eval_task=eval_task, deterministic=True)
+            else:
+                # single_evalp = self.offline_eval_trn_paths(idx, eval_task=eval_task, deterministic=True)
+                single_evalp,_ = self.online_eval_trn_paths(idx, eval_task=eval_task, deterministic=True)
             paths += single_evalp
         goal = self.env._goal
         for path in paths:
@@ -377,10 +443,9 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
         eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
         ### eval train tasks with on-policy data to match eval of test tasks
-        train_online_returns = self._do_eval(indices, epoch)
-        eval_util.dprint('train online returns')
-        eval_util.dprint(train_online_returns)
+
         train_returns = []
+        train_online_returns = []
         for idx in indices:
             self.task_idx = idx
             self.env.reset_task(idx)
@@ -394,13 +459,60 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                     p['rewards'] = sparse_rewards
 
             train_returns.append(eval_util.get_average_returns(paths))
+            ############ old version
+            self.eval_enc_replay_buffer.task_buffers[idx].clear()
+            # task embedding sampled from prior and held fixed
+            if not self.use_explorer:
+                self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=False)
+            else:
+                self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=False, add_to=0)
+                self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=False, add_to=1)
+            test_paths = self.collect_paths2(idx, epoch, eval_task=False)
+            train_online_returns.append(eval_util.get_average_returns(test_paths))
+
+            ######################### old version
+
         train_returns = np.mean(train_returns)
+        ########## new version of pearl
+        # train_online_returns = self._do_eval(indices, epoch)
+        # eval_util.dprint('train online returns')
+        # eval_util.dprint(train_online_returns)
+        ####################
+
 
         ### test tasks
         eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_online_returns = self._do_eval(self.eval_tasks, epoch, eval_task=True)
-        eval_util.dprint('test online returns')
-        eval_util.dprint(test_online_returns)
+        ###### old version
+        test_online_returns = []
+        for idx in self.eval_tasks:
+            self.task_idx = idx
+            self.env.reset_task(idx)
+            self.eval_enc_replay_buffer.task_buffers[idx].clear()
+            if not self.use_explorer:
+                self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=True)
+            else:
+                self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=True, add_to=0)
+                self.collect_data_sampling_from_prior(self.explorer, num_samples=self.num_steps_per_task,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=True, add_to=1)
+            test_paths = self.collect_paths2(idx, epoch, eval_task=True)
+
+            test_online_returns.append(eval_util.get_average_returns(test_paths))
+        ######################################
+        # test_online_returns = self._do_eval(self.eval_tasks, epoch, eval_task=True)
+        # eval_util.dprint('test online returns')
+        # eval_util.dprint(test_online_returns)
+        ###########
 
         # avg_train_return = np.mean(train_final_returns)
         # avg_test_return = np.mean(test_final_returns)

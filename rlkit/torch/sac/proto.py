@@ -120,9 +120,14 @@ class ProtoAgent(nn.Module):
         o, a, r, no, d = inputs
         if self.sparse_rewards:
             r = ptu.sparsify_rewards(r)
-        o = ptu.from_numpy(o[None, None, ...])
-        a = ptu.from_numpy(a[None, None, ...])
-        r = ptu.from_numpy(np.array([r])[None, None, ...])
+        dim=3
+        ndim = o.ndim
+        if isinstance(r, np.float64): r = np.array([r])
+        for _ in range(dim-ndim):
+            o,a,r = o[None,...],a[None,...],r[None,...]
+        o = ptu.from_numpy(o)
+        a = ptu.from_numpy(a)
+        r = ptu.from_numpy(r)
         # TODO: we can make this a bit more efficient by simply storing the natural params of the current posterior and add the new sample to update
         # then in the info bottleneck, we compute the the normal after computing the mean/variance from the natural params stored
         data = torch.cat([o, a, r], dim=2)
@@ -133,7 +138,7 @@ class ProtoAgent(nn.Module):
 
     def infer_posterior(self, context):
         ''' compute q(z|c) as a function of input context and sample new z from it'''
-        if self.confine_num_c: random_choice(context)
+        if self.confine_num_c: context = random_choice(context)
         params = self.task_enc(context)
         params = params.view(context.size(0), -1, self.task_enc.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)

@@ -149,7 +149,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
             train_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
-            replay_buffer_size=10000 if fast_debug else 1000000
+            replay_buffer_size=10000 if fast_debug else (10000 if debug else 1000000)
         ),
         cmd_params=dict(
             debug=debug,
