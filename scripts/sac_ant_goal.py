@@ -71,7 +71,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     if resume or test:
         for snet,tnet in zip(agent_.networks,agent.networks):
             ptu.soft_update_from_to(snet, tnet, tau=1.)
-    memo += f'[ant_goal] this exp wants to {note}: lr is as original, using softmax, reverse kl, \n'
+    memo += f'[ant_goal] this exp wants to {note}'
 
     variant['algo_params']['memo'] = memo
     # modified train tasks eval tasks
