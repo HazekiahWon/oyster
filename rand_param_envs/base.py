@@ -39,7 +39,7 @@ class MetaEnv(Env):
             task: task of the meta-learning environment
         """
         raise NotImplementedError
-
+    '''
     def log_diagnostics(self, paths, prefix):
         """
         Logs env-specific diagnostic information
@@ -49,6 +49,7 @@ class MetaEnv(Env):
             prefix (str) : prefix for logger
         """
         pass
+    '''
 
 class RandomEnv(MetaEnv, MujocoEnv):
     """
