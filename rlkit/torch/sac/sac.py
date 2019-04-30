@@ -110,15 +110,17 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         #         self.explorer.parameters(),
         #         lr=explorer_lr,
         #     )
+        if self.use_ae or self.eq_enc:
+            self.dec_optimizer = optimizer_class(
+                self.agent.gt_dec.parameters(),
+                lr=context_lr,
+            )
         if self.use_ae:
             self.enc_optimizer = optimizer_class(
                 self.agent.gt_enc.parameters(),
                 lr=context_lr,
             )
-            self.dec_optimizer = optimizer_class(
-                self.agent.gt_dec.parameters(),
-                lr=context_lr,
-            )
+
         if self.use_explorer:
             self.exp_optimizer = optimizer_class(
                 self.explorer.policy.parameters(),
