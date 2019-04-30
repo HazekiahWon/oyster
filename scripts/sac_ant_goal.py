@@ -49,7 +49,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
 
-    gamma_dim = 4 if use_ae else None # (a,r,rcosa,rsina)
+    gamma_dim = 4 if use_ae or eq_enc else None # (a,r,rcosa,rsina)
 
     net_size = variant['net_size']
     # start with linear task encoding
