@@ -7,108 +7,149 @@ gym==0.7.4  mujoco-py==0.5.7
 Don't forget to set use_gpu = True
 
 """
+# import numpy as np
+# import click
+# import datetime
+# import pathlib
+import os
+import sys
+sys.path.append('/home/zhjl/oyster')
+######################
+import joblib
+from scripts.shared import setup_nets
+resume = False
+exp_id = 'walker-2d-params'
+exp_d = 'pearl-190421-114059'
+resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
+debug = True
+use_explorer = True
+use_ae = use_explorer and True
+dif_policy = False
+fast_debug = debug and True
+exp_offp = False
+confine_num_c = False
+########################
+from rlkit.envs.walker2d_params import Walker2dParamsEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import setup_logger
+from rlkit.torch.sac.sac import ProtoSoftActorCritic
+import rlkit.torch.pytorch_util as ptu
 import os
 import numpy as np
 import click
 import datetime
 import pathlib
 
-from rlkit.envs.walker2d_params import Walker2dParamsEnv
-from rlkit.envs.wrappers import NormalizedBoxEnv
-from rlkit.launchers.launcher_util import setup_logger
-from rlkit.torch.sac.policies import TanhGaussianPolicy
-from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
-from rlkit.torch.sac.sac import ProtoSoftActorCritic
-from rlkit.torch.sac.proto import ProtoAgent
-import rlkit.torch.pytorch_util as ptu
-
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant):
+def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq,
+               q_imp, sar2gam):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(Walker2dParamsEnv(n_tasks=task_params['n_tasks']))
+    newenv = NormalizedBoxEnv(Walker2dParamsEnv(n_tasks=task_params['n_tasks']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
     tasks = env.get_all_task_idx()
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 5
-    task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
+    z_dim = 5
+    task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
 
+    gamma_dim = 4 if use_ae or eq_enc else None  # (a,r,rcosa,rsina)
+
     net_size = variant['net_size']
+    # start with linear task encoding
     recurrent = variant['algo_params']['recurrent']
-    encoder_model = RecurrentEncoder if recurrent else MlpEncoder
-    task_enc = encoder_model(
-            hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
-            input_size=obs_dim + action_dim + reward_dim,
-            output_size=task_enc_output_dim,
-    )
-    qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1,
-    )
-    qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1,
-    )
-    vf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + latent_dim,
-        output_size=1,
-    )
-    policy = TanhGaussianPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + latent_dim,
-        latent_dim=latent_dim,
-        action_dim=action_dim,
-    )
 
-    agent = ProtoAgent(
-        latent_dim,
-        [task_enc, policy, qf1, qf2, vf],
-        **variant['algo_params']
-    )
+    memo = ''
+    explorer = None
+    if (resume or test) and resume_dir is not None:
+        ret = joblib.load(resume_dir)
+        agent_ = ret['exploration_policy']
+        memo += f'this exp resumes {resume_dir}\n'
 
+    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim,
+                                variant,
+                                dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None,
+                                gamma_dim=gamma_dim,
+                                confine_num_c=confine_num_c, eq_enc=eq_enc, sar2gam=sar2gam)
+    explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
+                          dif_policy=dif_policy, task_enc=task_enc, confine_num_c=confine_num_c)
+    if resume or test:
+        for snet, tnet in zip(agent_.networks, agent.networks):
+            ptu.soft_update_from_to(snet, tnet, tau=1.)
+    memo += f'[ant_goal] this exp wants to {note}'
+
+    variant['algo_params']['memo'] = memo
+    # modified train tasks eval tasks
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=tasks[:-10],
-        eval_tasks=tasks[-10:],
-        nets=[agent, task_enc, policy, qf1, qf2, vf],
-        latent_dim=latent_dim,
+        explorer=explorer if use_explorer else None,  # use the sequential encoder meaning using the new agent
+        train_tasks=tasks[:-2] if debug else tasks[:-30],
+        eval_tasks=tasks[-2:] if debug else tasks[-30:],
+        agent=agent,
+        latent_dim=z_dim,
+        gamma_dim=gamma_dim,
+        exp_offp=exp_offp,
+        eq_enc=eq_enc,
+        infer_freq=infer_freq,
+        q_imp=q_imp,
+        sar2gam=sar2gam,
         **variant['algo_params']
     )
-    algorithm.to()
-    algorithm.train()
+
+    if ptu.gpu_enabled():
+        algorithm.to()
+    if test:
+        algorithm.test(newenv)
+    else:
+        algorithm.train()
 
 
 @click.command()
 @click.argument('gpu', default=0)
+@click.argument('debug', default=debug, type=bool)
+@click.argument('use_explorer', default=use_explorer, type=bool)
+@click.argument('use_ae',default=use_ae, type=bool)
+@click.argument('dif_policy', default=dif_policy, type=bool)
+@click.argument('exp_offp', default=exp_offp, type=bool)
+@click.argument('confine_num_c', default=confine_num_c, type=bool) # make effect only when allowing extended exploration
+@click.argument('eq_enc', default=False, type=bool)
+@click.argument('infer_freq', default=0, type=int)
+@click.argument('q_imp', default=False, type=bool)
+@click.argument('sar2gam', default=False, type=bool)
+@click.option('--fast_debug', default=fast_debug, type=bool)
+@click.option('--note', default='-')
+@click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
-def main(gpu, docker):
+@click.option('--test', default=False, is_flag=True)
+def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, q_imp, sar2gam,
+         fast_debug, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
+    # modified ntasks, meta-batch
+    fast_debug = debug and fast_debug
     variant = dict(
         task_params=dict(
-            n_tasks=50,
+            n_tasks=8 if debug else 180, # 20 works pretty well
             randomize_tasks=True,
+            low_gear=False,
         ),
         algo_params=dict(
-            meta_batch=5,
-            num_iterations=500, # meta-train epochs
+            meta_batch=5 if debug else 8,
+            num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=2000,
-            num_evals=2, # number of evals with separate task encodings
-            num_steps_per_eval=2 * max_path_length,
+            num_train_steps_per_itr=4000 if not fast_debug else 1,
+            num_evals=2,
+            num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
+            embedding_batch_size=256,
+            embedding_mini_batch_size=256,
             batch_size=256, # to compute training grads from
-            embedding_batch_size=100,
-            embedding_mini_batch_size=100,
             max_path_length=max_path_length,
             discount=0.99,
             soft_target_tau=0.005,
@@ -119,25 +160,35 @@ def main(gpu, docker):
             reward_scale=5.,
             sparse_rewards=False,
             reparameterize=True,
-            kl_lambda=.1,
-            use_information_bottleneck=True,
-            train_embedding_source='online_exploration_trajectories',
+            kl_lambda=1.,
+            use_information_bottleneck=True,  # only supports False for now
             eval_embedding_source='online_exploration_trajectories',
+            train_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
+            replay_buffer_size=10000 if fast_debug else (10000 if debug else 1000000)
+        ),
+        cmd_params=dict(
+            debug=debug,
+            use_explorer = use_explorer,
+            use_ae = use_explorer and use_ae,
+            dif_policy = dif_policy,
+            fast_debug = fast_debug,
+            exp_offp = exp_offp,
+            confine_num_c=confine_num_c,
+            eq_enc=eq_enc,
+            infer_freq=infer_freq,
+            q_imp=q_imp,
+            sar2gam=sar2gam and use_explorer and eq_enc,  # only when explorer and eq enc are enabled, gives reward to explorer, cannot connect with encoder
         ),
         net_size=300,
-        use_gpu=False,
+        use_gpu=True,
         gpu_id=gpu,
     )
-
-    exp_datetime = str(datetime.datetime.now())[5:-7].replace(':', '').replace(' ', '-')
-    exp_name = 'pearl-' + exp_datetime
+    exp_name = 'pearl'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
-    exp_id = 'walker-2d-params'
 
-    #os.makedirs(os.path.join(log_dir, exp_id, exp_datetime), exist_ok=True)
     os.makedirs(os.path.join(log_dir, exp_id), exist_ok=True)
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id=exp_id, base_log_dir=log_dir)
 
@@ -150,7 +201,8 @@ def main(gpu, docker):
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant)
+    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq,
+               q_imp, sar2gam)
 
 if __name__ == "__main__":
     main()

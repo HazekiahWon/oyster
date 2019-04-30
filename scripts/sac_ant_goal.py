@@ -45,7 +45,6 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    physics_dim = 10
     z_dim = 5
     task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
