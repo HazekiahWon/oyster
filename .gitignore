@@ -19,4 +19,5 @@ __pycache__
 
 /output
 /output/**
-.idea/*
+.idea
+.DS_Store
