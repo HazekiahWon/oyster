@@ -274,57 +274,54 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         num_tasks = len(indices)
 
-        # data is (task, batch, feat)
+        # prepare rl data and enc data
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_exp)
 
-        # run inference in networks
+        # get data through q-net v-net actor task-encoder
         q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data.detach(), indices)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
         pre_tanh_value = policy_outputs[-1]
-        # KL constraint on z if probabilistic
 
         self.context_optimizer.zero_grad() # for task encoder
         gt_z = None
         kl_loss = None
-        ### q improvement
-        # q error is normally computed on sampled data from enc buffer
-        # now online collect data via explorer, and compute z, and compute q-error conditioned on z
-        # use the q error improvement as the reward for explorer
-        # the gradients should not affect q network
-        # the gradients can include task encoder
-
-        if self.use_ae:
-            if not self.eq_enc: self.enc_optimizer.zero_grad()
+        if self.eq_enc:
+            self.enc_optimizer.zero_grad()
+            #### rec of gamma: task_enc > z > decoder > rec_gama <mse> gt_gamma
+            # affect decoder and task enc
+            task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
+            rec_loss = self.mse_criterion(task_z_gam, gammas)
+        elif self.use_ae:
+            self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()
-            # gamma - z - gamma
-            if self.eq_enc:
-                #### task_enc > z > decoder > rec_gama <mse> gt_gamma
-                task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
-                rec_loss = self.mse_criterion(task_z_gam, gammas)
-            else:
-                #### gt_gamma > gt_enc > gt_z > samp_z > decoder > rec_gam <mse> gt_gamma
-                #### task_enc > z > decoder > task_z_gam <se> gt_gamma
-                gt_z = self.agent.infer_gt_z(gammas)
-                ########################
-                dists = [torch.distributions.Normal(z, ptu.ones(self.agent.z_dim)) for z in gt_z]
-                gt_z2 = torch.stack([dist.rsample() for dist in dists], dim=0)
-                rec_gam = self.agent.rec_gt_gamma(gt_z2)
-                task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
-                gam_rew = -torch.sum((task_z_gam-gammas)**2,dim=1, keepdim=True) # mb,1
-                gam_rew = gam_rew.repeat(1,self.batch_size)
-                gam_rew = gam_rew.view(-1, 1)
-                #####################
-                # rec_gam = torch.nn.Softmax(rec_gam,dim=1)
-                self.writer.add_histogram('rec_gamma', rec_gam, step)
-                self.writer.add_histogram('gt_z', gt_z[0], step)
-                self.writer.add_histogram('task_z',self.agent.z_means[0], step)
-                # rec_loss = self.onehot_criterion(rec_gam, torch.cuda.LongTensor(indices)) # because it is quite small if averaged
-                rec_loss = self.mse_criterion(rec_gam, gammas)
-            kl_loss = rec_loss*self.rec_lambda
-            self.writer.add_scalar('ae_rec_loss', rec_loss, step)
+            # ae with eq encoders
 
-        # enc_data - z <> z
+            #### gt_gamma > gt_enc > gt_z > samp_z > decoder > rec_gam <mse> gt_gamma
+            # affect ae
+            #### rew: task_enc > z > decoder > task_z_gam <se> gt_gamma
+            # affect exploration p
+            gt_z = self.agent.infer_gt_z(gammas)
+            ########################
+            dists = [torch.distributions.Normal(z, ptu.ones(self.agent.z_dim)) for z in gt_z]
+            gt_z2 = torch.stack([dist.rsample() for dist in dists], dim=0)
+            rec_gam = self.agent.rec_gt_gamma(gt_z2)
+            task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
+            gam_rew = -torch.sum((task_z_gam-gammas)**2,dim=1, keepdim=True) # mb,1
+            gam_rew = gam_rew.repeat(1,self.batch_size)
+            gam_rew = gam_rew.view(-1, 1)
+            #####################
+            # rec_gam = torch.nn.Softmax(rec_gam,dim=1)
+            self.writer.add_histogram('rec_gamma', rec_gam, step)
+            self.writer.add_histogram('gt_z', gt_z[0], step)
+            self.writer.add_histogram('task_z',self.agent.z_means[0], step)
+            # rec_loss = self.onehot_criterion(rec_gam, torch.cuda.LongTensor(indices)) # because it is quite small if averaged
+            rec_loss = self.mse_criterion(rec_gam, gammas)
+        kl_loss = rec_loss*self.rec_lambda
+        self.writer.add_scalar('ae_rec_loss', rec_loss, step)
+
+        # distance between z: enc_data - z <> z
+        # affect task enc and encoder
         kl_div = self.agent.compute_kl_div(gt_z)
         self.writer.add_scalar('vae_kl', kl_div, step)
         ###########
@@ -334,29 +331,39 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         ###########
         if kl_loss is None: kl_loss = self.kl_lambda * kl_div
         else: kl_loss += self.kl_lambda * kl_div
-        # kl_loss.backward() # note that i remove retain-graph
 
-        # qf and encoder update (note encoder does not get grads from policy or vf)
         ##########
         # qf loss involves gradients of
         # q1 q2 task encoder
         ##########
+        # get loss for q-net
         error1,error2,qf_loss = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
                         rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred)
         (kl_loss+qf_loss).backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
 
+        self.context_optimizer.step()
+        if self.eq_enc or self.use_ae:
+            self.dec_optimizer.step()
+        if self.use_ae:  self.enc_optimizer.step()
+        # TODO necessary to use explicit task_z ?
+        log_pi_target,vf_loss, policy_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
+                        obs, new_actions, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value)
+        # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
+        self.writer.add_histogram('logp',log_pi, step)
+        self.writer.add_scalar('qf', qf_loss, step)
+        self.writer.add_scalar('vf',vf_loss, step)
         # put exp opt after q and before task enc
         if self.use_explorer:
             # task_z = task_z.detach()
             # modified direct assignment of z
             mu, var = self.agent.z_means, self.agent.z_vars
             self.explorer.trans_z(mu, var)
+            self.explorer.detach_z()
             # self.explorer.z = task_z[::self.batch_size]
             # i suppose this would be quite slow, as every iteration needs sampling
             if self.q_imp:
-
                 old_rew = qf_loss.detach()
                 trans = list()
                 for idx in range(len(indices)):
@@ -379,30 +386,31 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, _ = self.agent.infer(obs, actions, next_obs)
                 error1, error2 = self.optimize_q(None, None, rewards, num_tasks, terms,
                                                  target_v_values, q1_pred, q2_pred, return_loss=False)
-                new_rew = torch.mean(error1 ** 2) + torch.mean(error2**2)
+                new_rew = torch.mean(error1 ** 2) + torch.mean(error2 ** 2)
                 imp = (old_rew - new_rew) / torch.sqrt(old_rew ** 2 + new_rew ** 2)
-                imp = imp.view(1,1,1)
-                rew1 = imp.repeat(o.size(0),o.size(1),1)
-                rew2 = -imp.repeat(obs_enc.size(0),obs_enc.size(1),1)
-                rewards_exp = torch.cat((rew1,rew2),dim=1)
-                exp_obs = torch.cat((o,obs_enc),dim=1)
+                imp = imp.view(1, 1, 1)
+                rew1 = imp.repeat(o.size(0), o.size(1), 1)
+                rew2 = -imp.repeat(obs_enc.size(0), obs_enc.size(1), 1)
+                rewards_exp = torch.cat((rew1, rew2), dim=1)
+                exp_obs = torch.cat((o, obs_enc), dim=1)
                 exp_a = torch.cat((a, act_enc), dim=1)
                 exp_no = torch.cat((no, nobs_enc), dim=1)
-                self.explorer.trans_z(mu,var)
+                self.explorer.trans_z(mu, var)
                 q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(exp_obs, exp_a, exp_no,
                                                                                           task_z=None)
-                terms_enc = torch.cat((exp_terms,terms_enc), dim=1)
-                obs_enc, act_enc,nobs_enc = exp_obs, exp_a, exp_no
+                terms_enc = torch.cat((exp_terms, terms_enc), dim=1)
+                obs_enc, act_enc, nobs_enc = exp_obs, exp_a, exp_no
             else:
                 q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc,
                                                                                           task_z=None)
                 ###############
                 rew1 = -torch.abs(error1 + error2) * self.exp_error_scale / 2.
-                rew2 = 0. if self.eq_enc else gam_rew
+                rew2 = 0. if self.eq_enc else gam_rew # because in eq enc, this is set as the loss
 
                 rewards_exp = self.gam_rew_lambda * rew2 - (1 - self.gam_rew_lambda) * rew1 + .1 * rewards.view(-1,
                                                                                                                 1)  # small as possible
                 rewards_exp = rewards_exp.detach()
+                self.writer.add_scalar('q rec loss', torch.mean(rew1), step)
                 ###############
             exp_actions, exp_mean, exp_log_std, exp_log_pi = exp_outputs[:4]
             exp_tanh_value = exp_outputs[-1]
@@ -412,25 +420,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.qf2exp_optimizer.step()
             exp_logp_target, vf_exp, exp_loss = self.optimize_p(self.vfexp_optimizer, self.explorer, self.exp_optimizer,
                                                                 obs_enc, exp_actions, exp_log_pi, v_exp,
-                                                                exp_mean, exp_log_std, exp_tanh_value, alpha=10)
+                                                                exp_mean, exp_log_std, exp_tanh_value, alpha=100)
             if step % 20 == 0:
                 self.writer.add_histogram('exp_adv', exp_logp_target - v_exp, step)
                 self.writer.add_histogram('logp_exp', exp_log_pi, step)
             self.writer.add_scalar('qf_exp', qf_exp, step)
             self.writer.add_scalar('vf_exp', vf_exp, step)
         #################################
-        self.context_optimizer.step()
-        if self.use_ae:
-            if not self.eq_enc: self.enc_optimizer.step()
-            self.dec_optimizer.step()
-        # TODO necessary to use explicit task_z ?
-        log_pi_target,vf_loss, policy_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
-                        obs, new_actions, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value)
-        # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
-        self.writer.add_histogram('logp',log_pi, step)
-        self.writer.add_scalar('qf', qf_loss, step)
-        self.writer.add_scalar('vf',vf_loss, step)
-
         # save some statistics for eval
         if self.eval_statistics is None:
             # eval should set this to None.
