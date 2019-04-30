@@ -89,8 +89,8 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     algorithm = ProtoSoftActorCritic(
         env=env,
         explorer=explorer if use_explorer else None,  # use the sequential encoder meaning using the new agent
-        train_tasks=tasks[:-2] if debug else tasks[:-30],
-        eval_tasks=tasks[-2:] if debug else tasks[-30:],
+        train_tasks=tasks[:-2] if debug else tasks[:-10],
+        eval_tasks=tasks[-2:] if debug else tasks[-10:],
         agent=agent,
         latent_dim=z_dim,
         gamma_dim=gamma_dim,
@@ -135,16 +135,16 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
     fast_debug = debug and fast_debug
     variant = dict(
         task_params=dict(
-            n_tasks=8 if debug else 180, # 20 works pretty well
+            n_tasks=8 if debug else 50, # 20 works pretty well
             randomize_tasks=True,
             low_gear=False,
         ),
         algo_params=dict(
-            meta_batch=5 if debug else 8,
+            meta_batch=5 if debug else 5,
             num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=4000 if not fast_debug else 1,
+            num_train_steps_per_itr=2000 if not fast_debug else 1,
             num_evals=2,
             num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
             embedding_batch_size=256,
