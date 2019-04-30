@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="3ce9260c-b61e-45f5-bdca-99f5ba8ce486" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/sac_walker2d_params.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/sac_walker2d_params.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -13,20 +13,23 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="sac_walker2d_params.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="sac_walker2d_params.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/scripts/sac_walker2d_params.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="375">
-              <caret line="133" lean-forward="true" selection-start-line="133" selection-end-line="133" />
+            <state relative-caret-position="119">
+              <caret line="7" lean-forward="true" selection-start-line="7" selection-end-line="7" />
+              <folding>
+                <element signature="e#60#69#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="walker2d_params.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="walker2d_params.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/rlkit/envs/walker2d_params.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="204">
-              <caret line="12" column="30" selection-start-line="12" selection-start-column="30" selection-end-line="12" selection-end-column="30" />
+            <state relative-caret-position="306">
+              <caret line="18" lean-forward="true" selection-start-line="18" selection-end-line="18" />
             </state>
           </provider>
         </entry>
@@ -39,8 +42,8 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/scripts/sac_walker2d_params.py" />
         <option value="$PROJECT_DIR$/rlkit/envs/walker2d_params.py" />
+        <option value="$PROJECT_DIR$/scripts/sac_walker2d_params.py" />
       </list>
     </option>
   </component>
@@ -202,17 +205,20 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/scripts/sac_walker2d_params.py">
+    <entry file="file://$PROJECT_DIR$/rlkit/envs/walker2d_params.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="375">
-          <caret line="133" lean-forward="true" selection-start-line="133" selection-end-line="133" />
+        <state relative-caret-position="306">
+          <caret line="18" lean-forward="true" selection-start-line="18" selection-end-line="18" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/rlkit/envs/walker2d_params.py">
+    <entry file="file://$PROJECT_DIR$/scripts/sac_walker2d_params.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="204">
-          <caret line="12" column="30" selection-start-line="12" selection-start-column="30" selection-end-line="12" selection-end-column="30" />
+        <state relative-caret-position="119">
+          <caret line="7" lean-forward="true" selection-start-line="7" selection-end-line="7" />
+          <folding>
+            <element signature="e#60#69#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

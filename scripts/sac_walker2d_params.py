@@ -1,6 +1,11 @@
 """
 Run Prototypical Soft Actor Critic on Walker2dEnv.
 
+Reminder：
+requirements：
+gym==0.7.4  mujoco-py==0.5.7
+Don't forget to set use_gpu = True
+
 """
 import os
 import numpy as np
