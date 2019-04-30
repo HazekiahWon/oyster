@@ -288,7 +288,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         gt_z = None
         kl_loss = None
         if self.eq_enc:
-            self.enc_optimizer.zero_grad()
+            self.dec_optimizer.zero_grad()
             #### rec of gamma: task_enc > z > decoder > rec_gama <mse> gt_gamma
             # affect decoder and task enc
             task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
