@@ -3,7 +3,8 @@ from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
 from torch import nn
 def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
-               dif_policy=False, task_enc=None, gt_ae=None, gamma_dim=10, confine_num_c=False, eq_enc=False):
+               dif_policy=False, task_enc=None, gt_ae=None, gamma_dim=10, confine_num_c=False, eq_enc=False,
+               sar2gam=False):
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     is_actor = task_enc is None
     if task_enc is None:
@@ -63,14 +64,24 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
             nets = nets + [gt_encoder]
 
         if gt_ae is not None or eq_enc:
-            gt_decoder = encoder_model(
-                hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
-                input_size=task_enc_output_dim // 2,
-                output_size=gamma_dim,
-                # output_activation=nn.Softmax(dim=-1), # predict as label
-                hidden_init=nn.init.xavier_normal_,
-                layer_norm=True
-            )
+            if sar2gam:
+                gt_decoder = encoder_model(
+                    hidden_sizes=[64, 32],  # deeper net + higher dim space generalize better
+                    input_size=obs_dim+action_dim+reward_dim,
+                    output_size=gamma_dim,
+                    # output_activation=nn.Softmax(dim=-1), # predict as label
+                    hidden_init=nn.init.xavier_normal_,
+                    layer_norm=True
+                )
+            else:
+                gt_decoder = encoder_model(
+                    hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
+                    input_size=task_enc_output_dim // 2,
+                    output_size=gamma_dim,
+                    # output_activation=nn.Softmax(dim=-1), # predict as label
+                    hidden_init=nn.init.xavier_normal_,
+                    layer_norm=True
+                )
             nets = nets + [gt_decoder]
 
     agent = ProtoAgent(

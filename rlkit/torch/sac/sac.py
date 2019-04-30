@@ -35,6 +35,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             gam_rew_lambda=.5,
             eq_enc=False,
             q_imp=False,
+            sar2gam=False,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
@@ -77,6 +78,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.gam_rew_lambda = gam_rew_lambda
         self.eq_enc = eq_enc
         self.q_imp = q_imp
+        self.sar2gam = sar2gam
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
@@ -141,13 +143,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
 
 
-    def sample_data(self, indices, encoder=False):
+    def sample_data(self, indices, encoder=False, batchs=None):
         # sample from replay buffer for each task
         # TODO(KR) this is ugly af
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
         for idx in indices:
             if encoder:
-                batch = self.get_encoding_batch(idx=idx)
+                batch = self.get_encoding_batch(idx=idx, batch=batchs)
             else:
                 batch = self.get_batch(idx=idx)
             o = batch['observations'][None, ...]
@@ -272,29 +274,40 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         policy_optimizer.step()
         return log_policy_target, vf_loss, policy_loss
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_exp, nobs_enc, terms_enc, gammas=None):
+    def _take_step(self, indices, obs_enc, act_enc, rew_enc, nobs_enc, terms_enc, gammas=None):
         global step
 
         num_tasks = len(indices)
 
         # prepare rl data and enc data
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
-        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_exp)
+        obs_agt, act_agt, rew_agt, no_agt, terms_agt = self.sample_data(indices)
+        sar_enc = self.prepare_encoder_data(obs_enc, act_enc, rew_enc)
 
         # get data through q-net v-net actor task-encoder
-        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data.detach(), indices)
-        new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
-        pre_tanh_value = policy_outputs[-1]
+        q1_pred_agt, q2_pred_agt, v_pred_agt, pout_agt, target_v_agt, task_z_agt = self.agent(obs_agt, act_agt, no_agt, sar_enc.detach(), indices)
+        new_act_agt, new_a_mean_agt, new_a_lstd_agt, new_a_logp_agt = pout_agt[:4]
+        new_a_ptan_agt = pout_agt[-1]
 
         self.context_optimizer.zero_grad() # for task encoder
         gt_z = None
         kl_loss = None
         if self.eq_enc:
+            gam_rew = 0.
             self.dec_optimizer.zero_grad()
-            #### rec of gamma: task_enc > z > decoder > rec_gama <mse> gt_gamma
-            # affect decoder and task enc
-            task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
-            rec_loss = self.mse_criterion(task_z_gam, gammas)
+            if self.sar2gam:
+                task_gam = self.agent.rec_gt_gamma(sar_enc) # dim3?
+                gammas = gammas.view(-1,1,self.gamma_dim)
+                gammas_= gammas.repeat(1,task_gam.size(1),1)
+                gam_rew = (task_gam-gammas_)**2
+                data4enc = self.sample_data(indices, encoder=True, batchs=20) # 20 sample for each task?
+                task_gam = self.agent.rec_gt_gamma(data4enc)
+                gammas_ = gammas.repeat(1, task_gam.size(1), 1)
+                rec_loss = self.mse_criterion(gammas_, task_gam)
+            else:
+                #### rec of gamma: task_enc > z > decoder > rec_gama <mse> gt_gamma
+                # affect decoder and task enc
+                task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
+                rec_loss = self.mse_criterion(task_z_gam, gammas)
         elif self.use_ae: # and not use ae
             self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()
@@ -340,9 +353,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # q1 q2 task encoder
         ##########
         # get loss for q-net
-        error1,error2,qf_loss = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
-                        rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred)
-        (kl_loss+qf_loss).backward()
+        q1err_agt,q2err_agt,qloss_agt = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
+                        rew_agt, num_tasks, terms_agt, target_v_agt, q1_pred_agt, q2_pred_agt)
+        (kl_loss+qloss_agt).backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
 
@@ -351,12 +364,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.dec_optimizer.step()
         if self.use_ae:  self.enc_optimizer.step()
         # TODO necessary to use explicit task_z ?
-        log_pi_target,vf_loss, policy_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
-                        obs, new_actions, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value)
+        new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
+                        obs_agt, new_act_agt, new_a_logp_agt, v_pred_agt, new_a_mean_agt, new_a_lstd_agt, new_a_ptan_agt)
         # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
-        self.writer.add_histogram('logp',log_pi, step)
-        self.writer.add_scalar('qf', qf_loss, step)
-        self.writer.add_scalar('vf',vf_loss, step)
+        self.writer.add_histogram('logp',new_a_logp_agt, step)
+        self.writer.add_scalar('qf', qloss_agt, step)
+        self.writer.add_scalar('vf',vloss_agt, step)
         # put exp opt after q and before task enc
         if self.use_explorer:
             # task_z = task_z.detach()
@@ -367,7 +380,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # self.explorer.z = task_z[::self.batch_size]
             # i suppose this would be quite slow, as every iteration needs sampling
             if self.q_imp:
-                old_rew = qf_loss.detach()
+                old_rew = qloss_agt.detach()
                 trans = list()
                 for idx in range(len(indices)):
                     self.env.reset_task(idx)
@@ -386,44 +399,43 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.agent.update_context(context)
                 self.agent.infer_posterior(self.agent.context)
                 # reevaluate on the new inferred z
-                q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, _ = self.agent.infer(obs, actions, next_obs)
-                error1, error2 = self.optimize_q(None, None, rewards, num_tasks, terms,
-                                                 target_v_values, q1_pred, q2_pred, return_loss=False)
-                new_rew = torch.mean(error1 ** 2) + torch.mean(error2 ** 2)
+                q1_pred_agt, q2_pred_agt, v_pred_agt, pout_agt, target_v_agt, _ = self.agent.infer(obs_agt, act_agt, no_agt)
+                q1err_agt, q2err_agt = self.optimize_q(None, None, rew_agt, num_tasks, terms_agt,
+                                                 target_v_agt, q1_pred_agt, q2_pred_agt, return_loss=False)
+                new_rew = torch.mean(q1err_agt ** 2) + torch.mean(q2err_agt ** 2)
                 imp = (old_rew - new_rew) / torch.sqrt(old_rew ** 2 + new_rew ** 2)
                 imp = imp.view(1, 1, 1)
                 rew1 = imp.repeat(o.size(0), o.size(1), 1)
                 rew2 = -imp.repeat(obs_enc.size(0), obs_enc.size(1), 1)
-                rewards_exp = torch.cat((rew1, rew2), dim=1)
+                rew_enc = torch.cat((rew1, rew2), dim=1)
                 exp_obs = torch.cat((o, obs_enc), dim=1)
                 exp_a = torch.cat((a, act_enc), dim=1)
                 exp_no = torch.cat((no, nobs_enc), dim=1)
                 self.explorer.trans_z(mu, var)
-                q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(exp_obs, exp_a, exp_no,
+                q1_exp, q2_exp, v_exp, pout_exp, target_v_exp, _ = self.explorer.infer(exp_obs, exp_a, exp_no,
                                                                                           task_z=None)
                 terms_enc = torch.cat((exp_terms, terms_enc), dim=1)
                 obs_enc, act_enc, nobs_enc = exp_obs, exp_a, exp_no
             else:
-                q1_exp, q2_exp, v_exp, exp_outputs, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc,
+                q1_exp, q2_exp, v_exp, pout_exp, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc,
                                                                                           task_z=None)
                 ###############
-                rew1 = -torch.abs(error1 + error2) * self.exp_error_scale / 2.
-                rew2 = 0. if self.eq_enc else gam_rew # because in eq enc, this is set as the loss
+                # rew1 = -torch.abs(error1 + error2) * self.exp_error_scale / 2.
+                rew2 = gam_rew # because in eq enc, this is set as the loss
 
-                rewards_exp = self.gam_rew_lambda * rew2 - (1 - self.gam_rew_lambda) * rew1 + .1 * rewards.view(-1,
-                                                                                                                1)  # small as possible
-                rewards_exp = rewards_exp.detach()
-                self.writer.add_scalar('q rec loss', torch.mean(rew1), step)
+                rew_enc = self.gam_rew_lambda * rew2 #- (1 - self.gam_rew_lambda) * rew1  # small as possible
+                rew_enc = rew_enc.detach()
+                # self.writer.add_scalar('q rec loss', torch.mean(rew1), step)
                 ###############
-            exp_actions, exp_mean, exp_log_std, exp_log_pi = exp_outputs[:4]
-            exp_tanh_value = exp_outputs[-1]
+            exp_actions, exp_mean, exp_log_std, exp_log_pi = pout_exp[:4]
+            exp_tanh_value = pout_exp[-1]
             _, _, qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
-                                           rewards_exp, num_tasks, terms_enc, target_v_exp, q1_exp, q2_exp)
+                                           rew_enc, num_tasks, terms_enc, target_v_exp, q1_exp, q2_exp)
             self.qf1exp_optimizer.step()
             self.qf2exp_optimizer.step()
             exp_logp_target, vf_exp, exp_loss = self.optimize_p(self.vfexp_optimizer, self.explorer, self.exp_optimizer,
                                                                 obs_enc, exp_actions, exp_log_pi, v_exp,
-                                                                exp_mean, exp_log_std, exp_tanh_value, alpha=100)
+                                                                exp_mean, exp_log_std, exp_tanh_value, alpha=10)
             if step % 20 == 0:
                 self.writer.add_histogram('exp_adv', exp_logp_target - v_exp, step)
                 self.writer.add_histogram('logp_exp', exp_log_pi, step)
@@ -445,30 +457,30 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.eval_statistics['KL Divergence'] = ptu.get_numpy(kl_div)
                 self.eval_statistics['KL Loss'] = ptu.get_numpy(kl_loss)
 
-            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
-            self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vf_loss))
+            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qloss_agt))
+            self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vloss_agt))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
-                policy_loss
+                agt_loss
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Predictions',
-                ptu.get_numpy(q1_pred),
+                ptu.get_numpy(q1_pred_agt),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'V Predictions',
-                ptu.get_numpy(v_pred),
+                ptu.get_numpy(v_pred_agt),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Log Pis',
-                ptu.get_numpy(log_pi),
+                ptu.get_numpy(new_a_logp_agt),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Policy mu',
-                ptu.get_numpy(policy_mean),
+                ptu.get_numpy(new_a_mean_agt),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Policy log std',
-                ptu.get_numpy(policy_log_std),
+                ptu.get_numpy(new_a_lstd_agt),
             ))
         step += 1
     # TODO: this may cause problem if is used in the future, remember to make agent arg.

@@ -34,7 +34,8 @@ def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq, q_imp):
+def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq,
+               q_imp, sar2gam):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
     newenv = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
@@ -65,7 +66,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     # share the task enc with these two agents
     agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
                                  dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim,
-                                 confine_num_c=confine_num_c, eq_enc=eq_enc)
+                                 confine_num_c=confine_num_c, eq_enc=eq_enc, sar2gam=sar2gam)
     explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
                           dif_policy=dif_policy, task_enc=task_enc, confine_num_c=confine_num_c)
     if resume or test:
@@ -107,12 +108,13 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.argument('eq_enc', default=False, type=bool)
 @click.argument('infer_freq', default=0, type=int)
 @click.argument('q_imp', default=False, type=bool)
+@click.argument('sar2gam', default=False, type=bool)
 @click.option('--fast_debug', default=fast_debug, type=bool)
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
-def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, q_imp,
+def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, q_imp, sar2gam,
          fast_debug, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
@@ -164,6 +166,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
             eq_enc=eq_enc,
             infer_freq=infer_freq,
             q_imp=q_imp,
+            sar2gam=sar2gam and use_explorer and eq_enc,  # only when explorer and eq enc are enabled, gives reward to explorer, cannot connect with encoder
         ),
         net_size=300,
         use_gpu=True,
@@ -185,7 +188,8 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq, q_imp)
+    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq,
+               q_imp, sar2gam)
 
 if __name__ == "__main__":
     main()
