@@ -110,6 +110,15 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         #         self.explorer.parameters(),
         #         lr=explorer_lr,
         #     )
+        if self.use_ae:
+            self.enc_optimizer = optimizer_class(
+                self.agent.gt_enc.parameters(),
+                lr=context_lr,
+            )
+            self.dec_optimizer = optimizer_class(
+                self.agent.gt_dec.parameters(),
+                lr=context_lr,
+            )
         if self.use_explorer:
             self.exp_optimizer = optimizer_class(
                 self.explorer.policy.parameters(),
@@ -127,15 +136,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.explorer.vf.parameters(),
                 lr=vf_lr,
             )
-            if self.use_ae:
-                self.enc_optimizer = optimizer_class(
-                self.agent.gt_enc.parameters(),
-                lr=context_lr,
-                )
-                self.dec_optimizer = optimizer_class(
-                    self.agent.gt_dec.parameters(),
-                    lr=context_lr,
-                )
+
 
 
     def sample_data(self, indices, encoder=False):
@@ -292,7 +293,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # affect decoder and task enc
             task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
             rec_loss = self.mse_criterion(task_z_gam, gammas)
-        elif self.use_ae:
+        elif self.use_ae: # and not use ae
             self.enc_optimizer.zero_grad()
             self.dec_optimizer.zero_grad()
             # ae with eq encoders
