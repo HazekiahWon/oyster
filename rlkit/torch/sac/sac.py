@@ -290,7 +290,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         self.context_optimizer.zero_grad() # for task encoder
         gt_z = None
-        kl_loss = None
+        rec_loss = 0.
         if self.eq_enc:
             gam_rew = 0.
             self.dec_optimizer.zero_grad()
