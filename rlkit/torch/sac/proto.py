@@ -42,10 +42,9 @@ class ProtoAgent(nn.Module):
         super().__init__()
         self.z_dim = z_dim
         self.use_ae = use_ae
-        if not self.use_ae:
-            self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets
-        else:
-            self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.gt_enc, self.gt_dec = nets
+        self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets[:5]
+        if self.seq_enc and not self.use_ae: self.gt_dec = nets[-1]
+        elif self.use_ae: self.gt_enc, self.gt_dec = nets[-2:]
         self.target_vf = self.vf.copy()
         self.recurrent = kwargs['recurrent']
         self.reparam = kwargs['reparameterize']

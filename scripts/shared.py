@@ -2,7 +2,8 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
 from torch import nn
-def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant, dif_policy=False, task_enc=None, gt_ae=None, gamma_dim=10, confine_num_c=False):
+def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
+               dif_policy=False, task_enc=None, gt_ae=None, gamma_dim=10, confine_num_c=False, eq_enc=False):
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     is_actor = task_enc is None
     if task_enc is None:
@@ -45,24 +46,35 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                                anet_sizes=[net_size, net_size, net_size])
 
     nets = [task_enc, policy2 if dif_policy else policy, qf1, qf2, vf]
-    if is_actor and gt_ae is not None:
-        gt_encoder = encoder_model(
-            hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
-            input_size=gamma_dim,
-            output_size=task_enc_output_dim//2,
-            hidden_init=nn.init.xavier_normal_,
-            layer_norm=True
+    if is_actor:
+        if gt_ae is not None or eq_enc:
+            gt_decoder = encoder_model(
+                hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
+                input_size=task_enc_output_dim // 2,
+                output_size=gamma_dim,
+                # output_activation=nn.Softmax(dim=-1), # predict as label
+                hidden_init=nn.init.xavier_normal_,
+                layer_norm=True
+            )
+            nets = nets + [gt_decoder]
+        elif gt_ae is not None:
+            gt_encoder = encoder_model(
+                hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
+                input_size=gamma_dim,
+                output_size=task_enc_output_dim//2,
+                hidden_init=nn.init.xavier_normal_,
+                layer_norm=True
 
-        )
-        gt_decoder = encoder_model(
-            hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
-            input_size=task_enc_output_dim//2,
-            output_size=gamma_dim,
-            # output_activation=nn.Softmax(dim=-1), # predict as label
-        hidden_init = nn.init.xavier_normal_,
-            layer_norm=True
-        )
-        nets = nets + [gt_encoder, gt_decoder]
+            )
+            gt_decoder = encoder_model(
+                hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
+                input_size=task_enc_output_dim // 2,
+                output_size=gamma_dim,
+                # output_activation=nn.Softmax(dim=-1), # predict as label
+                hidden_init=nn.init.xavier_normal_,
+                layer_norm=True
+            )
+            nets = nets + [gt_encoder, gt_decoder]
 
     agent = ProtoAgent(
         z_dim,
