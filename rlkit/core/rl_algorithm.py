@@ -276,7 +276,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
                 # defined in sac
                 # gammas = self.make_onehot(indices) if self.use_ae else None
-                gammas = self.make_variation(indices) if self.use_ae else None
+                gammas = self.make_variation(indices) if self.use_ae or self.eq_enc else None
                 self._do_training(indices, gammas)
                 self._n_train_steps_total += 1
             gt.stamp('train')
