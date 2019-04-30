@@ -298,8 +298,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 task_gam = self.agent.rec_gt_gamma(sar_enc) # dim3?
                 gammas = gammas.view(-1,1,self.gamma_dim)
                 gammas_= gammas.repeat(1,task_gam.size(1),1)
-                gam_rew = (task_gam-gammas_)**2
+                gam_rew = torch.sum((task_gam-gammas_)**2,dim=-1)
                 data4enc = self.sample_data(indices, encoder=True, batchs=20) # 20 sample for each task?
+                # TODO is it necessary to use s,a with r
+                data4enc = self.prepare_encoder_data(*data4enc[:3]) # s,a,r
                 task_gam = self.agent.rec_gt_gamma(data4enc)
                 gammas_ = gammas.repeat(1, task_gam.size(1), 1)
                 rec_loss = self.mse_criterion(gammas_, task_gam)
@@ -420,12 +422,16 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 q1_exp, q2_exp, v_exp, pout_exp, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc,
                                                                                           task_z=None)
                 ###############
-                # rew1 = -torch.abs(error1 + error2) * self.exp_error_scale / 2.
-                rew2 = gam_rew # because in eq enc, this is set as the loss
+                if self.sar2gam:
+                    rew_enc = gam_rew
+                else:
+                    rew1 = -torch.abs(q1err_agt + q2err_agt) * self.exp_error_scale / 2.
+                    rew2 = gam_rew # because in eq enc, this is set as the loss
+                    rew_enc = self.gam_rew_lambda * rew2 - (1 - self.gam_rew_lambda) * rew1 + .1*rew_agt.view(-1,1)# small as possible
+                    self.writer.add_scalar('q rec loss', torch.mean(rew1), step)
+                if hasattr(rew_enc, 'detach'):
+                    rew_enc = rew_enc.detach()
 
-                rew_enc = self.gam_rew_lambda * rew2 #- (1 - self.gam_rew_lambda) * rew1  # small as possible
-                rew_enc = rew_enc.detach()
-                # self.writer.add_scalar('q rec loss', torch.mean(rew1), step)
                 ###############
             exp_actions, exp_mean, exp_log_std, exp_log_pi = pout_exp[:4]
             exp_tanh_value = pout_exp[-1]

@@ -88,6 +88,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
         eq_enc=eq_enc,
         infer_freq=infer_freq,
         q_imp=q_imp,
+        sar2gam=sar2gam,
         **variant['algo_params']
     )
 
