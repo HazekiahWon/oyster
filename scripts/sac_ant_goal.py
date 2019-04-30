@@ -65,7 +65,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     # share the task enc with these two agents
     agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
                                  dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim,
-                                 confine_num_c=confine_num_c)
+                                 confine_num_c=confine_num_c, eq_enc=eq_enc)
     explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
                           dif_policy=dif_policy, task_enc=task_enc, confine_num_c=confine_num_c)
     if resume or test:
