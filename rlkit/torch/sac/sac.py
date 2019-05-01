@@ -369,7 +369,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
                         obs_agt, new_act_agt, new_a_logp_agt, v_pred_agt, new_a_mean_agt, new_a_lstd_agt, new_a_ptan_agt)
         # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
-        self.writer.add_histogram('logp',new_a_logp_agt, step)
+        # self.writer.add_histogram('logp',new_a_logp_agt, step)
         self.writer.add_scalar('qf', qloss_agt, step)
         self.writer.add_scalar('vf',vloss_agt, step)
         # put exp opt after q and before task enc
