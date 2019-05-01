@@ -109,12 +109,13 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.argument('infer_freq', default=0, type=int)
 @click.argument('q_imp', default=False, type=bool)
 @click.argument('sar2gam', default=False, type=bool)
+@click.argument('num_exp', default=2, type=int)
 @click.option('--fast_debug', default=fast_debug, type=bool)
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
-def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, q_imp, sar2gam,
+def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, q_imp, sar2gam, num_exp,
          fast_debug, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
@@ -128,10 +129,11 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
         ),
         algo_params=dict(
             meta_batch=5 if debug else 8,
-            num_iterations=10000,
+            num_iterations=500,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
             num_train_steps_per_itr=4000 if not fast_debug else 1,
+            num_exp_traj_eval=num_exp,
             num_evals=2,
             num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
             embedding_batch_size=256,
@@ -153,7 +155,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
             train_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
-            replay_buffer_size=10000 if fast_debug else (10000 if debug else 1000000)
+            replay_buffer_size=10000 if fast_debug else (10000 if debug else 100000) # buffer modified
         ),
         cmd_params=dict(
             debug=debug,
@@ -166,6 +168,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
             eq_enc=eq_enc,
             infer_freq=infer_freq,
             q_imp=q_imp,
+            num_exp=num_exp,
             sar2gam=sar2gam and use_explorer and eq_enc,  # only when explorer and eq enc are enabled, gives reward to explorer, cannot connect with encoder
         ),
         net_size=300,

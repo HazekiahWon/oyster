@@ -86,43 +86,44 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
     def online_eval_trn_paths(self, idx, eval_task=False, deterministic=False):
         '''
-        used in eval train
-        following the new pearl implementation
-        infer z from enc buffer and sample one traj without context updating
+        for pearl:
+            1. collect exploration traj
+            2. update z with the collect trans
+            3. collect new traj with the actor for evaluation
         '''
 
         self.agent.clear_z()
+        num_exp = self.num_exp_traj_eval
+        for _ in range(num_exp):
+            test_paths,_ = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+                                                           accum_context=False, infer_freq=0,
+                                                           max_samples=self.max_path_length,
+                                                           max_trajs=1,
+                                                           resample=np.inf) # eval_sampler is also explorer for pearl
 
-        test_paths,_ = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
-                                                       accum_context=False, infer_freq=0,
-                                                       max_samples=self.max_path_length,
-                                                       max_trajs=1,
-                                                       resample=np.inf) # eval_sampler is also explorer for pearl
-
-        test_paths = test_paths[0]
-        o,a,r = test_paths['observations'],test_paths['actions'],test_paths['rewards']
-        self.agent.update_context([o,a,r,None,None])
+            test_paths = test_paths[0]
+            o,a,r = test_paths['observations'],test_paths['actions'],test_paths['rewards']
+            self.agent.update_context([o,a,r,None,None])
         self.agent.infer_posterior(self.agent.context)
         test_paths,n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
                                                        accum_context=False, infer_freq=0,
                                                        max_samples=self.max_path_length,
                                                        max_trajs=1,
                                                        resample=np.inf) # eval_sampler is also explorer for pearl
-
-        # if self.sparse_rewards:
-        #     for p in test_paths:
-        #         p['rewards'] = ptu.sparsify_rewards(p['rewards'])
         return test_paths,n_steps
 
-    def online_eval_paths_exp(self, idx, eval_task=False, num_exp=1, deterministic=False):
+    def online_eval_paths_exp(self, idx, eval_task=False, deterministic=False):
         '''
-        used in eval train
-        following the new pearl implementation
-        infer z from enc buffer and sample one traj without context updating
+        for actor-explorer:
+            1. explorer collect traj, defaut 1.
+            2. explorer update z with the collected trans
+            3. explorer transmit z posterior to the actor
+            4. actor collect traj for evaluation
         '''
 
         self.explorer.clear_z()
         # i think explorer should not be deterministic
+        num_exp = self.num_exp_traj_eval
         for _ in range(num_exp):
             # whether the exp update once every traj is determined by the infer freq
             # resample doesnt matter cuz max_traj is set 1
@@ -466,10 +467,11 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             ############ old version
             # self.eval_enc_replay_buffer.task_buffers[idx].clear()
             # task embedding sampled from prior and held fixed
-            if not self.use_explorer: # collect data during evaluating for train tasks
-                self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=False)
+            # TODO the new version of pearl does not include adding data to buffers
+            # if not self.use_explorer: # collect data during evaluating for train tasks
+            #     self.collect_data_sampling_from_prior(self.agent, num_samples=self.num_steps_per_task,
+            #                                           resample_z_every_n=self.max_path_length,
+            #                                           eval_task=False)
 
             test_paths = self.collect_paths2(idx, epoch, eval_task=False)
             train_online_returns.append(eval_util.get_average_returns(test_paths))
