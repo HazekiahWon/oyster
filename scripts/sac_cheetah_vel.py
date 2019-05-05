@@ -155,7 +155,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
         cmd_params=dict(
             debug=debug,
             use_explorer = use_explorer,
-            use_ae = use_explorer and use_ae,
+            use_ae = use_ae,
             dif_policy = dif_policy,
             fast_debug = fast_debug,
             exp_offp = exp_offp,
