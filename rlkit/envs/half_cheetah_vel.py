@@ -44,7 +44,7 @@ class HalfCheetahVelEnv(HalfCheetahEnv):
 
     def sample_tasks(self, num_tasks):
         velocities = np.random.uniform(0.0, 3.0, size=(num_tasks,))
-        tasks = [{'velocity': velocity} for velocity in velocities]
+        tasks = [{'velocity': velocity, 'variation': np.array([velocity])} for velocity in velocities]
         return tasks
 
     def get_all_task_idx(self):
