@@ -45,7 +45,7 @@ def datetimestamp(divider=''):
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq,
-               q_imp, sar2gam):
+               rew_mode, sar2gam):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(Walker2dParamsEnv(n_tasks=task_params['n_tasks']))
     newenv = NormalizedBoxEnv(Walker2dParamsEnv(n_tasks=task_params['n_tasks']))
@@ -59,7 +59,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
 
-    gamma_dim = 4 if use_ae or eq_enc else None  # (a,r,rcosa,rsina)
+    gamma_dim = 65 if use_ae or eq_enc else None  #
 
     net_size = variant['net_size']
     # start with linear task encoding
@@ -69,35 +69,36 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     explorer = None
     if (resume or test) and resume_dir is not None:
         ret = joblib.load(resume_dir)
-        agent_ = ret['exploration_policy']
+        agent_ = ret['actor']  # the old version : exploration policy
         memo += f'this exp resumes {resume_dir}\n'
-
+    # else:
+    # share the task enc with these two agents
     agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim,
-                                variant,
-                                dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None,
-                                gamma_dim=gamma_dim,
-                                confine_num_c=confine_num_c, eq_enc=eq_enc, sar2gam=sar2gam)
+                                 variant,
+                                 dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None,
+                                 gamma_dim=gamma_dim,
+                                 confine_num_c=confine_num_c, eq_enc=eq_enc, sar2gam=sar2gam)
     explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
                           dif_policy=dif_policy, task_enc=task_enc, confine_num_c=confine_num_c)
     if resume or test:
         for snet, tnet in zip(agent_.networks, agent.networks):
             ptu.soft_update_from_to(snet, tnet, tau=1.)
-    memo += f'[ant_goal] this exp wants to {note}'
+    memo += f'[{exp_id}] this exp wants to {note}'
 
     variant['algo_params']['memo'] = memo
     # modified train tasks eval tasks
     algorithm = ProtoSoftActorCritic(
         env=env,
         explorer=explorer if use_explorer else None,  # use the sequential encoder meaning using the new agent
-        train_tasks=tasks[:-2] if debug else tasks[:-10],
-        eval_tasks=tasks[-2:] if debug else tasks[-10:],
+        train_tasks=tasks[:-2] if debug else tasks[:-30],
+        eval_tasks=tasks[-2:] if debug else tasks[-30:],
         agent=agent,
         latent_dim=z_dim,
         gamma_dim=gamma_dim,
         exp_offp=exp_offp,
         eq_enc=eq_enc,
         infer_freq=infer_freq,
-        rew_mode=q_imp,
+        rew_mode=rew_mode,
         sar2gam=sar2gam,
         **variant['algo_params']
     )
@@ -114,20 +115,22 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.argument('gpu', default=0)
 @click.argument('debug', default=debug, type=bool)
 @click.argument('use_explorer', default=use_explorer, type=bool)
-@click.argument('use_ae',default=use_ae, type=bool)
+@click.argument('use_ae', default=use_ae, type=bool)
+@click.argument('eq_enc', default=False, type=bool)  # higher priority over ae
+@click.argument('sar2gam', default=False, type=bool)
+@click.argument('rew_mode', default=0, type=int)
 @click.argument('dif_policy', default=dif_policy, type=bool)
 @click.argument('exp_offp', default=exp_offp, type=bool)
-@click.argument('confine_num_c', default=confine_num_c, type=bool) # make effect only when allowing extended exploration
-@click.argument('eq_enc', default=False, type=bool)
+@click.argument('confine_num_c', default=confine_num_c,
+                type=bool)  # make effect only when allowing extended exploration
 @click.argument('infer_freq', default=0, type=int)
-@click.argument('q_imp', default=False, type=bool)
-@click.argument('sar2gam', default=False, type=bool)
+@click.argument('num_exp', default=1, type=int)
 @click.option('--fast_debug', default=fast_debug, type=bool)
 @click.option('--note', default='-')
-@click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
+@click.option('--resume', default=resume, is_flag=True)  # 0 is false, any other is true
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
-def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, q_imp, sar2gam,
+def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, rew_mode, sar2gam, num_exp,
          fast_debug, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
@@ -135,21 +138,22 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
     fast_debug = debug and fast_debug
     variant = dict(
         task_params=dict(
-            n_tasks=8 if debug else 50, # 20 works pretty well
+            n_tasks=8 if debug else 130,  # 20 works pretty well
             randomize_tasks=True,
             low_gear=False,
         ),
         algo_params=dict(
-            meta_batch=5 if debug else 5,
-            num_iterations=10000,
+            meta_batch=5 if debug else 8,
+            num_iterations=500,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=2000 if not fast_debug else 1,
+            num_train_steps_per_itr=4000 if not fast_debug else 1,
+            num_exp_traj_eval=num_exp,
             num_evals=2,
             num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
             embedding_batch_size=256,
             embedding_mini_batch_size=256,
-            batch_size=256, # to compute training grads from
+            batch_size=256,  # to compute training grads from
             max_path_length=max_path_length,
             discount=0.99,
             soft_target_tau=0.005,
@@ -164,22 +168,24 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
             use_information_bottleneck=True,  # only supports False for now
             eval_embedding_source='online_exploration_trajectories',
             train_embedding_source='online_exploration_trajectories',
-            recurrent=False, # recurrent or averaging encoder
+            recurrent=False,  # recurrent or averaging encoder
             dump_eval_paths=False,
-            replay_buffer_size=10000 if fast_debug else (10000 if debug else 1000000)
+            replay_buffer_size=10000 if fast_debug else (10000 if debug else 100000)  # buffer modified
         ),
         cmd_params=dict(
             debug=debug,
-            use_explorer = use_explorer,
-            use_ae = use_explorer and use_ae,
-            dif_policy = dif_policy,
-            fast_debug = fast_debug,
-            exp_offp = exp_offp,
+            use_explorer=use_explorer,
+            use_ae=use_ae,
+            dif_policy=dif_policy,
+            fast_debug=fast_debug,
+            exp_offp=exp_offp,
             confine_num_c=confine_num_c,
             eq_enc=eq_enc,
             infer_freq=infer_freq,
-            q_imp=q_imp,
-            sar2gam=sar2gam and use_explorer and eq_enc,  # only when explorer and eq enc are enabled, gives reward to explorer, cannot connect with encoder
+            rew_mode=rew_mode,
+            num_exp=num_exp,
+            sar2gam=sar2gam and use_explorer and eq_enc,
+            # only when explorer and eq enc are enabled, gives reward to explorer, cannot connect with encoder
         ),
         net_size=300,
         use_gpu=True,
@@ -202,7 +208,8 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
     os.environ['DEBUG'] = str(DEBUG)
 
     experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq,
-               q_imp, sar2gam)
+               rew_mode, sar2gam)
+
 
 if __name__ == "__main__":
     main()
