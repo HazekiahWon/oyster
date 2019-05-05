@@ -44,7 +44,10 @@ class ProtoAgent(nn.Module):
         self.use_ae = use_ae
         self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets[:5]
         if len(nets)==6: self.gt_dec = nets[-1]
-        elif len(nets)==7: self.gt_enc, self.gt_dec = nets[-2:]
+        elif len(nets)==7:
+            if self.use_ae: self.gt_enc, self.gt_dec = nets[-2:]
+            else: self.gt_dec,self.ci2gam = nets[-2:]
+
         self.target_vf = self.vf.copy()
         self.recurrent = kwargs['recurrent']
         self.reparam = kwargs['reparameterize']

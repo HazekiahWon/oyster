@@ -122,7 +122,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.agent.gt_enc.parameters(),
                 lr=context_lr,
             )
-
+        if self.sar2gam:
+            self.dec_optimizer2 = optimizer_class(
+                self.agent.ci2gam.parameters(),
+                lr=context_lr,
+            )
         if self.use_explorer:
             self.exp_optimizer = optimizer_class(
                 self.explorer.policy.parameters(),
@@ -301,32 +305,35 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         new_a_ptan_agt = pout_agt[-1]
         if self.use_ae or self.eq_enc: self.dec_optimizer.zero_grad()
         if self.use_ae: self.enc_optimizer.zero_grad()
+        if self.sar2gam: self.dec_optimizer2.zero_grad()
         self.context_optimizer.zero_grad() # for task encoder
         ## TODO let eq_enc and use_ae exlusive
         # the loss part
         if self.eq_enc: # when only decoder is used
-            gam_rew = 0.
+            # the following is always used, even in sar2gam
+            # from z to gamma p(gamma|z) < p(gamma|c,z)
+            # i think this reconstruction is too sparse
+            z = self.agent.sample_z(batch=z_bs)
+            task_z_gam = self.agent.rec_gt_gamma(z)
+            gammas_ = gammas.view(-1, 1, self.gamma_dim).repeat(1, z_bs, 1)
+            g_rec, rec_loss = self.mse_crit(task_z_gam, gammas_)
             if self.sar2gam and self.use_explorer: # from ci to gamma p(gamma|ci) < p(gamma|c,z)
                 # as gamma and ci are observations, learning of ci to gamma is useless for the learning of z,
                 # thus only used when explorer is enabled and serves as its reward
-                task_gam = self.agent.rec_gt_gamma(sar_enc) # dim3?
+                task_gam = self.agent.ci2gam(sar_enc) # dim3?
                 gammas = gammas.view(-1,1,self.gamma_dim)
                 gammas_= gammas.repeat(1,task_gam.size(1),1)
                 gam_rew = torch.sum((task_gam-gammas_)**2,dim=-1)
                 # train with different batch of data
-                data4enc = self.sample_data(indices, encoder=True, batchs=20) # 20 sample for each task?
+                data4enc = self.sample_data(indices, encoder=True, batchs=z_bs) # 20 sample for each task?
                 # TODO is it necessary to use s,a with r
                 data4enc = self.prepare_encoder_data(*data4enc[:3]) # s,a,r
-                task_gam = self.agent.rec_gt_gamma(data4enc)
+                task_gam = self.agent.ci2gam(data4enc)
                 gammas_ = gammas.repeat(1, task_gam.size(1), 1)
-                g_rec, rec_loss = self.mse_crit(gammas_, task_gam)
-
-            else: # from z to gamma p(gamma|z) < p(gamma|c,z)
-                # i think this reconstruction is too sparse
-                z = self.agent.sample_z(batch=z_bs)
-                task_z_gam = self.agent.rec_gt_gamma(z)
-                gammas_ = gammas.view(-1,1,self.gamma_dim).repeat(1,z_bs,1)
-                g_rec, rec_loss = self.mse_crit(task_z_gam, gammas_)
+                g_rec2, rec_loss2 = self.mse_crit(gammas_, task_gam) # only used to train ci>gam
+                self.writer.add_scalar('ci2gam_loss', rec_loss2, step)
+                rec_loss += rec_loss2
+                g_rec += g_rec2
 
             # -kl(p(z|c)||p(z))+p(gamma|z,c)+p(c|z)
             kl_o, kl_div = self.agent.compute_kl_div(None) # pz with p(z|c), as q(z|c,gammma) is eq to p(z|c)
@@ -373,6 +380,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.context_optimizer.step()
         if self.eq_enc or self.use_ae: self.dec_optimizer.step()
         if self.use_ae:  self.enc_optimizer.step()
+        if self.sar2gam: self.dec_optimizer2.step()
 
         # TODO necessary to use explicit task_z ?
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,

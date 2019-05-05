@@ -64,8 +64,17 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
             nets = nets + [gt_encoder]
 
         if gt_ae is not None or eq_enc:
+            gt_decoder = encoder_model(
+                hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
+                input_size=task_enc_output_dim // 2,
+                output_size=gamma_dim,
+                # output_activation=nn.Softmax(dim=-1), # predict as label
+                hidden_init=nn.init.xavier_normal_,
+                layer_norm=True
+            )
+            nets = nets + [gt_decoder]
             if sar2gam:
-                gt_decoder = encoder_model(
+                gt_decoder2 = encoder_model(
                     hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
                     input_size=obs_dim+action_dim+reward_dim,
                     output_size=gamma_dim,
@@ -73,16 +82,9 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                     hidden_init=nn.init.xavier_normal_,
                     layer_norm=True
                 )
-            else:
-                gt_decoder = encoder_model(
-                    hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
-                    input_size=task_enc_output_dim // 2,
-                    output_size=gamma_dim,
-                    # output_activation=nn.Softmax(dim=-1), # predict as label
-                    hidden_init=nn.init.xavier_normal_,
-                    layer_norm=True
-                )
-            nets = nets + [gt_decoder]
+                nets = nets + [gt_decoder2]
+
+
 
     agent = ProtoAgent(
         z_dim,
