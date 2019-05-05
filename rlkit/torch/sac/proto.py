@@ -152,11 +152,20 @@ class ProtoAgent(nn.Module):
             self.z_means = torch.mean(params, dim=1)
         self.sample_z()
 
-    def sample_z(self):
+    def sample_z(self, batch=None, z_means=None):
+        if z_means is None:
+            z_means = self.z_means
+            z_vars = self.z_vars
+        else:
+            z_vars = torch.stack([ptu.ones(self.z_dim) for _ in range(z_means.size(0))])
         if self.use_ib:
-            posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
-            z = [d.rsample() for d in posteriors]
-            self.z = torch.stack(z)
+            posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in zip(torch.unbind(z_means), torch.unbind(z_vars))]
+            if batch is None:
+                z = [d.rsample() for d in posteriors]
+                self.z = torch.stack(z)
+            else:
+                z = [torch.stack([d.rsample() for _ in range(batch)]) for d in posteriors]
+                return torch.stack(z) # mb,b,dim
         else:
             self.z = self.z_means
 
@@ -173,19 +182,22 @@ class ProtoAgent(nn.Module):
     #         z = [p[0] for p in z_params]
     #     z = torch.stack(z)
     #     return z
-
+    # TODO: there was bug when computing p(z|gam,c) and p(z|c)
     def compute_kl_div(self, mean=None):
-        if mean is None:
-            mean = ptu.zeros(self.z_dim)
-        prior = torch.distributions.Normal(mean, ptu.ones(self.z_dim))
-        posteriors = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in
+        z_dists = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in
                       zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
-        if mean is None:
+        if mean is None: # div between p(z|c) and N(0,1)
+            posteriors = z_dists
+            mean = ptu.zeros(self.z_dim)
+            prior = torch.distributions.Normal(mean, ptu.ones(self.z_dim))
             kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
         else:
-            kl_divs = [torch.distributions.kl.kl_divergence(prior, post) for post in posteriors]
-        kl_div_sum = torch.sum(torch.stack(kl_divs))
-        return kl_div_sum
+            posteriors = [torch.distributions.Normal(m,ptu.ones(self.z_dim)) for m in mean]
+            priors = z_dists
+            kl_divs = [torch.distributions.kl.kl_divergence(prior, post) for prior,post in zip(priors,posteriors)]
+        kl_divs = torch.mean(torch.stack(kl_divs),dim=-1, keepdim=True) # mb,1
+        kl_div_sum = torch.sum(kl_divs)
+        return kl_divs, kl_div_sum
 
     # TODO replace all usage of this to infer posterior
     # def set_z(self, in_, idx):

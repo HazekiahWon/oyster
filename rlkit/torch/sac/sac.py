@@ -34,7 +34,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             rec_lambda=1.,
             gam_rew_lambda=.5,
             eq_enc=False,
-            q_imp=False,
+            rew_mode=False,
             sar2gam=False,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
@@ -69,7 +69,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
         self.onehot_criterion = nn.CrossEntropyLoss()
-        self.mse_criterion = nn.MSELoss()
+        self.mse_criterion = nn.MSELoss(reduction='none')
         self.l2_reg_criterion = nn.MSELoss()
 
         self.eval_statistics = None
@@ -77,7 +77,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.rec_lambda = rec_lambda
         self.gam_rew_lambda = gam_rew_lambda
         self.eq_enc = eq_enc
-        self.q_imp = q_imp
+        self.rew_mode = rew_mode
         self.sar2gam = sar2gam
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
@@ -208,23 +208,28 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.agent.detach_z()
             if self.use_explorer: self.explorer.detach_z()
 
-    def optimize_q(self, qf1_optimizer, qf2_optimizer, rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred, return_loss=True):
+    def optimize_q(self, qf1_optimizer, qf2_optimizer, rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred, return_loss=True, scale_reward=True):
         # qf and encoder update (note encoder does not get grads from policy or vf)
         if return_loss:
             qf1_optimizer.zero_grad()
             qf2_optimizer.zero_grad()
         rewards_flat = rewards.view(-1,1)
         # scale rewards for Bellman update
-        rewards_flat = rewards_flat * self.reward_scale
+        if scale_reward: rewards_flat = rewards_flat * self.reward_scale
         terms_flat = terms.view(-1,1)
         q_target = rewards_flat + (1 - terms_flat) * self.discount * target_v_values
-        error1 = (q1_pred - q_target.detach())
-        error2 = (q2_pred - q_target.detach())
-        if return_loss:
-            # qpred qtarget=targetv
-            qf_loss = torch.mean(error1**2) + torch.mean(error2**2)
-            return error1,error2,qf_loss
-        else: return error1,error2
+        q1_err,q1_loss = self.mse_crit(q1_pred, q_target.detach())
+        q2_err, q2_loss = self.mse_crit(q2_pred, q_target.detach())
+        # err: mb.b
+        q1_err,q2_err = [torch.mean(err.view(-1,self.batch_size),dim=-1,keepdim=True) for err in (q1_err,q2_err)]
+        return q1_err+q2_err, q1_loss+q2_loss
+        # error1 = (q1_pred - q_target.detach())
+        # error2 = (q2_pred - q_target.detach())
+        # if return_loss:
+        #     # qpred qtarget=targetv
+        #     qf_loss = torch.mean(error1**2) + torch.mean(error2**2)
+        #     return error1,error2,qf_loss
+        # else: return error1,error2
         # context_optimizer.step()
 
     def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, new_actions, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value, alpha=1):
@@ -274,9 +279,16 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         policy_optimizer.step()
         return log_policy_target, vf_loss, policy_loss
 
+    def mse_crit(self, x, y):
+        # make sure x,y has same dim
+        nreduced = torch.mean((x-y)**2, dim=tuple(range(1,len(x.shape))), keepdim=True).view(-1,1) # mb,1
+        reduced = torch.mean(nreduced)
+        return nreduced,reduced
+
+
     def _take_step(self, indices, obs_enc, act_enc, rew_enc, nobs_enc, terms_enc, gammas=None):
         global step
-
+        z_bs = 20
         num_tasks = len(indices)
 
         # prepare rl data and enc data
@@ -287,84 +299,81 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         q1_pred_agt, q2_pred_agt, v_pred_agt, pout_agt, target_v_agt, task_z_agt = self.agent(obs_agt, act_agt, no_agt, sar_enc.detach(), indices)
         new_act_agt, new_a_mean_agt, new_a_lstd_agt, new_a_logp_agt = pout_agt[:4]
         new_a_ptan_agt = pout_agt[-1]
-
+        if self.use_ae or self.eq_enc: self.dec_optimizer.zero_grad()
+        if self.use_ae: self.enc_optimizer.zero_grad()
         self.context_optimizer.zero_grad() # for task encoder
-        gt_z = None
-        rec_loss = 0.
-        if self.eq_enc:
+        ## TODO let eq_enc and use_ae exlusive
+        # the loss part
+        if self.eq_enc: # when only decoder is used
             gam_rew = 0.
-            self.dec_optimizer.zero_grad()
-            if self.sar2gam:
+            if self.sar2gam and self.use_explorer: # from ci to gamma p(gamma|ci) < p(gamma|c,z)
+                # as gamma and ci are observations, learning of ci to gamma is useless for the learning of z,
+                # thus only used when explorer is enabled and serves as its reward
                 task_gam = self.agent.rec_gt_gamma(sar_enc) # dim3?
                 gammas = gammas.view(-1,1,self.gamma_dim)
                 gammas_= gammas.repeat(1,task_gam.size(1),1)
                 gam_rew = torch.sum((task_gam-gammas_)**2,dim=-1)
+                # train with different batch of data
                 data4enc = self.sample_data(indices, encoder=True, batchs=20) # 20 sample for each task?
                 # TODO is it necessary to use s,a with r
                 data4enc = self.prepare_encoder_data(*data4enc[:3]) # s,a,r
                 task_gam = self.agent.rec_gt_gamma(data4enc)
                 gammas_ = gammas.repeat(1, task_gam.size(1), 1)
-                rec_loss = self.mse_criterion(gammas_, task_gam)
-            else:
-                #### rec of gamma: task_enc > z > decoder > rec_gama <mse> gt_gamma
-                # affect decoder and task enc
-                task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
-                rec_loss = self.mse_criterion(task_z_gam, gammas)
-        elif self.use_ae: # and not use ae
-            self.enc_optimizer.zero_grad()
-            self.dec_optimizer.zero_grad()
-            # ae with eq encoders
+                g_rec, rec_loss = self.mse_crit(gammas_, task_gam)
 
-            #### gt_gamma > gt_enc > gt_z > samp_z > decoder > rec_gam <mse> gt_gamma
-            # affect ae
-            #### rew: task_enc > z > decoder > task_z_gam <se> gt_gamma
-            # affect exploration p
-            gt_z = self.agent.infer_gt_z(gammas)
-            ########################
-            dists = [torch.distributions.Normal(z, ptu.ones(self.agent.z_dim)) for z in gt_z]
-            gt_z2 = torch.stack([dist.rsample() for dist in dists], dim=0)
-            rec_gam = self.agent.rec_gt_gamma(gt_z2)
-            task_z_gam = self.agent.rec_gt_gamma(self.agent.z)
-            gam_rew = -torch.sum((task_z_gam-gammas)**2,dim=1, keepdim=True) # mb,1
-            gam_rew = gam_rew.repeat(1,self.batch_size)
-            gam_rew = gam_rew.view(-1, 1)
-            #####################
-            # rec_gam = torch.nn.Softmax(rec_gam,dim=1)
-            self.writer.add_histogram('rec_gamma', rec_gam, step)
-            self.writer.add_histogram('gt_z', gt_z[0], step)
-            self.writer.add_histogram('task_z',self.agent.z_means[0], step)
-            # rec_loss = self.onehot_criterion(rec_gam, torch.cuda.LongTensor(indices)) # because it is quite small if averaged
-            rec_loss = self.mse_criterion(rec_gam, gammas)
-        kl_loss = rec_loss*self.rec_lambda
-        self.writer.add_scalar('ae_rec_loss', rec_loss, step)
+            else: # from z to gamma p(gamma|z) < p(gamma|c,z)
+                # i think this reconstruction is too sparse
+                z = self.agent.sample_z(batch=z_bs)
+                task_z_gam = self.agent.rec_gt_gamma(z)
+                gammas_ = gammas.view(-1,1,self.gamma_dim).repeat(1,z_bs,1)
+                g_rec, rec_loss = self.mse_crit(task_z_gam, gammas_)
 
-        # distance between z: enc_data - z <> z
-        # affect task enc and encoder
-        kl_div = self.agent.compute_kl_div(gt_z)
-        self.writer.add_scalar('vae_kl', kl_div, step)
-        ###########
-        # kl loss involve gradients of
-        # 1. no ae: task encoder (be close to prior)
-        # 2. ae: gt ae + task encoder
-        ###########
-        if kl_loss is None: kl_loss = self.kl_lambda * kl_div
-        else: kl_loss += self.kl_lambda * kl_div
+            # -kl(p(z|c)||p(z))+p(gamma|z,c)+p(c|z)
+            kl_o, kl_div = self.agent.compute_kl_div(None) # pz with p(z|c), as q(z|c,gammma) is eq to p(z|c)
+            # self.writer.add_scalar('kl', kl_div, step)
+            kl_loss = self.kl_lambda * kl_div + self.rec_lambda * rec_loss
+        elif self.use_ae: # using oencoder
+            # z ~ q, p(gamma|z,c)
 
+            gt_z = self.agent.infer_gt_z(gammas) # mb,dim > mb,zdim
+            ## deterministic loss
+            # task_z_gam = self.agent.rec_gt_gamma(gt_z)
+            # g_rec, rec_loss = self.mse_crit(task_z_gam, gammas)
+            ## stochastic
+            gt_z_ = self.agent.sample_z(z_means=gt_z, batch=z_bs)
+            task_z_gam = self.agent.rec_gt_gamma(gt_z_)
+            gammas_ = gammas.view(-1, 1, self.gamma_dim).repeat(1, z_bs, 1)
+            g_rec, rec_loss = self.mse_crit(task_z_gam, gammas_)
+            # kl of p(z|gamma) and p(z|c)
+            kl_o, kl_div = self.agent.compute_kl_div(gt_z)
+            # if self.use_explorer:
+            # even when explorer is not used, the kl should act as the extra constraint
+            kl_o2, kl_div2 = self.agent.compute_kl_div(None) # TODO actually should use q(z|gamma)/p(z|c)logp(z)/p(z|c)
+            self.writer.add_scalar('kl2', kl_div2, step)
+            kl_div += kl_div2
+            kl_o += kl_o2
+            kl_loss = self.kl_lambda * kl_div + self.rec_lambda * rec_loss
+        else: # the original pearl
+            _,kl_div = self.agent.compute_kl_div()
+            kl_loss = self.kl_lambda * kl_div
+
+        self.writer.add_scalar('kl', kl_div, step)
+        if self.use_ae or self.eq_enc: self.writer.add_scalar('g_rec', rec_loss, step) # gamma rec error
         ##########
         # qf loss involves gradients of
         # q1 q2 task encoder
         ##########
         # get loss for q-net
-        q1err_agt,q2err_agt,qloss_agt = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
+        qerr_agt,qloss_agt = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
                         rew_agt, num_tasks, terms_agt, target_v_agt, q1_pred_agt, q2_pred_agt)
+        # qerr_agt = qerr_agt.view(-1,self.batch_size)
         (kl_loss+qloss_agt).backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
-
         self.context_optimizer.step()
-        if self.eq_enc or self.use_ae:
-            self.dec_optimizer.step()
+        if self.eq_enc or self.use_ae: self.dec_optimizer.step()
         if self.use_ae:  self.enc_optimizer.step()
+
         # TODO necessary to use explicit task_z ?
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
                         obs_agt, new_act_agt, new_a_logp_agt, v_pred_agt, new_a_mean_agt, new_a_lstd_agt, new_a_ptan_agt)
@@ -373,70 +382,33 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.writer.add_scalar('qf', qloss_agt, step)
         self.writer.add_scalar('vf',vloss_agt, step)
         # put exp opt after q and before task enc
+
         if self.use_explorer:
-            # task_z = task_z.detach()
+            ## TODO: combination, distribution
+            if self.eq_enc and self.sar2gam:
+                rew_enc = -gam_rew
+            else:
+                # qloss_agt, rec_loss, kl div
+                ## TODO if the density ratio is added to kl div2, this may also change
+                rew_enc = -.01*qerr_agt - g_rec - kl_o  # e3,e1,e0, 2 kl term, 2 rec term, ## T
+
+                rew_enc = rew_enc.repeat(1, obs_enc.size(1))
+
             # modified direct assignment of z
             mu, var = self.agent.z_means, self.agent.z_vars
             self.explorer.trans_z(mu, var)
             self.explorer.detach_z()
             # self.explorer.z = task_z[::self.batch_size]
             # i suppose this would be quite slow, as every iteration needs sampling
-            if self.q_imp:
-                old_rew = qloss_agt.detach()
-                trans = list()
-                for idx in range(len(indices)):
-                    self.env.reset_task(idx)
-                    self.task_idx = idx
-                    self.explorer.trans_z(mu[idx].unsqueeze(0), var[idx].unsqueeze(0))
-                    paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, max_trajs=1,
-                                                                 accum_context=False)
-                    path = paths[0]
-                    self.enc_replay_buffer.add_path(idx, path)
-                    trans.append((path['observations'], path['actions'], path['rewards'], path['terminals'],
-                                  path['next_observations']))
-                o, a, r, exp_terms, no = [np.stack(x) for x in zip(*trans)]  # o,a,r,terms, shaped 3dim
-                context = [o, a, r, None, None]
-                o, a, r, no = [ptu.from_numpy(x) for x in (o, a, r, no)]
-                exp_terms = ptu.from_numpy(exp_terms.astype(np.int32))
-                self.agent.update_context(context)
-                self.agent.infer_posterior(self.agent.context)
-                # reevaluate on the new inferred z
-                q1_pred_agt, q2_pred_agt, v_pred_agt, pout_agt, target_v_agt, _ = self.agent.infer(obs_agt, act_agt, no_agt)
-                q1err_agt, q2err_agt = self.optimize_q(None, None, rew_agt, num_tasks, terms_agt,
-                                                 target_v_agt, q1_pred_agt, q2_pred_agt, return_loss=False)
-                new_rew = torch.mean(q1err_agt ** 2) + torch.mean(q2err_agt ** 2)
-                imp = (old_rew - new_rew) / torch.sqrt(old_rew ** 2 + new_rew ** 2)
-                imp = imp.view(1, 1, 1)
-                rew1 = imp.repeat(o.size(0), o.size(1), 1)
-                rew2 = -imp.repeat(obs_enc.size(0), obs_enc.size(1), 1)
-                rew_enc = torch.cat((rew1, rew2), dim=1)
-                exp_obs = torch.cat((o, obs_enc), dim=1)
-                exp_a = torch.cat((a, act_enc), dim=1)
-                exp_no = torch.cat((no, nobs_enc), dim=1)
-                self.explorer.trans_z(mu, var)
-                q1_exp, q2_exp, v_exp, pout_exp, target_v_exp, _ = self.explorer.infer(exp_obs, exp_a, exp_no,
-                                                                                          task_z=None)
-                terms_enc = torch.cat((exp_terms, terms_enc), dim=1)
-                obs_enc, act_enc, nobs_enc = exp_obs, exp_a, exp_no
-            else:
-                q1_exp, q2_exp, v_exp, pout_exp, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc,
-                                                                                          task_z=None)
-                ###############
-                if self.sar2gam:
-                    rew_enc = gam_rew
-                else:
-                    rew1 = -torch.abs(q1err_agt + q2err_agt) * self.exp_error_scale / 2.
-                    rew2 = gam_rew # because in eq enc, this is set as the loss
-                    rew_enc = self.gam_rew_lambda * rew2 - (1 - self.gam_rew_lambda) * rew1 + .1*rew_agt.view(-1,1)# small as possible
-                    self.writer.add_scalar('q rec loss', torch.mean(rew1), step)
-                if hasattr(rew_enc, 'detach'):
-                    rew_enc = rew_enc.detach()
+            if hasattr(rew_enc, 'detach'):
+                rew_enc = rew_enc.detach()
 
-                ###############
+            q1_exp, q2_exp, v_exp, pout_exp, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc, task_z=None)
+
             exp_actions, exp_mean, exp_log_std, exp_log_pi = pout_exp[:4]
             exp_tanh_value = pout_exp[-1]
-            _, _, qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
-                                           rew_enc, num_tasks, terms_enc, target_v_exp, q1_exp, q2_exp)
+            _, qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
+                                           rew_enc, num_tasks, terms_enc, target_v_exp, q1_exp, q2_exp, scale_reward=True)
             self.qf1exp_optimizer.step()
             self.qf2exp_optimizer.step()
             exp_logp_target, vf_exp, exp_loss = self.optimize_p(self.vfexp_optimizer, self.explorer, self.exp_optimizer,

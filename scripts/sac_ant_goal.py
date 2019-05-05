@@ -14,7 +14,7 @@ import joblib
 from scripts.shared import setup_nets
 resume = False
 exp_id = 'ant-goal'
-exp_d = 'pearl-190421-114059'
+exp_d = 'pearl-190501-223401'
 resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
 debug = True
 use_explorer = True
@@ -35,7 +35,7 @@ def datetimestamp(divider=''):
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq,
-               q_imp, sar2gam):
+               rew_mode, sar2gam):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
     newenv = NormalizedBoxEnv(AntGoalEnv(n_tasks=task_params['n_tasks'], use_low_gear_ratio=task_params['low_gear']))
@@ -59,7 +59,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     explorer = None
     if (resume or test) and resume_dir is not None:
         ret = joblib.load(resume_dir)
-        agent_ = ret['exploration_policy']
+        agent_ = ret['actor'] # the old version : exploration policy
         memo += f'this exp resumes {resume_dir}\n'
     # else:
     # share the task enc with these two agents
@@ -86,7 +86,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
         exp_offp=exp_offp,
         eq_enc=eq_enc,
         infer_freq=infer_freq,
-        q_imp=q_imp,
+        rew_mode=rew_mode,
         sar2gam=sar2gam,
         **variant['algo_params']
     )
@@ -102,20 +102,20 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
 @click.argument('debug', default=debug, type=bool)
 @click.argument('use_explorer', default=use_explorer, type=bool)
 @click.argument('use_ae',default=use_ae, type=bool)
+@click.argument('eq_enc', default=False, type=bool) # higher priority over ae
+@click.argument('sar2gam', default=False, type=bool)
+@click.argument('rew_mode', default=0, type=int)
 @click.argument('dif_policy', default=dif_policy, type=bool)
 @click.argument('exp_offp', default=exp_offp, type=bool)
 @click.argument('confine_num_c', default=confine_num_c, type=bool) # make effect only when allowing extended exploration
-@click.argument('eq_enc', default=False, type=bool)
 @click.argument('infer_freq', default=0, type=int)
-@click.argument('q_imp', default=False, type=bool)
-@click.argument('sar2gam', default=False, type=bool)
-@click.argument('num_exp', default=2, type=int)
+@click.argument('num_exp', default=1, type=int)
 @click.option('--fast_debug', default=fast_debug, type=bool)
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
-def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, q_imp, sar2gam, num_exp,
+def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, eq_enc, infer_freq, rew_mode, sar2gam, num_exp,
          fast_debug, note, resume, docker, test):
     max_path_length = 200
     # noinspection PyTypeChecker
@@ -167,7 +167,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
             confine_num_c=confine_num_c,
             eq_enc=eq_enc,
             infer_freq=infer_freq,
-            q_imp=q_imp,
+            rew_mode=rew_mode,
             num_exp=num_exp,
             sar2gam=sar2gam and use_explorer and eq_enc,  # only when explorer and eq enc are enabled, gives reward to explorer, cannot connect with encoder
         ),
@@ -192,7 +192,7 @@ def main(gpu, debug, use_explorer, use_ae, dif_policy, exp_offp, confine_num_c, 
     os.environ['DEBUG'] = str(DEBUG)
 
     experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, test, confine_num_c, eq_enc, infer_freq,
-               q_imp, sar2gam)
+               rew_mode, sar2gam)
 
 if __name__ == "__main__":
     main()
