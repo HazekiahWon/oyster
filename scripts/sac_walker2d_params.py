@@ -56,6 +56,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
     z_dim = 5
+    eta_dim = 10
     task_enc_output_dim = z_dim * 2 if variant['algo_params']['use_information_bottleneck'] else z_dim
     reward_dim = 1
 
@@ -73,12 +74,12 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
         memo += f'this exp resumes {resume_dir}\n'
     # else:
     # share the task enc with these two agents
-    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim,
+    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, eta_dim,
                                  variant,
                                  dif_policy=dif_policy, task_enc=None, gt_ae=True if use_ae else None,
                                  gamma_dim=gamma_dim,
                                  confine_num_c=confine_num_c, eq_enc=eq_enc, sar2gam=sar2gam)
-    explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
+    explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, eta_dim, variant,
                           dif_policy=dif_policy, task_enc=task_enc, confine_num_c=confine_num_c)
     if resume or test:
         for snet, tnet in zip(agent_.networks, agent.networks):
@@ -90,8 +91,8 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, t
     algorithm = ProtoSoftActorCritic(
         env=env,
         explorer=explorer if use_explorer else None,  # use the sequential encoder meaning using the new agent
-        train_tasks=tasks[:-2] if debug else tasks[:-30],
-        eval_tasks=tasks[-2:] if debug else tasks[-30:],
+        train_tasks=tasks[:-2] if debug else tasks[:-10],
+        eval_tasks=tasks[-2:] if debug else tasks[-10:],
         agent=agent,
         latent_dim=z_dim,
         gamma_dim=gamma_dim,
