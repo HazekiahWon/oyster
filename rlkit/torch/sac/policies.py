@@ -70,7 +70,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
 
     def get_action(self, obs, deterministic=False):
         actions = self.get_actions(obs, deterministic=deterministic)
-        return actions[0, :], {}
+        return actions[0, :]#, {}
 
     @torch.no_grad()
     def get_actions(self, obs, deterministic=False):
@@ -133,9 +133,44 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
                     action = tanh_normal.sample()
 
         return (
-            action, mean, log_std, log_prob, expected_log_prob, std,
-            mean_action_log_prob, pre_tanh_value,
+            action, mean, log_std, log_prob, pre_tanh_value,
         )
+
+    def xent(
+            self,
+            obs,
+            ptan_target,
+            target,
+    ):
+        """
+        :param obs: Observation
+        :param deterministic: If True, do not sample
+        :param return_log_prob: If True, return a sample and its log probability
+        """
+        # print([x.size() for x in obs])
+        obs = torch.cat(obs, dim=-1)
+        h = obs
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        mean = self.last_fc(h)
+        if self.std is None:
+            log_std = self.last_fc_log_std(h)
+            log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            std = torch.exp(log_std)
+        else:
+            std = self.std
+            log_std = self.log_std
+
+        tanh_normal = TanhNormal(mean, std)
+
+        log_prob = tanh_normal.log_prob(
+            target,
+            pre_tanh_value=ptan_target
+        )
+        log_prob = log_prob.sum(dim=1, keepdim=True)
+
+        return log_prob
+
 
 class Explorer(TanhGaussianPolicy):
     def __init__(self, z_dim, *inputs, **kwargs):

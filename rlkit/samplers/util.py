@@ -33,7 +33,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
     actions = []
     rewards = []
     terminals = []
-    agent_infos = []
+    # agent_infos = []
     env_infos = []
     o = env.reset()
     next_o = None
@@ -41,7 +41,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
     if animated:
         env.render()
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
+        a = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
         if need_cupdate:
             agent.update_context([o, a, r, next_o, d])
@@ -53,7 +53,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
         rewards.append(r)
         terminals.append(d)
         actions.append(a)
-        agent_infos.append(agent_info)
+        # agent_infos.append(agent_info)
         env_infos.append(env_info)
         path_length += 1
         if d:
@@ -81,7 +81,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
         rewards=np.array(rewards).reshape(-1, 1),
         next_observations=next_observations,
         terminals=np.array(terminals).reshape(-1, 1),
-        agent_infos=agent_infos,
+        # agent_infos=agent_infos,
         env_infos=env_infos,
     )
 

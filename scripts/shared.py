@@ -2,7 +2,7 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy, DecomposedPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
 from torch import nn
-def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, variant,
+def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, eta_dim, variant,
                dif_policy=False, task_enc=None, gt_ae=None, gamma_dim=10, confine_num_c=False, eq_enc=False,
                sar2gam=False):
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
@@ -31,22 +31,44 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         input_size=obs_dim + z_dim,
         output_size=1,
     )
-    policy = TanhGaussianPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + z_dim,
-        # latent_dim=z_dim,
-        action_dim=action_dim,
-    )
-    policy2 = DecomposedPolicy(obs_dim,
-                               z_dim=z_dim,
-                               # latent_dim=64,
-                               eta_nlayer=None,
-                               num_expz=32,
-                               atn_type='low-rank',
-                               action_dim=action_dim,
-                               anet_sizes=[net_size, net_size, net_size])
+    if is_actor and dif_policy:
+        lpolicy = TanhGaussianPolicy(
+            hidden_sizes=[net_size],
+            obs_dim=obs_dim + eta_dim, # s,eta - a
+            # latent_dim=z_dim,
+            action_dim=action_dim,
+        )
+        hpolicy = TanhGaussianPolicy(
+            hidden_sizes=[net_size],
+            obs_dim=obs_dim + z_dim, # s,z - eta
+            # latent_dim=z_dim,
+            action_dim=eta_dim,
+        )
+        recg = TanhGaussianPolicy(
+            hidden_sizes=[net_size],
+            obs_dim=obs_dim + action_dim, # s,a - eta
+            # latent_dim=z_dim,
+            action_dim=eta_dim,
+        )
+        policy = [lpolicy,hpolicy,recg]
+    else:
+        policy = TanhGaussianPolicy(
+            hidden_sizes=[net_size, net_size, net_size],
+            obs_dim=obs_dim + z_dim,
+            # latent_dim=z_dim,
+            action_dim=action_dim,
+        )
+    ######## revitalize this by uncomment
+    # policy2 = DecomposedPolicy(obs_dim,
+    #                            z_dim=z_dim,
+    #                            # latent_dim=64,
+    #                            eta_nlayer=None,
+    #                            num_expz=32,
+    #                            atn_type='low-rank',
+    #                            action_dim=action_dim,
+    #                            anet_sizes=[net_size, net_size, net_size])
 
-    nets = [task_enc, policy2 if dif_policy else policy, qf1, qf2, vf]
+    nets = [task_enc, policy, qf1, qf2, vf]
     if is_actor:
         # gt_ae eq enc both
         # no gt ae, eq enc, dec
@@ -86,11 +108,14 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
 
 
 
+
+
     agent = ProtoAgent(
         z_dim,
         nets,
         use_ae=gt_ae is not None,
         confine_num_c=confine_num_c,
+        dif_policy=is_actor and dif_policy,
         **variant['algo_params']
     )
     if is_actor: return agent, task_enc

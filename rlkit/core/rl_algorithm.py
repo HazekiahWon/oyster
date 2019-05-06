@@ -404,7 +404,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         returns = list()
         ret = 0
         for _ in range(num_samples):
-            action, agent_info = self._get_action_and_info(agent, self.train_obs)
+            # Caution!
+            action = agent.get_action(self.train_obs)#self._get_action_and_info(agent, self.train_obs)
             if self.render:
                 self.env.render()
             next_ob, raw_reward, terminal, env_info = (
@@ -423,7 +424,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 terminal,
                 eval_task=eval_task,
                 add_to=add_to,
-                agent_info=agent_info,
+                # agent_info=agent_info,
                 env_info=env_info,
             )
             if terminal or len(self._current_path_builder) >= self.max_path_length:
@@ -548,7 +549,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param observation: always a single vector
         :return:
         """
-        agent.set_num_steps_total(self._n_env_steps_total) # seems no effect
+        # agent.set_num_steps_total(self._n_env_steps_total) # seems no effect
         return agent.get_action(observation)
 
     def _start_epoch(self, epoch):

@@ -37,12 +37,17 @@ class ProtoAgent(nn.Module):
                  nets,
                  use_ae=False,
                  confine_num_c=False,
+                 dif_policy=False,
                  **kwargs
                  ):
         super().__init__()
         self.z_dim = z_dim
         self.use_ae = use_ae
-        self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets[:5]
+        self.task_enc, policy, self.qf1, self.qf2, self.vf = nets[:5]
+        self.dif_policy = dif_policy
+        if dif_policy:
+            self.lpolicy,self.hpolicy,self.recg = policy
+        else: self.policy = policy
         if len(nets)==6: self.gt_dec = nets[-1]
         elif len(nets)==7:
             if self.use_ae: self.gt_enc, self.gt_dec = nets[-2:]
@@ -243,10 +248,12 @@ class ProtoAgent(nn.Module):
         z = self.z#.unsqueeze(0) # 1,1,d
         obs = ptu.from_numpy(obs[None])
         in_ = (obs, z)
-        return self.policy.get_action(in_, deterministic=deterministic)
-
-    def set_num_steps_total(self, n):
-        self.policy.set_num_steps_total(n)
+        if self.dif_policy:
+            eta = self.hpolicy(in_, deterministic=deterministic)[0] # because get_action return numpy
+            in_ = (obs, eta)
+            return self.lpolicy.get_action(in_, deterministic=deterministic)
+        else:
+            return self.policy.get_action(in_, deterministic=deterministic)
 
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
@@ -282,13 +289,25 @@ class ProtoAgent(nn.Module):
 
         # run policy, get log probs and new actions
         in_ = (obs, task_z.detach())#torch.cat([obs, task_z.detach()], dim=1)
-        policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
-
+        if self.dif_policy:
+            eta_outs = self.hpolicy(in_, reparameterize=self.reparam, return_log_prob=True)
+            # TODO sample multiple eta
+            eta = eta_outs[0]
+            in_ = (obs, eta)
+            a_outs = self.lpolicy(in_, reparameterize=self.reparam, return_log_prob=True)
+            a,ptan_eta = a_outs[0],eta_outs[-1]
+            # in_ = (obs, a)
+            # eta_guesses = self.recg.xent(in_, ptan_eta, eta) # logp
+            eta_guesses = torch.zeros_like(a_outs[-2])
+            policy_outs = (eta_outs, eta_guesses, a_outs)
+        else:
+            policy_outs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
+        # policy_outputs = self.run_policy(obs, task_z.detach(), reparam=self.reparam, logp=True)
         # get targets for use in V and Q updates
         with torch.no_grad():
             target_v_values = self.target_vf(next_obs, task_z)
 
-        return q1, q2, v, policy_outputs, target_v_values, task_z
+        return q1, q2, v, policy_outs, target_v_values, task_z
 
     def min_q(self, obs, actions, task_z):
         t, b, _ = obs.size()
@@ -303,7 +322,8 @@ class ProtoAgent(nn.Module):
 
     @property
     def networks(self):
-        return [self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.target_vf]
+        if self.dif_policy: return [self.task_enc, self.lpolicy, self.hpolicy, self.recg, self.qf1, self.qf2, self.vf, self.target_vf]
+        else: return [self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.target_vf]
 
 # class NewAgent(ProtoAgent):
 #     def __init__(self, explorer, seq_max_length, env, **kwargs):
