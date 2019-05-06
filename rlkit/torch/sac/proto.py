@@ -46,7 +46,7 @@ class ProtoAgent(nn.Module):
         self.task_enc, policy, self.qf1, self.qf2, self.vf = nets[:5]
         self.dif_policy = dif_policy
         if dif_policy:
-            self.lpolicy,self.hpolicy,self.recg = policy
+            self.lpolicy,self.hpolicy = policy
         else: self.policy = policy
         if len(nets)==6: self.gt_dec = nets[-1]
         elif len(nets)==7:
@@ -322,7 +322,7 @@ class ProtoAgent(nn.Module):
 
     @property
     def networks(self):
-        if self.dif_policy: return [self.task_enc, self.lpolicy, self.hpolicy, self.recg, self.qf1, self.qf2, self.vf, self.target_vf]
+        if self.dif_policy: return [self.task_enc, self.lpolicy, self.hpolicy, self.qf1, self.qf2, self.vf, self.target_vf]
         else: return [self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.target_vf]
 
 # class NewAgent(ProtoAgent):

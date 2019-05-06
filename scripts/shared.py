@@ -33,24 +33,24 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
     )
     if is_actor and dif_policy:
         lpolicy = TanhGaussianPolicy(
-            hidden_sizes=[net_size],
+            hidden_sizes=[net_size, net_size],
             obs_dim=obs_dim + eta_dim, # s,eta - a
             # latent_dim=z_dim,
             action_dim=action_dim,
         )
         hpolicy = TanhGaussianPolicy(
-            hidden_sizes=[net_size],
+            hidden_sizes=[net_size, net_size],
             obs_dim=obs_dim + z_dim, # s,z - eta
             # latent_dim=z_dim,
             action_dim=eta_dim,
         )
-        recg = TanhGaussianPolicy(
-            hidden_sizes=[net_size],
-            obs_dim=obs_dim + action_dim, # s,a - eta
-            # latent_dim=z_dim,
-            action_dim=eta_dim,
-        )
-        policy = [lpolicy,hpolicy,recg]
+        # recg = TanhGaussianPolicy(
+        #     hidden_sizes=[net_size],
+        #     obs_dim=obs_dim + action_dim, # s,a - eta
+        #     # latent_dim=z_dim,
+        #     action_dim=eta_dim,
+        # )
+        policy = [lpolicy,hpolicy]
     else:
         policy = TanhGaussianPolicy(
             hidden_sizes=[net_size, net_size, net_size],
@@ -105,10 +105,6 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                     layer_norm=True
                 )
                 nets = nets + [gt_decoder2]
-
-
-
-
 
     agent = ProtoAgent(
         z_dim,

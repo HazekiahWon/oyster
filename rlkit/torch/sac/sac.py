@@ -98,11 +98,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.agent.lpolicy.parameters(),
                 lr=policy_lr,
             )
-            recg_opt = optimizer_class(
-                self.agent.recg.parameters(),
-                lr=policy_lr,
-            )
-            self.policy_optimizer = (hpolicy_opt,lpolicy_opt,recg_opt)
+            # recg_opt = optimizer_class(
+            #     self.agent.recg.parameters(),
+            #     lr=policy_lr,
+            # )
+            self.policy_optimizer = (hpolicy_opt,lpolicy_opt)
         else:
             self.policy_optimizer = optimizer_class(
                 self.agent.policy.parameters(),
