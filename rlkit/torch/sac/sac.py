@@ -361,7 +361,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             kl_o += kl_o2
             kl_loss = self.kl_lambda * kl_div + self.rec_lambda * rec_loss
         else: # the original pearl
-            _,kl_div = self.agent.compute_kl_div()
+            kl_o,kl_div = self.agent.compute_kl_div() # mb,1
+            g_rec = torch.zeros_like(kl_o)
             kl_loss = self.kl_lambda * kl_div
 
         self.writer.add_scalar('kl', kl_div, step)
