@@ -468,6 +468,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.writer.add_histogram('exp_adv', exp_logp_target - v_exp, step)
                 self.writer.add_histogram('logp_exp', new_a_logp_exp, step)
                 self.writer.add_histogram('a_logp', new_a_logp_agt, step)
+                self.writer.add_histogram('zm', self.agent.z_means, step)
+                self.writer.add_histogram('q1pred', q1_pred_agt, step)
                 if self.dif_policy:
                     self.writer.add_histogram('eta_logp',eta_logp, step)
                     self.writer.add_histogram('recg_logp',recg_logp, step)
