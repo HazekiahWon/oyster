@@ -157,7 +157,22 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 lr=vf_lr,
             )
 
-
+    def pretrain(self, n_iter=500, n_task=16):
+        if self.use_explorer and self.eq_enc and self.sar2gam:
+            for it in range(n_iter):
+                indices = np.random.choice(self.train_tasks, size=n_task, replace=False)
+                z_bs = 16
+                gammas = self.make_variation(indices)
+                data4enc = self.sample_data(indices, encoder=True, batchs=z_bs)  # 20 sample for each task?
+                # TODO is it necessary to use s,a with r
+                data4enc = self.prepare_encoder_data(*data4enc[:3])  # s,a,r
+                task_gam = self.agent.ci2gam(data4enc)
+                gammas_ = gammas.repeat(1, task_gam.size(1), 1)
+                _, rec_loss2 = self.mse_crit(gammas_, task_gam)  # only used to train ci>gam
+                self.writer.add_scalar('pretrain_ci2gam_loss', rec_loss2, it)
+                self.dec_optimizer2.zero_grad()
+                rec_loss2.backward()
+                self.dec_optimizer2.step()
 
     def sample_data(self, indices, encoder=False, batchs=None):
         # sample from replay buffer for each task

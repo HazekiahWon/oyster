@@ -10,6 +10,7 @@ import joblib
 from scripts.shared import setup_nets
 resume = False
 exp_id = 'half-cheetah-vel'
+
 exp_d = 'pearl-190501-223401'
 resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
 debug = True
@@ -25,7 +26,13 @@ from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 import rlkit.torch.pytorch_util as ptu
-
+configs=dict(
+    chet=dict(name='half-cheetah-vel',
+              gamma_dim=1,
+              total_tasks=130,
+              eval_tasks=30,
+              env_cls=HalfCheetahVelEnv)
+)
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)

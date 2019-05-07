@@ -193,6 +193,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         inp = torch.cuda.FloatTensor(var)
         return inp
 
+    def pretrain(self):
+        pass
+
     def train(self):
         '''
         meta-training loop
@@ -231,6 +234,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                         self.collect_data2(self.exp_sampler, self.explorer,
                                            self.max_path_length * 10, resample_z_rate=1,
                                            update_posterior_rate=np.inf, add_to=1)
+                self.pretrain()
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
@@ -404,7 +408,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         returns = list()
         ret = 0
         for _ in range(num_samples):
+            # Caution!
             action, agent_info = self._get_action_and_info(agent, self.train_obs)
+            # action = agent.get_action(self.train_obs)#self._get_action_and_info(agent, self.train_obs)
             if self.render:
                 self.env.render()
             next_ob, raw_reward, terminal, env_info = (

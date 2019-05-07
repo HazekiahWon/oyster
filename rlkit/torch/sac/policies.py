@@ -19,7 +19,6 @@ LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
 
-
 class TanhGaussianPolicy(Mlp, ExplorationPolicy):
     """
     Usage:
@@ -274,6 +273,7 @@ class Explorer(TanhGaussianPolicy):
         outputs = self.forward(obs, reparameterize, deterministic=deterministic)[0]
         return outputs, np_ify(outputs)
 
+
 class Attn(nn.Module):
     def __init__(self, method, hidden_size):
         super(Attn, self).__init__()
@@ -395,6 +395,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
     If return_log_prob is False (default), log_prob = None
         This is done because computing the log_prob can be a bit expensive.
     """
+
 
     def construct_fc(self, dim1, dim2, init_w=1e-3):
         # init_w = self.init_w
