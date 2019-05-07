@@ -137,7 +137,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.sar2gam:
             self.dec_optimizer2 = optimizer_class(
                 self.agent.ci2gam.parameters(),
-                lr=context_lr,
+                lr=context_lr*10,
             )
         if self.use_explorer:
             self.exp_optimizer = optimizer_class(
@@ -157,7 +157,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 lr=vf_lr,
             )
 
-    def pretrain(self, n_iter=500, n_task=16):
+    def pretrain(self, n_iter=50000, n_task=16):
+
         if self.use_explorer and self.eq_enc and self.sar2gam:
             for it in range(n_iter):
                 indices = np.random.choice(self.train_tasks, size=min(n_task,len(self.train_tasks)), replace=False)

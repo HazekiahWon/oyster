@@ -233,6 +233,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                         self.collect_data2(self.exp_sampler, self.explorer,
                                            self.max_path_length * 10, resample_z_rate=1,
                                            update_posterior_rate=np.inf, add_to=1)
+                logger.log('pretraining')
                 self.pretrain()
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
