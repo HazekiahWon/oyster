@@ -201,7 +201,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         meta-training loop
         '''
 
-        self.pretrain()
         params = self.get_epoch_snapshot(-1)
         logger.save_itr_params(-1, params)
         gt.reset()
