@@ -89,31 +89,31 @@ class RandomEnv(MetaEnv, MujocoEnv):
             var = list()
 
             if 'body_mass' in self.rand_params: # 8
-                v = np.random.uniform(-self.log_scale_limit, self.log_scale_limit,  size=self.model.body_mass.shape)/self.log_scale_limit
+                v = np.random.uniform(-self.log_scale_limit, self.log_scale_limit,  size=self.model.body_mass.shape)
                 body_mass_multiplyers = np.array(1.5) ** v
                 new_params['body_mass'] = self.init_params['body_mass'] * body_mass_multiplyers
-                var.append(v.reshape((-1,)))
+                var.append(v.reshape((-1,))/self.log_scale_limit)
 
             # body_inertia
             if 'body_inertia' in self.rand_params: # 8,3
                 v = np.random.uniform(-self.log_scale_limit, self.log_scale_limit,  size=self.model.body_inertia.shape)/self.log_scale_limit
                 body_inertia_multiplyers = np.array(1.5) ** v
                 new_params['body_inertia'] = body_inertia_multiplyers * self.init_params['body_inertia']
-                var.append(v.reshape((-1,)))
+                var.append(v.reshape((-1,))/self.log_scale_limit)
 
             # damping -> different multiplier for different dofs/joints
             if 'dof_damping' in self.rand_params: # 9
                 v = np.random.uniform(-self.log_scale_limit, self.log_scale_limit, size=self.model.dof_damping.shape)/self.log_scale_limit
                 dof_damping_multipliers = np.array(1.3) ** v
                 new_params['dof_damping'] = np.multiply(self.init_params['dof_damping'], dof_damping_multipliers)
-                var.append(v.reshape((-1,)))
+                var.append(v.reshape((-1,))/self.log_scale_limit)
 
             # friction at the body components
             if 'geom_friction' in self.rand_params: # 8,3
                 v = np.random.uniform(-self.log_scale_limit, self.log_scale_limit, size=self.model.geom_friction.shape)/self.log_scale_limit
                 dof_damping_multipliers = np.array(1.5) ** v
                 new_params['geom_friction'] = np.multiply(self.init_params['geom_friction'], dof_damping_multipliers)
-                var.append(v.reshape((-1,)))
+                var.append(v.reshape((-1,))/self.log_scale_limit)
 
             new_params['variation'] = np.concatenate(var, axis=0)
             param_sets.append(new_params)
