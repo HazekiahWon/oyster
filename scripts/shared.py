@@ -46,13 +46,29 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
             action_dim=action_dim,
         )
         policy = HierPolicy(hpolicy, lpolicy)
+        # policy = DecomposedPolicy(obs_dim,
+        #                            z_dim=z_dim,
+        #                            # latent_dim=64,
+        #                            eta_nlayer=None,
+        #                            num_expz=32,
+        #                            atn_type='low-rank',
+        #                            action_dim=action_dim,
+        #                            anet_sizes=[net_size, net_size, net_size])
     else:
-        policy = TanhGaussianPolicy(
-            hidden_sizes=[net_size, net_size, net_size],
-            obs_dim=obs_dim,
-            lat_dim=z_dim,
-            action_dim=action_dim,
-        )
+        # policy = TanhGaussianPolicy(
+        #     hidden_sizes=[net_size, net_size, net_size],
+        #     obs_dim=obs_dim,
+        #     lat_dim=z_dim,
+        #     action_dim=action_dim,
+        # )
+        policy = DecomposedPolicy(obs_dim,
+                                  z_dim=z_dim,
+                                  # latent_dim=64,
+                                  eta_nlayer=None,
+                                  num_expz=32,
+                                  atn_type='low-rank',
+                                  action_dim=action_dim,
+                                  anet_sizes=[net_size, net_size, net_size])
     # policy2 = DecomposedPolicy(obs_dim,
     #                            z_dim=z_dim,
     #                            # latent_dim=64,
