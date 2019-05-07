@@ -44,6 +44,7 @@ class Mlp(PyTorchModule):
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
         self.layer_norm = layer_norm
+        self.hidden_init = hidden_init
         self.fcs = []
         self.layer_norms = []
         in_size = input_size

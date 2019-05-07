@@ -113,7 +113,7 @@ class RandomEnv(MetaEnv, MujocoEnv):
                 v = np.random.uniform(-self.log_scale_limit, self.log_scale_limit, size=self.model.geom_friction.shape)/self.log_scale_limit
                 dof_damping_multipliers = np.array(1.5) ** v
                 new_params['geom_friction'] = np.multiply(self.init_params['geom_friction'], dof_damping_multipliers)
-                var.append(v.reshape((-1,1)))
+                var.append(v.reshape((-1,)))
 
             new_params['variation'] = np.concatenate(var, axis=0)
             param_sets.append(new_params)
@@ -122,6 +122,7 @@ class RandomEnv(MetaEnv, MujocoEnv):
 
     def set_task(self, task):
         for param, param_val in task.items():
+            if param=='variation': continue
             param_variable = getattr(self.model, param)
             assert param_variable.shape == param_val.shape, 'shapes of new parameter value and old one must match'
             #print(param, param_val)

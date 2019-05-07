@@ -19,6 +19,7 @@ LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
 
+
 class TanhGaussianPolicy(Mlp, ExplorationPolicy):
     """
     Usage:
@@ -41,12 +42,14 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             self,
             hidden_sizes,
             obs_dim,
+            lat_dim,
             action_dim,
             std=None,
             init_w=1e-3,
             **kwargs
     ):
         self.save_init_params(locals())
+        obs_dim += lat_dim # adding lat_dim is to match with embpolicy
         super().__init__(
             hidden_sizes,
             input_size=obs_dim,
@@ -133,9 +136,102 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
                     action = tanh_normal.sample()
 
         return (
-            action, mean, log_std, log_prob, expected_log_prob, std,
-            mean_action_log_prob, pre_tanh_value,
+            action, mean, log_std, log_prob
         )
+
+
+
+class EmbPolicy(TanhGaussianPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            lat_dim,
+            action_dim,
+            emb_nlayer=1,
+            emb_dim=32,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(
+            hidden_sizes,
+            emb_dim,# embedded dim is the real obs dim
+            lat_dim,
+            action_dim,
+            **kwargs)
+        self.emb_nlayer = emb_nlayer
+        self.emb_dim = emb_dim
+        ############# embed observation, obs_dim - obsemb_dim (direct) or z_dim (atn)
+        latent_dim = emb_dim
+        obs_fc = [self.construct_hidden(obs_dim, latent_dim)]
+        ln_cnt = 0
+        for i in range(emb_nlayer):
+            obs_fc.append(self.construct_hidden(latent_dim, latent_dim))
+            # TODO layer norm
+            if self.layer_norm:
+                ln = LayerNorm(latent_dim)
+                self.__setattr__("layer_norm{}".format(i), ln_cnt)
+                self.layer_norms.append(ln)
+                ln_cnt += 1
+        # if self.use_atn: obs_fc.append(self.construct_hidden(latent_dim, obs_emb_dim))
+        # else: obs_fc.append(self.construct_hidden(latent_dim, latent_dim))
+        self.obs_fc = nn.ModuleList(obs_fc)
+
+    def forward(
+            self,
+            obs,
+            reparameterize=False,
+            deterministic=False,
+            return_log_prob=False,
+    ):
+        o,lat = obs
+        for i, fc in enumerate(self.obs_fc):
+            o = self.hidden_activation(fc(o))
+        in_ = (o, lat)
+        return super().forward(in_, reparameterize, deterministic, return_log_prob)
+
+    def construct_fc(self, dim1, dim2, init_w=1e-3):
+        # init_w = self.init_w
+        tmp = nn.Linear(dim1, dim2)
+        tmp.weight.data.uniform_(-init_w, init_w)
+        tmp.bias.data.uniform_(-init_w, init_w)
+        return tmp
+
+    def construct_hidden(self, in_size, next_size, b_init_value=0.1):
+        fc = nn.Linear(in_size, next_size)
+        self.hidden_init(fc.weight)
+        fc.bias.data.fill_(b_init_value)
+        return fc
+
+class HierPolicy(PyTorchModule, ExplorationPolicy):
+    def __init__(self, hpolicy, lpolicy):
+        self.save_init_params(locals())
+        super().__init__()
+        self.hpolicy = hpolicy
+        self.lpolicy = lpolicy
+
+    def forward(
+            self,
+            obs,
+            reparameterize=False,
+            deterministic=False,
+            return_log_prob=False,
+    ):
+        o,z = obs
+        eta_outs = self.hpolicy(obs, reparameterize, deterministic, return_log_prob)
+        eta = eta_outs[0]
+        obs = (o,eta)
+        a_outs = self.lpolicy(obs, reparameterize, deterministic, return_log_prob)
+        return a_outs+eta_outs # tuple concat
+
+    @torch.no_grad()
+    def get_actions(self, obs, deterministic=False):
+        outputs = self.forward(obs, deterministic=deterministic)[0]
+        return np_ify(outputs)
+
+    def get_action(self, obs, deterministic=False):
+        actions = self.get_actions(obs, deterministic=deterministic)
+        return actions[0, :], {}
 
 class Explorer(TanhGaussianPolicy):
     def __init__(self, z_dim, *inputs, **kwargs):
@@ -177,7 +273,6 @@ class Explorer(TanhGaussianPolicy):
         """
         outputs = self.forward(obs, reparameterize, deterministic=deterministic)[0]
         return outputs, np_ify(outputs)
-
 
 class Attn(nn.Module):
     def __init__(self, method, hidden_size):
@@ -300,7 +395,6 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
     If return_log_prob is False (default), log_prob = None
         This is done because computing the log_prob can be a bit expensive.
     """
-
 
     def construct_fc(self, dim1, dim2, init_w=1e-3):
         # init_w = self.init_w

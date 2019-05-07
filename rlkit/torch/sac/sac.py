@@ -36,6 +36,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             eq_enc=False,
             rew_mode=False,
             sar2gam=False,
+            dif_policy=False,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
@@ -79,6 +80,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.eq_enc = eq_enc
         self.rew_mode = rew_mode
         self.sar2gam = sar2gam
+        self.dif_policy = dif_policy
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
@@ -87,10 +89,20 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.use_ae = self.agent.use_ae
 
         # TODO consolidate optimizers!
-        self.policy_optimizer = optimizer_class(
-            self.agent.policy.parameters(),
-            lr=policy_lr,
-        )
+        if self.dif_policy:
+            self.hpolicy_optimizer = optimizer_class(
+                self.agent.policy.hpolicy.parameters(),
+                lr=policy_lr,
+            )
+            self.lpolicy_optimizer = optimizer_class(
+                self.agent.policy.lpolicy.parameters(),
+                lr=policy_lr,
+            )
+        else:
+            self.policy_optimizer = optimizer_class(
+                self.agent.policy.parameters(),
+                lr=policy_lr,
+            )
         self.qf1_optimizer = optimizer_class(
             self.agent.qf1.parameters(),
             lr=qf_lr,
@@ -236,15 +248,19 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # else: return error1,error2
         # context_optimizer.step()
 
-    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, new_actions, log_pi, v_pred, policy_mean, policy_log_std, pre_tanh_value, alpha=1):
+    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, v_pred, pout, dif_policy=False, alpha=1):
+        act, a_mean, a_logstd, a_logp = pout[:4]
+        if dif_policy: eta, e_mean, e_logstd, e_logp = pout[4:]
         # compute min Q on the new actions
-        min_q_new_actions = agent.min_q(obs, new_actions, agent.z.detach())
+        min_q_new_actions = agent.min_q(obs, act, agent.z.detach())
 
         ######### vf loss involves the gradients of
         # v
         ###########
-        log_pi = log_pi*alpha
-        v_target = min_q_new_actions - log_pi
+        # TODO: a can possibly ingest a detached eta
+        if dif_policy: a_logp += e_logp
+        a_logp = a_logp*alpha
+        v_target = min_q_new_actions - a_logp
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         vf_optimizer.zero_grad()
         vf_loss.backward()
@@ -260,27 +276,36 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         #############################
         if self.reparameterize:
             policy_loss = (
-                    log_pi - log_policy_target  # to make it around 0
+                    a_logp - log_policy_target  # to make it around 0
             ).mean()
         else:
             policy_loss = (
-                    log_pi * (log_pi - log_policy_target + v_pred).detach()
+                    a_logp * (a_logp - log_policy_target + v_pred).detach()
             ).mean()
 
-        mean_reg_loss = self.policy_mean_reg_weight * (policy_mean ** 2).mean()
-        std_reg_loss = self.policy_std_reg_weight * (policy_log_std ** 2).mean()
+        mean_reg_loss = self.policy_mean_reg_weight * (a_mean ** 2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (a_logstd ** 2).mean()
+        if dif_policy:
+            mean_reg_loss = self.policy_mean_reg_weight * (e_mean ** 2).mean()
+            std_reg_loss = self.policy_std_reg_weight * (e_logstd ** 2).mean()
         # pre_tanh_value = policy_outputs[-1]
-        pre_activation_reg_loss = self.policy_pre_activation_weight * (
-            (pre_tanh_value ** 2).sum(dim=1).mean()
-        )
-        policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
+        # pre_activation_reg_loss = self.policy_pre_activation_weight * (
+        #     (pre_tanh_value ** 2).sum(dim=1).mean()
+        # )
+        policy_reg_loss = mean_reg_loss + std_reg_loss# + pre_activation_reg_loss
         policy_loss = policy_loss + policy_reg_loss
 
         # if self.use_explorer:
         #     self.explorer_optimizer.zero_grad()
-        policy_optimizer.zero_grad()
+        if not dif_policy:
+            policy_optimizer.zero_grad()
+        else:
+            [opt.zero_grad() for opt in policy_optimizer]
         policy_loss.backward()
-        policy_optimizer.step()
+        if not dif_policy:
+            policy_optimizer.step()
+        else:
+            [opt.step() for opt in policy_optimizer]
         return log_policy_target, vf_loss, policy_loss
 
     def mse_crit(self, x, y):
@@ -302,7 +327,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # get data through q-net v-net actor task-encoder
         q1_pred_agt, q2_pred_agt, v_pred_agt, pout_agt, target_v_agt, task_z_agt = self.agent(obs_agt, act_agt, no_agt, sar_enc.detach(), indices)
         new_act_agt, new_a_mean_agt, new_a_lstd_agt, new_a_logp_agt = pout_agt[:4]
-        new_a_ptan_agt = pout_agt[-1]
+
+        # new_a_ptan_agt = pout_agt[-1]
         if self.use_ae or self.eq_enc: self.dec_optimizer.zero_grad()
         if self.use_ae: self.enc_optimizer.zero_grad()
         if self.sar2gam: self.dec_optimizer2.zero_grad()
@@ -384,8 +410,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.sar2gam: self.dec_optimizer2.step()
 
         # TODO necessary to use explicit task_z ?
-        new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent, self.policy_optimizer,
-                        obs_agt, new_act_agt, new_a_logp_agt, v_pred_agt, new_a_mean_agt, new_a_lstd_agt, new_a_ptan_agt)
+        new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent,
+                                                          (self.hpolicy_optimizer,self.lpolicy_optimizer) if self.dif_policy else self.policy_optimizer,
+                        obs_agt, v_pred_agt, pout_agt, dif_policy=self.dif_policy)
         # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
         # self.writer.add_histogram('logp',new_a_logp_agt, step)
         self.writer.add_scalar('qf', qloss_agt, step)
@@ -413,19 +440,20 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 rew_enc = rew_enc.detach()
 
             q1_exp, q2_exp, v_exp, pout_exp, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc, task_z=None)
-
             exp_actions, exp_mean, exp_log_std, exp_log_pi = pout_exp[:4]
-            exp_tanh_value = pout_exp[-1]
+            # exp_tanh_value = pout_exp[-1]
             _, qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
                                            rew_enc, num_tasks, terms_enc, target_v_exp, q1_exp, q2_exp, scale_reward=True)
             self.qf1exp_optimizer.step()
             self.qf2exp_optimizer.step()
             exp_logp_target, vf_exp, exp_loss = self.optimize_p(self.vfexp_optimizer, self.explorer, self.exp_optimizer,
-                                                                obs_enc, exp_actions, exp_log_pi, v_exp,
-                                                                exp_mean, exp_log_std, exp_tanh_value, alpha=10)
+                                                                obs_enc, v_exp, pout_exp, dif_policy=False,
+                                                                alpha=10)
             if step % 20 == 0:
                 self.writer.add_histogram('exp_adv', exp_logp_target - v_exp, step)
                 self.writer.add_histogram('logp_exp', exp_log_pi, step)
+                self.writer.add_histogram('a_logp', new_a_logp_agt, step)
+                if self.dif_policy: self.writer.add_histogram('e_logp', pout_agt[-1], step)
             self.writer.add_scalar('qf_exp', qf_exp, step)
             self.writer.add_scalar('vf_exp', vf_exp, step)
         #################################

@@ -37,12 +37,14 @@ class ProtoAgent(nn.Module):
                  nets,
                  use_ae=False,
                  confine_num_c=False,
+                 dif_policy=False,
                  **kwargs
                  ):
         super().__init__()
         self.z_dim = z_dim
         self.use_ae = use_ae
         self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets[:5]
+        self.dif_policy = dif_policy
         if len(nets)==6: self.gt_dec = nets[-1]
         elif len(nets)==7:
             if self.use_ae: self.gt_enc, self.gt_dec = nets[-2:]

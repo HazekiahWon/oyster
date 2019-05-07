@@ -1,0 +1,9 @@
+{
+  "exp_id": "walker-params",
+  "resume_dir": "",
+  "num_tasks": 130,
+  "num_eval_tasks": 30,
+  "gamma_dim": 65,
+  "z_dim": 5,
+  "eta_dim": 10
+}
