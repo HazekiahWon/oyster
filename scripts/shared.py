@@ -34,7 +34,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
     if dif_policy:
         policy_cls = EmbPolicy if obs_emb else TanhGaussianPolicy
         hpolicy = policy_cls( # s,z
-            hidden_sizes=[net_size, net_size],
+            hidden_sizes=[64,64],
             obs_dim=obs_dim,
             lat_dim=z_dim,
             action_dim=eta_dim,
@@ -42,7 +42,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
             layer_norm=True,
         )
         lpolicy = policy_cls(  # s,z
-            hidden_sizes=[net_size, net_size],
+            hidden_sizes=[net_size, net_size, net_size],
             obs_dim=obs_dim,
             lat_dim=eta_dim,
             action_dim=action_dim,
@@ -102,7 +102,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         if gt_ae is not None or eq_enc:
             # for walker: 6464; 64128
             gt_decoder = encoder_model(# z2gam
-                hidden_sizes=[64, 64],  # deeper net + higher dim space generalize better
+                hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
                 input_size=task_enc_output_dim // 2,
                 output_size=gamma_dim,
                 # output_activation=nn.Softmax(dim=-1), # predict as label
@@ -112,7 +112,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
             nets = nets + [gt_decoder]
             if sar2gam:
                 gt_decoder2 = encoder_model(# ci2gam
-                    hidden_sizes=[64, 64],  # deeper net + higher dim space generalize better
+                    hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
                     input_size=obs_dim+action_dim+reward_dim,
                     output_size=gamma_dim,
                     # output_activation=nn.Softmax(dim=-1), # predict as label
