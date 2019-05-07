@@ -160,18 +160,23 @@ class EmbPolicy(TanhGaussianPolicy):
             **kwargs)
         self.emb_nlayer = emb_nlayer
         self.emb_dim = emb_dim
+        self.layer_norms0 = list()
         ############# embed observation, obs_dim - obsemb_dim (direct) or z_dim (atn)
         latent_dim = emb_dim
-        obs_fc = [self.construct_hidden(obs_dim, latent_dim)]
+        obs_fc = []
         ln_cnt = 0
-        for i in range(emb_nlayer):
-            obs_fc.append(self.construct_hidden(latent_dim, latent_dim))
+        in_dim = obs_dim
+        out_dim = latent_dim
+        for i in range(emb_nlayer+1):
+            obs_fc.append(self.construct_hidden(in_dim, out_dim))
+
             # TODO layer norm
             if self.layer_norm:
-                ln = LayerNorm(latent_dim)
-                self.__setattr__("layer_norm{}".format(i), ln_cnt)
-                self.layer_norms.append(ln)
+                ln = LayerNorm(out_dim)
+                self.__setattr__("layer_norm{}".format(i), ln)
+                self.layer_norms0.append(ln)
                 ln_cnt += 1
+            in_dim = out_dim
         # if self.use_atn: obs_fc.append(self.construct_hidden(latent_dim, obs_emb_dim))
         # else: obs_fc.append(self.construct_hidden(latent_dim, latent_dim))
         self.obs_fc = nn.ModuleList(obs_fc)
@@ -185,7 +190,10 @@ class EmbPolicy(TanhGaussianPolicy):
     ):
         o,lat = obs
         for i, fc in enumerate(self.obs_fc):
-            o = self.hidden_activation(fc(o))
+            o = fc(o)
+            if self.layer_norm and i<len(self.obs_fc)-1:
+                o = self.layer_norms0[i](o)
+            o = self.hidden_activation(o)
         in_ = (o, lat)
         return super().forward(in_, reparameterize, deterministic, return_log_prob)
 
