@@ -40,7 +40,9 @@ def datetimestamp(divider=''):
 
 def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, confine_num_c, eq_enc, infer_freq,
                rew_mode, sar2gam, exp_offp,
-               exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim):
+               configs):
+    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim']
+    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim = [configs.get(k) for k in keynames]
     Env = env_cls[exp_id]
     task_params = variant['task_params']
     env = NormalizedBoxEnv(Env(n_tasks=task_params['n_tasks']))
@@ -69,10 +71,10 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
         memo += f'this exp resumes {resume_dir}\n'
     # else:
     # share the task enc with these two agents
-    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, eta_dim, variant,
-                                 dif_policy=dif_policy, obs_emb=obs_emb, task_enc=None, gt_ae=True if use_ae else None, gamma_dim=gamma_dim,
+    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
+                                 dif_policy=dif_policy, obs_emb=obs_emb, task_enc=None, gt_ae=True if use_ae else None,
                                  confine_num_c=confine_num_c, eq_enc=eq_enc, sar2gam=sar2gam)
-    explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, eta_dim, variant,
+    explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
                           dif_policy=dif_policy, obs_emb=obs_emb, task_enc=task_enc, confine_num_c=confine_num_c)
     if resume or test:
         for snet,tnet in zip(agent_.networks,agent.networks):
@@ -209,7 +211,7 @@ def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp
 
     experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, confine_num_c, eq_enc, infer_freq,
                rew_mode, sar2gam, exp_offp,
-               exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim)
+               configs)
 
 if __name__ == "__main__":
     main()

@@ -2,9 +2,11 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy, EmbPolicy, HierPolicy, 
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
 from torch import nn
-def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, z_dim, eta_dim, variant,
-               dif_policy=False, obs_emb=False, task_enc=None, gt_ae=None, gamma_dim=10, confine_num_c=False, eq_enc=False,
+def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
+               dif_policy=False, obs_emb=False, task_enc=None, gt_ae=None, confine_num_c=False, eq_enc=False,
                sar2gam=False):
+    keynames = ['z_dim','eta_dim', 'gamma_dim', 'gam2z', 'z2gam', 'ci2gam']
+    z_dim,eta_dim,gamma_dim,gam2z,z2gam,ci2gam = [configs.get(k) for k in keynames]
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     is_actor = task_enc is None
     if task_enc is None:
@@ -88,9 +90,9 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         # no gt ae, eq enc, dec
         # no both, none
         # no eq enc, gt_ae, both
-        if gt_ae is not None :
+        if gt_ae is not None : # gamma2z
             gt_encoder = encoder_model(
-                hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
+                hidden_sizes=gam2z,  # deeper net + higher dim space generalize better
                 input_size=gamma_dim,
                 output_size=task_enc_output_dim//2,
                 hidden_init=nn.init.xavier_normal_,
@@ -102,7 +104,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         if gt_ae is not None or eq_enc:
             # for walker: 6464; 64128
             gt_decoder = encoder_model(# z2gam
-                hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
+                hidden_sizes=z2gam,  # deeper net + higher dim space generalize better
                 input_size=task_enc_output_dim // 2,
                 output_size=gamma_dim,
                 # output_activation=nn.Softmax(dim=-1), # predict as label
@@ -112,7 +114,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
             nets = nets + [gt_decoder]
             if sar2gam:
                 gt_decoder2 = encoder_model(# ci2gam
-                    hidden_sizes=[32, 32],  # deeper net + higher dim space generalize better
+                    hidden_sizes=ci2gam,  # deeper net + higher dim space generalize better
                     input_size=obs_dim+action_dim+reward_dim,
                     output_size=gamma_dim,
                     # output_activation=nn.Softmax(dim=-1), # predict as label

@@ -5,5 +5,8 @@
   "num_eval_tasks": 30,
   "gamma_dim": 65,
   "z_dim": 5,
-  "eta_dim": 10
+  "eta_dim": 10,
+  "z2gam": [64,64],
+  "ci2gam": [64,128],
+  "gam2z": [32,32]
 }
