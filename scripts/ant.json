@@ -3,7 +3,7 @@
   "resume_dir": "",
   "num_tasks": 180,
   "num_eval_tasks": 30,
-  "gamma_dim": 4,
+  "gamma_dim": 2,
   "z_dim": 5,
   "eta_dim": 10,
   "z2gam": [64,64],
