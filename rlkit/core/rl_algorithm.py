@@ -265,7 +265,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # currently using online exploration
                     # otherwise sample z from posterior inferred given the enc buffer data
                     self.collect_data2(self.exp_sampler, self.explorer,
-                                       self.num_steps_per_task, resample_z_rate=1,
+                                       self.max_path_length*2, resample_z_rate=1,
                                        accum_context=True, infer_freq=self.infer_freq,
                                        update_posterior_rate=1, add_to=1)
 
@@ -458,7 +458,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
         '''
         # start from the prior
-        agent.clear_z()
+        agent.clear_z() # clears the context
 
         num_transitions = 0
         while num_transitions < num_samples:
@@ -484,6 +484,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.sample_z_from_posterior(agent, self.task_idx, eval_task=False)
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
+        agent.context = None
 
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
