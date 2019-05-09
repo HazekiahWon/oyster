@@ -6,8 +6,8 @@
   "gamma_dim": 2,
   "z_dim": 5,
   "eta_dim": 10,
-  "z2gam": [64,64],
-  "ci2gam": [64,64],
+  "z2gam": [32,32],
+  "ci2gam": [32,32],
   "gam2z": [32,32],
   "num_iters": 1000,
 }
