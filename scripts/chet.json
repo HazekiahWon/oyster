@@ -4,10 +4,14 @@
   "num_tasks": 130,
   "num_eval_tasks": 30,
   "gamma_dim": 1,
-  "z_dim": 5,
-  "eta_dim": 32,
   "z2gam": [32,32],
   "ci2gam": [32,32],
   "gam2z": [32,32],
-  "num_iters": 500
+  "num_iters": 500,
+  "z_dim": 10,
+  "eta_dim": 5,
+  "obsemb_sizes": [64],
+  "obs_emb_dim": 32,
+  "etanet_sizes": [128,64],
+  "anet_sizes": [64,64]
 }

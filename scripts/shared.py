@@ -1,12 +1,12 @@
-from rlkit.torch.sac.policies import TanhGaussianPolicy, EmbPolicy, HierPolicy, DecomposedPolicy
+from rlkit.torch.sac.policies import *
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
 from torch import nn
 def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
                dif_policy=False, obs_emb=False, task_enc=None, gt_ae=None, confine_num_c=False, eq_enc=False,
                sar2gam=False):
-    keynames = ['z_dim','eta_dim', 'gamma_dim', 'gam2z', 'z2gam', 'ci2gam']
-    z_dim,eta_dim,gamma_dim,gam2z,z2gam,ci2gam = [configs.get(k) for k in keynames]
+    keynames = ['z_dim','eta_dim', 'gamma_dim', 'gam2z', 'z2gam', 'ci2gam', 'obsemb_sizes','obs_emb_dim','etanet_sizes','anet_sizes']
+    z_dim,eta_dim,gamma_dim,gam2z,z2gam,ci2gam, obsemb_sizes, obs_emb_dim, etanet_sizes, anet_sizes = [configs.get(k) for k in keynames]
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     is_actor = task_enc is None
     if task_enc is None:
@@ -68,20 +68,14 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         #                            action_dim=action_dim,
         #                            anet_sizes=[net_size, net_size, net_size])
     else:
-        policy = TanhGaussianPolicy(
-            hidden_sizes=[net_size, net_size, net_size],
-            obs_dim=obs_dim,
-            lat_dim=z_dim,
-            action_dim=action_dim,
-        )
-        # policy = DecomposedPolicy(obs_dim,
-        #                           z_dim=z_dim,
-        #                           # latent_dim=64,
-        #                           eta_nlayer=None,
-        #                           num_expz=32,
-        #                           atn_type='low-rank',
-        #                           action_dim=action_dim,
-        #                           anet_sizes=[net_size, net_size, net_size])
+        policy = BNHierPolicy(obs_dim,
+                              z_dim,
+                              action_dim,
+                              obsemb_sizes=obsemb_sizes,
+                              obs_emb_dim=obs_emb_dim,
+                              etanet_sizes=etanet_sizes,
+                              anet_sizes=anet_sizes,
+                              eta_dim=eta_dim)
     # policy2 = DecomposedPolicy(obs_dim,
     #                            z_dim=z_dim,
     #                            # latent_dim=64,

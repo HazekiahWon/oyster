@@ -29,8 +29,8 @@ from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 import rlkit.torch.pytorch_util as ptu
 env_cls = {
-    "cheetah-vel": HalfCheetahVelEnv,
-    "ant-goal": AntGoalEnv,
+    "cheetah-vel": HalfCheetahVelEnv, # a:8, o:113
+    "ant-goal": AntGoalEnv, # a:6, o:20
     "walker-params": Walker2dParamsEnv
 }
 
