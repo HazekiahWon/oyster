@@ -639,30 +639,11 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
                     action = tanh_normal.sample()
 
         return (
-            action, mean, log_std, log_prob, expected_log_prob, std,
-            mean_action_log_prob, pre_tanh_value,
+            action, mean, log_std, log_prob
         )
 
 
-
-class BNHierPolicy(PyTorchModule, ExplorationPolicy):
-    """
-    Usage:
-
-    ```
-    policy = TanhGaussianPolicy(...)
-    action, mean, log_std, _ = policy(obs)
-    action, mean, log_std, _ = policy(obs, deterministic=True)
-    action, mean, log_std, log_prob = policy(obs, return_log_prob=True)
-    ```
-    Here, mean and log_std are the mean and log_std of the Gaussian that is
-    sampled from.
-
-    If deterministic is True, action = tanh(mean).
-    If return_log_prob is False (default), log_prob = None
-        This is done because computing the log_prob can be a bit expensive.
-    """
-
+class BasePolicy(PyTorchModule, ExplorationPolicy):
 
     def construct_fc(self, dim1, dim2, init_w=1e-3):
         # init_w = self.init_w
@@ -676,6 +657,17 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
         self.hidden_init(fc.weight)
         fc.bias.data.fill_(b_init_value)
         return fc
+
+    def get_action(self, obs, deterministic=False):
+        actions = self.get_actions(obs, deterministic=deterministic)
+        return actions[0, :], {}
+
+    @torch.no_grad()
+    def get_actions(self, obs, deterministic=False):
+        outputs = self.forward(obs, deterministic=deterministic)[0]
+        return np_ify(outputs)
+
+class BNHierPolicy(BasePolicy):
 
     def __init__(
             self,
@@ -722,13 +714,18 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
-        obs_fc = list()
-        in_size = obs_dim
-        for nex_size in obsemb_sizes:
-            obs_fc.append(self.construct_hidden(in_size, nex_size))
-            in_size = nex_size
-        obs_fc.append(self.construct_hidden(in_size, obs_emb_dim))
-        self.obs_fc = nn.ModuleList(obs_fc)
+        if obs_emb_dim!=0:
+            obs_fc = list()
+            in_size = obs_dim
+            for nex_size in obsemb_sizes:
+                obs_fc.append(self.construct_hidden(in_size, nex_size))
+                in_size = nex_size
+            obs_fc.append(self.construct_hidden(in_size, obs_emb_dim))
+            self.obs_fc = nn.ModuleList(obs_fc)
+            self.use_obs_emb = True
+        else:
+            self.use_obs_emb = False
+            obs_emb_dim = obs_dim
 
         in_size = obs_emb_dim+z_dim # in_size = obs emb
         eta_fc = list()
@@ -745,15 +742,6 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
             a_fc.append(self.construct_hidden(in_size, nex_size))
             in_size = nex_size
         self.a_fc = nn.ModuleList(a_fc)
-
-    def get_action(self, obs, deterministic=False):
-        actions = self.get_actions(obs, deterministic=deterministic)
-        return actions[0, :], {}
-
-    @torch.no_grad()
-    def get_actions(self, obs, deterministic=False):
-        outputs = self.forward(obs, deterministic=deterministic)[0]
-        return np_ify(outputs)
 
     def direct_eta(self, obs,z):
         #######
@@ -790,11 +778,12 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
         #######
         # state -> state feature
         #######
-        h = obs
-        # obs_ = obs
-        for i, fc in enumerate(self.obs_fc):
-            h = self.hidden_activation(fc(h))
-        obs = h # latent dim
+        if self.use_obs_emb:
+            h = obs
+            # obs_ = obs
+            for i, fc in enumerate(self.obs_fc):
+                h = self.hidden_activation(fc(h))
+            obs = h # latent dim
 
         #######
         # get eta
@@ -844,10 +833,160 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
                     action = tanh_normal.sample()
 
         return (
-            action, mean, log_std, log_prob, expected_log_prob, std,
-            mean_action_log_prob, pre_tanh_value,
+            action, mean, log_std, log_prob
         )
 
+class MDNPolicy(BasePolicy):
+
+    def __init__(
+            self,
+            obs_dim,
+            z_dim,
+            action_dim,
+            obsemb_sizes,
+            anet_sizes,
+            obs_emb_dim, # or 16
+            eta_dim, # because z is small
+            n_component=20,
+            sparse=False,
+            std=None,
+            hidden_init=ptu.fanin_init,
+            layer_norm=False,
+            layer_norm_kwargs=None,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+        # super().__init__(
+        #     hidden_sizes,
+        #     input_size=obs_dim,
+        #     output_size=action_dim,
+        #     init_w=init_w,
+        #     **kwargs
+        # )
+        if layer_norm_kwargs is None:
+            layer_norm_kwargs = dict()
+        self.layer_norm = layer_norm
+        self.layer_norms = []
+        self.sparse = sparse
+        self.hidden_activation = F.relu
+        self.hidden_init = hidden_init
+        # self.latent_dim = latent_dim
+        self.log_std = None
+        self.std = std
+        # self.init_w = init_w
+        self.last_fc = self.construct_fc(anet_sizes[-1], action_dim*n_component)
+        self.action_dim = action_dim
+        self.n_component = n_component
+
+        if std is None:
+            self.last_fc_log_std = self.construct_fc(anet_sizes[-1], action_dim*n_component)
+        else:
+            self.log_std = np.log(std)
+            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+        self.last_pi = self.construct_fc(anet_sizes[-1], n_component)
+
+        obs_fc = list()
+        in_size = obs_dim
+        if obs_emb_dim!=0:
+            for nex_size in obsemb_sizes:
+                obs_fc.append(self.construct_hidden(in_size, nex_size))
+                in_size = nex_size
+            obs_fc.append(self.construct_hidden(in_size, obs_emb_dim))
+            self.obs_fc = nn.ModuleList(obs_fc)
+            self.use_obs_emb = True
+        else:
+            self.use_obs_emb = False
+            obs_emb_dim = obs_dim
+
+        in_size = obs_emb_dim+z_dim # in_size = obs emb
+
+        a_fc = [] # s+eta
+        # in_size = eta_dim + obs_emb_dim
+        for nex_size in anet_sizes:
+            a_fc.append(self.construct_hidden(in_size, nex_size))
+            in_size = nex_size
+        self.a_fc = nn.ModuleList(a_fc)
+
+    def forward(
+            self,
+            inp,
+            reparameterize=False,
+            deterministic=False,
+            return_log_prob=False,
+    ):
+        """
+        :param obs: Observation
+        :param deterministic: If True, do not sample
+        :param return_log_prob: If True, return a sample and its log probability
+        """
+        obs,z = inp
+        #######
+        # state -> state feature
+        #######
+        if self.use_obs_emb:
+            h = obs
+            for i, fc in enumerate(self.obs_fc):
+                h = self.hidden_activation(fc(h))
+            obs = h # latent dim
+
+        h = torch.cat((obs,z), dim=-1)
+        #######################################
+        for i,fc in enumerate(self.a_fc): # as the tanhpolicy
+            h = self.hidden_activation(fc(h)) # latent dim
+
+        mean = self.last_fc(h)
+        if self.std is None:
+            log_std = self.last_fc_log_std(h) # n*actiondim
+            log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            std = torch.exp(log_std)
+        else:
+            std = self.std
+            log_std = self.log_std
+        pi = F.softmax(self.last_pi(h), dim=-1) # b,n_componentwhat about using sigmoid?
+        # mixture of several tanh normal
+        log_prob = None
+
+        if deterministic:
+            action = torch.tanh(mean)
+        else:
+            tanh_normal = TanhNormal(mean, std)
+            if return_log_prob:
+                if reparameterize:
+                    action, pre_tanh_value = tanh_normal.rsample(
+                        return_pretanh_value=True
+                    )
+                else:
+                    action, pre_tanh_value = tanh_normal.sample(
+                        return_pretanh_value=True
+                    )
+                log_prob = tanh_normal.log_prob(
+                    action,
+                    pre_tanh_value=pre_tanh_value
+                )
+                # log_prob = log_prob.sum(dim=-1, keepdim=True)
+            else:
+                if reparameterize:
+                    action = tanh_normal.rsample()
+                else:
+                    action = tanh_normal.sample()
+        pi = pi.view(-1,1,self.n_component)
+        action = action.view(-1,self.n_component, self.action_dim)
+        mean = mean.view(-1,self.n_component, self.action_dim)
+        action = torch.bmm(pi, action).squeeze(1) # b,1,adim
+        mean = torch.matmul(pi,mean).squeeze(1)
+        # log_std do not know how to
+        if log_prob is not None:
+            log_prob = log_prob.view(-1,self.n_component,self.action_dim)
+            log_prob = torch.exp(log_prob)
+            log_prob = torch.bmm(pi, log_prob).squeeze(1)
+            log_prob = torch.log(log_prob)
+            log_prob = torch.sum(log_prob, dim=-1,keepdim=True)
+
+
+        return (
+            action, mean, log_std, log_prob
+        )
 
 class MakeDeterministic(Wrapper, Policy):
     def __init__(self, stochastic_policy):
