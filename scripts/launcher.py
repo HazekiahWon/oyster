@@ -132,8 +132,8 @@ def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp
     if config:
         with open(os.path.join(config+'.json')) as f:
             configs = json.load(f)
-    keynames = ['exp_id', 'resume_dir', 'num_tasks', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim']
-    exp_id, resume_dir, num_tasks, num_eval_tasks, gamma_dim, z_dim, eta_dim = [configs.get(k) for k in keynames]
+    keynames = ['exp_id', 'resume_dir', 'num_tasks', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim', 'num_iters']
+    exp_id, resume_dir, num_tasks, num_eval_tasks, gamma_dim, z_dim, eta_dim, num_iters = [configs.get(k) for k in keynames]
     max_path_length = 200
     # noinspection PyTypeChecker
     # modified ntasks, meta-batch
@@ -146,7 +146,7 @@ def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp
         ),
         algo_params=dict(
             meta_batch=5 if debug else 8,
-            num_iterations=500,
+            num_iterations=num_iters,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
             num_train_steps_per_itr=4000 if not fast_debug else 1,
