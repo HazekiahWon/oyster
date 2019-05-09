@@ -115,7 +115,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
 @click.argument('eq_enc', default=False, type=bool) # higher priority over ae
 @click.argument('sar2gam', default=False, type=bool)
 @click.argument('rew_mode', default=0, type=int)
-@click.argument('dif_policy', default=False, type=bool)
+@click.argument('dif_policy', default=0, type=int)
 @click.argument('obs_emb', default=False, type=bool)
 @click.argument('exp_offp', default=False, type=bool)
 @click.argument('confine_num_c', default=False, type=bool) # make effect only when allowing extended exploration

@@ -36,7 +36,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             eq_enc=False,
             rew_mode=False,
             sar2gam=False,
-            dif_policy=False,
+            dif_policy=0,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
@@ -89,7 +89,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.use_ae = self.agent.use_ae
 
         # TODO consolidate optimizers!
-        if self.dif_policy:
+        if self.dif_policy==1:
             self.hpolicy_optimizer = optimizer_class(
                 self.agent.policy.hpolicy.parameters(),
                 lr=policy_lr,
@@ -264,9 +264,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # else: return error1,error2
         # context_optimizer.step()
 
-    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, v_pred, pout, dif_policy=False, alpha=1):
+    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, v_pred, pout, dif_policy=0, alpha=1):
         act, a_mean, a_logstd, a_logp = pout[:4]
-        if dif_policy: eta, e_mean, e_logstd, e_logp = pout[4:]
+        if dif_policy==1: eta, e_mean, e_logstd, e_logp = pout[4:]
         # compute min Q on the new actions
         min_q_new_actions = agent.min_q(obs, act, agent.z.detach())
 
@@ -274,7 +274,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # v
         ###########
         # TODO: a can possibly ingest a detached eta
-        if dif_policy: a_logp += e_logp
+        if dif_policy==1: a_logp += e_logp
         a_logp = a_logp*alpha
         v_target = min_q_new_actions - a_logp
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
@@ -301,7 +301,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         mean_reg_loss = self.policy_mean_reg_weight * (a_mean ** 2).mean()
         std_reg_loss = self.policy_std_reg_weight * (a_logstd ** 2).mean()
-        if dif_policy:
+        if dif_policy==1:
             mean_reg_loss = self.policy_mean_reg_weight * (e_mean ** 2).mean()
             std_reg_loss = self.policy_std_reg_weight * (e_logstd ** 2).mean()
         # pre_tanh_value = policy_outputs[-1]
@@ -313,15 +313,15 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         # if self.use_explorer:
         #     self.explorer_optimizer.zero_grad()
-        if not dif_policy:
-            policy_optimizer.zero_grad()
-        else:
+        if dif_policy==1:
             [opt.zero_grad() for opt in policy_optimizer]
-        policy_loss.backward()
-        if not dif_policy:
-            policy_optimizer.step()
         else:
+            policy_optimizer.zero_grad()
+        policy_loss.backward()
+        if dif_policy==1:
             [opt.step() for opt in policy_optimizer]
+        else: policy_optimizer.step()
+
         return log_policy_target, vf_loss, policy_loss
 
     def mse_crit(self, x, y):
@@ -427,7 +427,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         # TODO necessary to use explicit task_z ?
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent,
-                                                          (self.hpolicy_optimizer,self.lpolicy_optimizer) if self.dif_policy else self.policy_optimizer,
+                                                          (self.hpolicy_optimizer,self.lpolicy_optimizer) if self.dif_policy==1 else self.policy_optimizer,
                         obs_agt, v_pred_agt, pout_agt, dif_policy=self.dif_policy)
         # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
         # self.writer.add_histogram('logp',new_a_logp_agt, step)
@@ -463,13 +463,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.qf1exp_optimizer.step()
             self.qf2exp_optimizer.step()
             exp_logp_target, vf_exp, exp_loss = self.optimize_p(self.vfexp_optimizer, self.explorer, self.exp_optimizer,
-                                                                obs_enc, v_exp, pout_exp, dif_policy=False,
+                                                                obs_enc, v_exp, pout_exp, dif_policy=0,
                                                                 alpha=10)
             if step % 20 == 0:
                 self.writer.add_histogram('exp_adv', exp_logp_target - v_exp, step)
                 self.writer.add_histogram('logp_exp', exp_log_pi, step)
                 self.writer.add_histogram('a_logp', new_a_logp_agt, step)
-                if self.dif_policy: self.writer.add_histogram('e_logp', pout_agt[-1], step)
+                if self.dif_policy==1: self.writer.add_histogram('e_logp', pout_agt[-1], step)
             self.writer.add_scalar('qf_exp', qf_exp, step)
             self.writer.add_scalar('vf_exp', vf_exp, step)
         #################################

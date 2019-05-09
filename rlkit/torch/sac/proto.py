@@ -37,7 +37,7 @@ class ProtoAgent(nn.Module):
                  nets,
                  use_ae=False,
                  confine_num_c=False,
-                 dif_policy=False,
+                 dif_policy=0,
                  **kwargs
                  ):
         super().__init__()
