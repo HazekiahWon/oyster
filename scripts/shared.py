@@ -67,7 +67,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         #                            atn_type='low-rank',
         #                            action_dim=action_dim,
         #                            anet_sizes=[net_size, net_size, net_size])
-    else:
+    elif dif_policy==2:
         policy = BNHierPolicy(obs_dim,
                               z_dim,
                               action_dim,
@@ -76,6 +76,16 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                               etanet_sizes=etanet_sizes,
                               anet_sizes=anet_sizes,
                               eta_dim=eta_dim)
+    else:# 3
+        policy = BNHierPolicy(obs_dim,
+                              z_dim,
+                              action_dim,
+                              obsemb_sizes=obsemb_sizes,
+                              obs_emb_dim=obs_emb_dim,
+                              etanet_sizes=etanet_sizes,
+                              anet_sizes=anet_sizes,
+                              eta_dim=eta_dim,
+                              sparse=True)
     # policy2 = DecomposedPolicy(obs_dim,
     #                            z_dim=z_dim,
     #                            # latent_dim=64,

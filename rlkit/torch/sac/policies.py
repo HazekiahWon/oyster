@@ -685,8 +685,9 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
             obsemb_sizes,
             etanet_sizes,
             anet_sizes,
-            obs_emb_dim=16, # or 16
-            eta_dim=16, # because z is small
+            obs_emb_dim, # or 16
+            eta_dim, # because z is small
+            sparse=False,
             std=None,
             hidden_init=ptu.fanin_init,
             layer_norm=False,
@@ -706,6 +707,7 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
             layer_norm_kwargs = dict()
         self.layer_norm = layer_norm
         self.layer_norms = []
+        self.sparse = sparse
         self.hidden_activation = F.relu
         self.hidden_init = hidden_init
         # self.latent_dim = latent_dim
@@ -763,6 +765,15 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
         eta = h
         return eta
 
+    def sparse_eta(self, obs, z):
+        h = torch.cat((obs, z), dim=-1)
+        n = len(self.eta_fc)
+        for i, fc in enumerate(self.eta_fc):
+            h = fc(h)
+            if i==n-1: h = torch.sigmoid(h)
+            else: h = self.hidden_activation(h)
+        return h
+
     def forward(
             self,
             inp,
@@ -788,7 +799,7 @@ class BNHierPolicy(PyTorchModule, ExplorationPolicy):
         #######
         # get eta
         #######
-        eta = self.direct_eta(obs, z)
+        eta = self.sparse_eta(obs, z) if self.sparse else self.direct_eta(obs, z)
 
         h = torch.cat((obs,eta), dim=-1)
         #######################################
