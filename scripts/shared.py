@@ -5,8 +5,8 @@ from torch import nn
 def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
                dif_policy=False, obs_emb=False, task_enc=None, gt_ae=None, confine_num_c=False, eq_enc=False,
                sar2gam=False):
-    keynames = ['z_dim','eta_dim', 'gamma_dim', 'gam2z', 'z2gam', 'ci2gam', 'obsemb_sizes','obs_emb_dim','etanet_sizes','anet_sizes']
-    z_dim,eta_dim,gamma_dim,gam2z,z2gam,ci2gam, obsemb_sizes, obs_emb_dim, etanet_sizes, anet_sizes = [configs.get(k) for k in keynames]
+    keynames = ['z_dim','eta_dim', 'gamma_dim', 'gam2z', 'z2gam', 'ci2gam', 'obsemb_sizes','obs_emb_dim','etanet_sizes','anet_sizes', 'gam_act']
+    z_dim,eta_dim,gamma_dim,gam2z,z2gam,ci2gam, obsemb_sizes, obs_emb_dim, etanet_sizes, anet_sizes, gam_act = [configs.get(k) for k in keynames]
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     is_actor = task_enc is None
     if task_enc is None:
@@ -116,8 +116,8 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                 hidden_sizes=gam2z,  # deeper net + higher dim space generalize better
                 input_size=gamma_dim,
                 output_size=task_enc_output_dim//2,
-                hidden_init=nn.init.xavier_normal_,
-                layer_norm=True
+                # hidden_init=nn.init.xavier_normal_,
+                # layer_norm=True
 
             )
             nets = nets + [gt_encoder]
@@ -128,6 +128,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                 hidden_sizes=z2gam,  # deeper net + higher dim space generalize better
                 input_size=task_enc_output_dim // 2,
                 output_size=gamma_dim,
+                output_activation=torch.tanh if gam_act=='tanh' else lambda x: x,
                 # output_activation=nn.Softmax(dim=-1), # predict as label
                 # hidden_init=nn.init.xavier_normal_,
                 # layer_norm=True
@@ -138,6 +139,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                     hidden_sizes=ci2gam,  # deeper net + higher dim space generalize better
                     input_size=obs_dim+action_dim+reward_dim,
                     output_size=gamma_dim,
+                    output_activation=torch.tanh if gam_act == 'tanh' else lambda x: x
                     # output_activation=nn.Softmax(dim=-1), # predict as label
                     # hidden_init=nn.init.xavier_normal_,
                     # layer_norm=True
