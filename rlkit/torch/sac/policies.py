@@ -127,7 +127,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
                     action,
                     pre_tanh_value=pre_tanh_value
                 )
-                log_prob = log_prob.sum(dim=1, keepdim=True)
+                log_prob = log_prob.sum(dim=-1, keepdim=True)
             else:
                 if reparameterize:
                     action = tanh_normal.rsample()
@@ -631,7 +631,7 @@ class DecomposedPolicy(PyTorchModule, ExplorationPolicy):
                     action,
                     pre_tanh_value=pre_tanh_value
                 )
-                log_prob = log_prob.sum(dim=1, keepdim=True)
+                log_prob = log_prob.sum(dim=-1, keepdim=True)
             else:
                 if reparameterize:
                     action = tanh_normal.rsample()
@@ -825,7 +825,7 @@ class BNHierPolicy(BasePolicy):
                     action,
                     pre_tanh_value=pre_tanh_value
                 )
-                log_prob = log_prob.sum(dim=1, keepdim=True)
+                log_prob = log_prob.sum(dim=-1, keepdim=True)
             else:
                 if reparameterize:
                     action = tanh_normal.rsample()

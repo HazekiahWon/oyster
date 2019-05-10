@@ -60,6 +60,7 @@ class ProtoAgent(nn.Module):
         self.det_z = False
         self.context = None
         self.confine_num_c = confine_num_c
+        self.num_updates = None
         # initialize task embedding to zero
         # (task, latent dim)
         self.register_buffer('z', torch.zeros(1, z_dim))
@@ -165,6 +166,7 @@ class ProtoAgent(nn.Module):
             start = 0
             m = torch.unbind(mu)
             s = torch.unbind(sigma_squared)
+
             while start<num:
                 # alist of b list of mean and variance
                 z_params = [_product_of_gaussians(mm[start:min(num,start+infer_freq)], ss[start:min(num,start+infer_freq)]) for mm, ss in zip(m,s)]
@@ -173,6 +175,7 @@ class ProtoAgent(nn.Module):
                 z_sparams_list.append(torch.stack(sp))
                 start += infer_freq
             # numupdate,b,zdim > nb,zdim
+            if self.num_updates is None: self.num_updates = len(z_mparams_list)
             self.z_means = torch.cat(z_mparams_list)#.view(-1,self.z_dim)
             self.z_vars = torch.cat(z_sparams_list)#.view(-1,self.z_dim)
 
@@ -301,13 +304,15 @@ class ProtoAgent(nn.Module):
                 task_z = task_z.unsqueeze(-2) # ntask,1,z_dim
                 task_z = task_z.repeat(1,bs,1).view(-1,self.z_dim) # ntask*bs
         else:
-            if task_z is None: task_z = self.z
-            obs = obs.unsqueeze(1) # ntask,nupdate,bs,dim
-            obs = obs.repeat(1,task_z.size(1),1,1)
-            actions = actions.unsqueeze(1)
-            actions = actions.repeat(1,task_z.size(1),1,1)
-            task_z.unsqueeze(-2)
-            task_z.repeat(1,1,bs,1)
+            if task_z is None: task_z = self.z.view(self.num_updates, -1, self.z_dim)
+            obs = obs.unsqueeze(0) # nupdate,ntask,bs,dim
+            obs = obs.repeat(task_z.size(0),1,1,1)
+            actions = actions.unsqueeze(0)
+            actions = actions.repeat(task_z.size(0),1,1,1)
+            next_obs = next_obs.unsqueeze(0)
+            next_obs = next_obs.repeat(task_z.size(0), 1, 1, 1)
+            task_z = task_z.unsqueeze(2)
+            task_z = task_z.repeat(1,1,bs,1) # nupdate,ntask,bs,dim
             # task_z = [z.repeat(bs, 1) for z in task_z]
             # task_z = torch.cat(task_z, dim=0)
 
@@ -330,8 +335,8 @@ class ProtoAgent(nn.Module):
     def min_q(self, obs, actions, task_z):
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
-        task_z = [z.repeat(b, 1) for z in task_z]
-        task_z = torch.cat(task_z, dim=0)
+        # actions = actions.view(-1, actions.size(-1))
+        task_z = task_z.unsqueeze(1).repeat(1,b,1).view(-1,self.z_dim)
 
         q1 = self.qf1(obs, actions, task_z)
         q2 = self.qf2(obs, actions, task_z)
