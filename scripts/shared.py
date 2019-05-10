@@ -10,7 +10,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     is_actor = task_enc is None
     if task_enc is None:
-        task_enc = encoder_model(
+        task_enc = encoder_model(# c2z
             hidden_sizes=[200, 200, 200],  # deeper net + higher dim space generalize better
             input_size=obs_dim + action_dim + reward_dim,
             output_size=task_enc_output_dim,
@@ -129,8 +129,8 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                 input_size=task_enc_output_dim // 2,
                 output_size=gamma_dim,
                 # output_activation=nn.Softmax(dim=-1), # predict as label
-                hidden_init=nn.init.xavier_normal_,
-                layer_norm=True
+                # hidden_init=nn.init.xavier_normal_,
+                # layer_norm=True
             )
             nets = nets + [gt_decoder]
             if sar2gam:
@@ -139,8 +139,8 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                     input_size=obs_dim+action_dim+reward_dim,
                     output_size=gamma_dim,
                     # output_activation=nn.Softmax(dim=-1), # predict as label
-                    hidden_init=nn.init.xavier_normal_,
-                    layer_norm=True
+                    # hidden_init=nn.init.xavier_normal_,
+                    # layer_norm=True
                 )
                 nets = nets + [gt_decoder2]
 
