@@ -196,7 +196,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def pretrain(self):
         pass
 
-    def train(self):
+    def train(self, fast_debug=False):
         '''
         meta-training loop
         '''
@@ -234,7 +234,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                            self.max_path_length * 10, resample_z_rate=1,
                                            update_posterior_rate=np.inf, add_to=1)
                 logger.log('pretraining')
-                self.pretrain()
+                if not fast_debug: self.pretrain()
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))

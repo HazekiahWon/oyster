@@ -104,7 +104,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
         algorithm.to()
     # if test: algorithm.test(newenv)
     # else:
-    algorithm.train()
+    algorithm.train(fast_debug=fast_debug)
 
 @click.command()
 @click.argument('config', default=None, type=str)

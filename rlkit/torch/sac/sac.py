@@ -341,7 +341,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         sar_enc = self.prepare_encoder_data(obs_enc, act_enc, rew_enc)
 
         # get data through q-net v-net actor task-encoder
-        q1_pred_agt, q2_pred_agt, v_pred_agt, pout_agt, target_v_agt, task_z_agt = self.agent(obs_agt, act_agt, no_agt, sar_enc.detach(), indices)
+        q1_pred_agt, q2_pred_agt, v_pred_agt, pout_agt, target_v_agt, task_z_agt = self.agent(obs_agt, act_agt, no_agt, sar_enc.detach(), indices,
+                                                                                              infer_freq=self.infer_freq)
         new_act_agt, new_a_mean_agt, new_a_lstd_agt, new_a_logp_agt = pout_agt[:4]
 
         # new_a_ptan_agt = pout_agt[-1]

@@ -161,7 +161,7 @@ class ProtoAgent(nn.Module):
         else:
             z_mparams_list, z_sparams_list = list(),list()
 
-            num = context.size(0)
+            num = context.size(1)
             start = 0
             m = torch.unbind(mu)
             s = torch.unbind(sigma_squared)
@@ -173,8 +173,8 @@ class ProtoAgent(nn.Module):
                 z_sparams_list.append(torch.stack(sp))
                 start += infer_freq
             # numupdate,b,zdim > nb,zdim
-            self.z_means = torch.stack(z_mparams_list,dim=1)#.view(-1,self.z_dim)
-            self.z_vars = torch.stack(z_sparams_list,dim=1)#.view(-1,self.z_dim)
+            self.z_means = torch.cat(z_mparams_list)#.view(-1,self.z_dim)
+            self.z_vars = torch.cat(z_sparams_list)#.view(-1,self.z_dim)
 
         # sum rather than product of gaussians structure
         # else:
@@ -277,10 +277,10 @@ class ProtoAgent(nn.Module):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
-    def forward(self, obs, actions, next_obs, enc_data, idx):
+    def forward(self, obs, actions, next_obs, enc_data, idx, infer_freq=0):
         # self.set_z(enc_data, idx)
-        self.infer_posterior(enc_data)
-        return self.infer(obs, actions, next_obs)
+        self.infer_posterior(enc_data, infer_freq)
+        return self.infer(obs, actions, next_obs, infer_freq=infer_freq)
 
     def infer(self, obs, actions, next_obs, task_z=None, infer_freq=0):
         '''
@@ -299,7 +299,7 @@ class ProtoAgent(nn.Module):
             if task_z is None:
                 task_z = self.z # ntask,z_dim
                 task_z = task_z.unsqueeze(-2) # ntask,1,z_dim
-                task_z = task_z.repeat(1,bs,1).view(-1,1) # ntask*bs
+                task_z = task_z.repeat(1,bs,1).view(-1,self.z_dim) # ntask*bs
         else:
             if task_z is None: task_z = self.z
             obs = obs.unsqueeze(1) # ntask,nupdate,bs,dim
