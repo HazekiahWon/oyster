@@ -33,7 +33,8 @@ class AntGoalEnv(MultitaskAntEnv):
         v2 = np.random.random(num_tasks)
         r = 3 * v2 ** 0.5
         goals = np.stack((r * np.cos(a), r * np.sin(a)), axis=-1)
-        tasks = [{'goal': goal, 'variation':np.array((v11, v22))} for goal,v11,v22 in zip(goals,v1,v2)]
+        v1,v2 = [(2*m-m.max()-m.min())/(m.max()-m.min()) for m in [v1,v2]]
+        tasks = [{'goal': goal, 'variation':np.array((v11,v22))} for goal,v11,v22 in zip(goals,v1,v2)]
         # tasks = [{'goal': goal, 'variation': np.array((ae,re,re*np.cos(ae),re*np.sin(ae)))} for goal, ae,re in zip(goals, a, r)]
         return tasks
 
