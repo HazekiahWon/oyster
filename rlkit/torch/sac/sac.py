@@ -438,7 +438,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.use_explorer:
             ## TODO: combination, distribution
             if self.eq_enc and self.sar2gam:
-                rew_enc = -gam_rew
+                rew1 = -gam_rew
+                rew2 = -.01*qerr_agt - g_rec - kl_o # combination
+                rew_enc = rew1+rew2
             else:
                 # qloss_agt, rec_loss, kl div
                 ## TODO if the density ratio is added to kl div2, this may also change
@@ -470,6 +472,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.writer.add_histogram('logp_exp', exp_log_pi, step)
                 self.writer.add_histogram('a_logp', new_a_logp_agt, step)
                 if self.dif_policy==1: self.writer.add_histogram('e_logp', pout_agt[-1], step)
+                if self.sar2gam:
+                    self.writer.add_histogram('trans_rew', rew1, step)
+                    self.writer.add_histogram('batch_rew',rew2, step)
             self.writer.add_scalar('qf_exp', qf_exp, step)
             self.writer.add_scalar('vf_exp', vf_exp, step)
         #################################

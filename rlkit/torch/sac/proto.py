@@ -63,8 +63,10 @@ class ProtoAgent(nn.Module):
         # initialize task embedding to zero
         # (task, latent dim)
         self.register_buffer('z', torch.zeros(1, z_dim))
+        self.register_buffer('z_means', torch.zeros(1, z_dim))
+        self.register_buffer('z_vars', torch.zeros(1, z_dim))
         # for incremental update, must keep track of number of datapoints accumulated
-        self.register_buffer('num_z', torch.zeros(1))
+        # self.register_buffer('num_z', torch.zeros(1))
 
         # initialize posterior to the prior
         # if self.use_ib:
@@ -140,21 +142,43 @@ class ProtoAgent(nn.Module):
         else: self.context = torch.cat([self.context, data], dim=1)
         # self.update_z(data)
 
-    def infer_posterior(self, context):
-        ''' compute q(z|c) as a function of input context and sample new z from it'''
+    def infer_posterior(self, context, infer_freq=0):
+        ''' compute q(z|c) as a function of input context and sample new z from it
+        return nb,zdim if inferfreq==0 else nb,nupdate,zdim
+        '''
         if self.confine_num_c: context = random_choice(context)
         params = self.task_enc(context)
         params = params.view(context.size(0), -1, self.task_enc.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)
-        if self.use_ib:
-            mu = params[..., :self.z_dim]
-            sigma_squared = F.softplus(params[..., self.z_dim:])
+        # if self.use_ib:
+        mu = params[..., :self.z_dim]
+        sigma_squared = F.softplus(params[..., self.z_dim:])
+        if infer_freq==0:
             z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
-            self.z_means = torch.stack([p[0] for p in z_params])
-            self.z_vars = torch.stack([p[1] for p in z_params])
-        # sum rather than product of gaussians structure
+            mp, sp = zip(*z_params)
+            self.z_means = torch.stack(mp)# b,num,zdim
+            self.z_vars = torch.stack(sp)
         else:
-            self.z_means = torch.mean(params, dim=1)
+            z_mparams_list, z_sparams_list = list(),list()
+
+            num = context.size(0)
+            start = 0
+            m = torch.unbind(mu)
+            s = torch.unbind(sigma_squared)
+            while start<num:
+                # alist of b list of mean and variance
+                z_params = [_product_of_gaussians(mm[start:min(num,start+infer_freq)], ss[start:min(num,start+infer_freq)]) for mm, ss in zip(m,s)]
+                mp,sp = zip(*z_params)
+                z_mparams_list.append(torch.stack(mp))# a list of a list of b tasks'z posterior params
+                z_sparams_list.append(torch.stack(sp))
+                start += infer_freq
+            # numupdate,b,zdim > nb,zdim
+            self.z_means = torch.stack(z_mparams_list,dim=1)#.view(-1,self.z_dim)
+            self.z_vars = torch.stack(z_sparams_list,dim=1)#.view(-1,self.z_dim)
+
+        # sum rather than product of gaussians structure
+        # else:
+        #     self.z_means = torch.mean(params, dim=1)
         self.sample_z()
 
     def sample_z(self, batch=None, z_means=None):
@@ -258,7 +282,7 @@ class ProtoAgent(nn.Module):
         self.infer_posterior(enc_data)
         return self.infer(obs, actions, next_obs)
 
-    def infer(self, obs, actions, next_obs, task_z=None):
+    def infer(self, obs, actions, next_obs, task_z=None, infer_freq=0):
         '''
         compute predictions of SAC networks for update
 
@@ -267,14 +291,25 @@ class ProtoAgent(nn.Module):
         the returned task_z is txb,dim
         '''
 
-        t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
-        actions = actions.view(t * b, -1)
-        next_obs = next_obs.view(t * b, -1)
-        if task_z is None:
-            task_z = self.z
-            task_z = [z.repeat(b, 1) for z in task_z]
-            task_z = torch.cat(task_z, dim=0)
+        ntask, bs, _ = obs.size()
+        if infer_freq==0:
+            obs = obs.view(ntask * bs, -1)
+            actions = actions.view(ntask * bs, -1)
+            next_obs = next_obs.view(ntask * bs, -1)
+            if task_z is None:
+                task_z = self.z # ntask,z_dim
+                task_z = task_z.unsqueeze(-2) # ntask,1,z_dim
+                task_z = task_z.repeat(1,bs,1).view(-1,1) # ntask*bs
+        else:
+            if task_z is None: task_z = self.z
+            obs = obs.unsqueeze(1) # ntask,nupdate,bs,dim
+            obs = obs.repeat(1,task_z.size(1),1,1)
+            actions = actions.unsqueeze(1)
+            actions = actions.repeat(1,task_z.size(1),1,1)
+            task_z.unsqueeze(-2)
+            task_z.repeat(1,1,bs,1)
+            # task_z = [z.repeat(bs, 1) for z in task_z]
+            # task_z = torch.cat(task_z, dim=0)
 
         # Q and V networks
         # encoder will only get gradients from Q nets
