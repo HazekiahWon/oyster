@@ -41,8 +41,8 @@ def datetimestamp(divider=''):
 def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, confine_num_c, eq_enc, infer_freq,
                rew_mode, sar2gam, exp_offp,
                configs):
-    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim','sample_mode','debug']
-    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim, sample_mode, debug = [configs.get(k) for k in keynames]
+    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim','sample_mode']
+    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim, sample_mode = [configs.get(k) for k in keynames]
     Env = env_cls[exp_id]
     task_params = variant['task_params']
     env = NormalizedBoxEnv(Env(n_tasks=task_params['n_tasks'], sample_mode=sample_mode))
