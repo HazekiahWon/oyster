@@ -2,6 +2,8 @@ from rlkit.torch.sac.policies import *
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.proto import ProtoAgent
 from torch import nn
+def identity(x): return x
+
 def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
                dif_policy=False, obs_emb=False, task_enc=None, gt_ae=None, confine_num_c=False, eq_enc=False,
                sar2gam=False):
@@ -128,7 +130,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                 hidden_sizes=z2gam,  # deeper net + higher dim space generalize better
                 input_size=task_enc_output_dim // 2,
                 output_size=gamma_dim,
-                output_activation=torch.tanh if gam_act=='tanh' else lambda x: x,
+                output_activation=torch.tanh if gam_act=='tanh' else identity,
                 # output_activation=nn.Softmax(dim=-1), # predict as label
                 # hidden_init=nn.init.xavier_normal_,
                 # layer_norm=True
@@ -139,7 +141,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
                     hidden_sizes=ci2gam,  # deeper net + higher dim space generalize better
                     input_size=obs_dim+action_dim+reward_dim,
                     output_size=gamma_dim,
-                    output_activation=torch.tanh if gam_act == 'tanh' else lambda x: x
+                    output_activation=torch.tanh if gam_act == 'tanh' else identity
                     # output_activation=nn.Softmax(dim=-1), # predict as label
                     # hidden_init=nn.init.xavier_normal_,
                     # layer_norm=True
