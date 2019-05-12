@@ -58,7 +58,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
     reward_dim = 1
 
     gamma_dim = gamma_dim if use_ae or eq_enc else None # only velocity
-    if not isinstance(gamma_dim, int):
+    if gamma_dim is not None and not isinstance(gamma_dim, int):
         gamma_dim = gamma_dim[sample_mode]
 
     net_size = variant['net_size']
