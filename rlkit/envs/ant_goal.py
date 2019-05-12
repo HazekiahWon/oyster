@@ -27,15 +27,18 @@ class AntGoalEnv(MultitaskAntEnv):
             reward_survive=survive_reward,
         )
 
-    def sample_tasks(self, num_tasks):
+    def sample_tasks(self, num_tasks, mode=0):
         v1 = np.random.random(num_tasks)
         a = v1 * 2 * np.pi
         v2 = np.random.random(num_tasks)
         r = 3 * v2 ** 0.5
         goals = np.stack((r * np.cos(a), r * np.sin(a)), axis=-1)
         v1,v2 = [(2*m-m.max()-m.min())/(m.max()-m.min()) for m in [v1,v2]]
-        # tasks = [{'goal': goal, 'variation':np.array((v11,v22))} for goal,v11,v22 in zip(goals,v1,v2)]
-        tasks = [{'goal': goal, 'variation': np.array((ae,re,re*np.cos(ae),re*np.sin(ae)))} for goal, ae,re in zip(goals, a, r)]
+
+        if mode==0:
+            tasks = [{'goal': goal, 'variation': np.array((ae,re,re*np.cos(ae),re*np.sin(ae)))} for goal, ae,re in zip(goals, a, r)]
+        else: # normalized to use tanh. dim2
+            tasks = [{'goal': goal, 'variation':np.array((v11,v22))} for goal,v11,v22 in zip(goals,v1,v2)]
         return tasks
 
     def _get_obs(self):

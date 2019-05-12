@@ -41,11 +41,11 @@ def datetimestamp(divider=''):
 def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, confine_num_c, eq_enc, infer_freq,
                rew_mode, sar2gam, exp_offp,
                configs):
-    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim']
-    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim = [configs.get(k) for k in keynames]
+    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim','sample_mode']
+    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim, sample_mode = [configs.get(k) for k in keynames]
     Env = env_cls[exp_id]
     task_params = variant['task_params']
-    env = NormalizedBoxEnv(Env(n_tasks=task_params['n_tasks']))
+    env = NormalizedBoxEnv(Env(n_tasks=task_params['n_tasks'], sample_mode=sample_mode))
     # newenv = NormalizedBoxEnv(Env(n_tasks=task_params['n_tasks']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
@@ -58,6 +58,8 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
     reward_dim = 1
 
     gamma_dim = gamma_dim if use_ae or eq_enc else None # only velocity
+    if not isinstance(gamma_dim, int):
+        gamma_dim = gamma_dim[sample_mode]
 
     net_size = variant['net_size']
     # start with linear task encoding

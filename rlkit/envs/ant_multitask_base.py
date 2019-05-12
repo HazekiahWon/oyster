@@ -4,9 +4,9 @@ from rlkit.envs.ant import AntEnv
 # from gym.envs.mujoco.ant import AntEnv
 
 class MultitaskAntEnv(AntEnv):
-    def __init__(self, task={}, n_tasks=2, **kwargs):
+    def __init__(self, task={}, n_tasks=2, sample_mode=0, **kwargs):
         self._task = task
-        self.tasks = self.sample_tasks(n_tasks)
+        self.tasks = self.sample_tasks(n_tasks, sample_mode)
         self._goal = self.tasks[0]['goal']
         super(MultitaskAntEnv, self).__init__(**kwargs)
     

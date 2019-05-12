@@ -6,9 +6,10 @@
   "gamma_dim": 65,
   "z_dim": 5,
   "eta_dim": 10,
+  "sample_mode": 0,
   "z2gam": [200,200,200],
   "ci2gam": [200,200,200],
   "gam2z": [200,200,200],
   "num_iters": 500,
-  "gam_act": "tanh"
+  "gamma_act": "",
 }

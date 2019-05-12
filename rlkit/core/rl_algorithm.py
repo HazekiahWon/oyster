@@ -9,6 +9,7 @@ from rlkit.core import logger
 from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 
 from rlkit.data_management.path_builder import PathBuilder
+import rlkit.torch.pytorch_util as ptu
 from rlkit.policies.base import ExplorationPolicy
 from rlkit.samplers.in_place import InPlacePathSampler
 from tensorboardX import SummaryWriter
@@ -39,6 +40,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             replay_buffer_size=100000,
             reward_scale=1,
             exp_err_scale=.1,
+            dis_fac=(1. / .99),
             train_embedding_source='posterior_only',
             eval_embedding_source='online',
             eval_deterministic=True,
@@ -107,6 +109,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.gamma_dim = gamma_dim
         self.exp_offp = exp_offp
         self.infer_freq = infer_freq
+        self.num_updates = (self.batch_size-1)//infer_freq+1
+
+        factors = [1.] + [dis_fac for _ in range(self.num_updates - 1)]
+        factors = np.cumproduct(factors)
+        self.factors = ptu.from_numpy(factors).view(-1, 1)
         if not self.use_explorer:
             self.explorer = agent
             self.eval_sampler = InPlacePathSampler(

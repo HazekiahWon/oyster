@@ -10,9 +10,9 @@
   "num_iters": 500,
   "z_dim": 5,
   "eta_dim": 32,
+  "sample_mode": 0,
   "obsemb_sizes": [64],
   "obs_emb_dim": 0,
   "etanet_sizes": [128,64],
   "anet_sizes": [300,300,300],
-  "gam_act": ""
 }

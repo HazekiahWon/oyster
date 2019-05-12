@@ -263,8 +263,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         else:
             q1_err = self.mse_crit(q1_pred, q_target.detach(), dim_start=2, return_red=False) # q1pred:13,5,256,1 > 13,5,1
             q2_err = self.mse_crit(q2_pred, q_target.detach(), dim_start=2, return_red=False)
-            q1_loss = torch.mean(q1_err[-1])
-            q2_loss = torch.mean(q2_err[-1])
+            # if allow the loss include inferior version of z, may help the actor when inference budget is limited
+            # as the q function is learned with inferior version of z
+            # can add discounting factors
+            q1_loss = torch.mean(q1_err)
+            q2_loss = torch.mean(q2_err)
         return q1_err + q2_err, q1_loss + q2_loss
 
     def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, v_pred, pout, dif_policy=0, alpha=1):
@@ -455,6 +458,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 else:
                     # TODO add discounting factor
                     tmp =  -.01*qerr_agt.squeeze(-1) - g_rec.view(-1,num_tasks) - kl_o.view(-1,num_tasks) # nup, ntask
+                    tmp = tmp*self.factors
                     tmp = tmp.repeat(self.infer_freq,1)[:self.batch_size] # bs,ntask,1
                     rew2 = tmp.transpose(1,0) # ntask,bs
                 rew_enc = rew1+rew2
