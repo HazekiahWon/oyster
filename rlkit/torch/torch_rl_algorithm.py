@@ -112,6 +112,46 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                                                        resample=np.inf) # eval_sampler is also explorer for pearl
         return test_paths,n_steps
 
+    def online_test_paths_exp(self, idx, eval_task=False, deterministic=False):
+        '''
+        for actor-explorer:
+            1. explorer collect traj, defaut 1.
+            2. explorer update z with the collected trans
+            3. explorer transmit z posterior to the actor
+            4. actor collect traj for evaluation
+        '''
+
+        self.explorer.clear_z()
+        # i think explorer should not be deterministic
+        num_exp = self.num_exp_traj_eval
+        for _ in range(num_exp):
+            # whether the exp update once every traj is determined by the infer freq
+            # resample doesnt matter cuz max_traj is set 1
+            test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False,
+                                                              accum_context=self.infer_freq!=0, infer_freq=self.infer_freq, # if infer freq==0 willnot accum
+                                                              max_samples=self.max_path_length,
+                                                              max_trajs=1,
+                                                              resample=np.inf)  # eval_sampler is also explorer for pearl
+
+            test_paths = test_paths[0]
+            o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
+            if self.infer_freq==0:
+                self.explorer.update_context([o, a, r, None, None])
+            self.explorer.infer_posterior(self.explorer.context)
+            if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
+        self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
+        test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+                                                                accum_context=False, infer_freq=0,
+                                                                max_samples=self.max_path_length,
+                                                                max_trajs=1,
+                                                                resample=np.inf)  # eval_sampler is also explorer for pearl
+
+        if not eval_task: self.replay_buffer.add_paths(idx, test_paths)
+        # if self.sparse_rewards:
+        #     for p in test_paths:
+        #         p['rewards'] = ptu.sparsify_rewards(p['rewards'])
+        return test_paths, n_steps
+
     def online_eval_paths_exp(self, idx, eval_task=False, deterministic=False):
         '''
         for actor-explorer:
@@ -135,7 +175,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
             test_paths = test_paths[0]
             o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
-            self.explorer.update_context([o, a, r, None, None])
+            if self.infer_freq==0:
+                self.explorer.update_context([o, a, r, None, None])
             self.explorer.infer_posterior(self.explorer.context)
             if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
         self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
