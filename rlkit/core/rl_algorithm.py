@@ -109,11 +109,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.gamma_dim = gamma_dim
         self.exp_offp = exp_offp
         self.infer_freq = infer_freq
-        self.num_updates = (self.batch_size-1)//infer_freq+1
+        if infer_freq!=0:
+            self.num_updates = (self.batch_size-1)//infer_freq+1
 
-        factors = [1.] + [dis_fac for _ in range(self.num_updates - 1)]
-        factors = np.cumproduct(factors)
-        self.factors = ptu.from_numpy(factors).view(-1, 1)
+            factors = [1.] + [dis_fac for _ in range(self.num_updates - 1)]
+            factors = np.cumproduct(factors)
+            self.factors = ptu.from_numpy(factors).view(-1, 1)
         if not self.use_explorer:
             self.explorer = agent
             self.eval_sampler = InPlacePathSampler(
