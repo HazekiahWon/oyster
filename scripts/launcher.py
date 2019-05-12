@@ -10,6 +10,7 @@ sys.path.append('/home/zhjl/oyster')
 import joblib
 from scripts.shared import setup_nets
 resume = False
+
 # exp_id = 'half-cheetah-vel'
 # exp_d = 'pearl-190501-223401'
 # resume_dir = os.path.join('output',f'{exp_id}',f'{exp_d}','params.pkl') # scripts/output/ant-goal/pearl-190417-112013
@@ -68,7 +69,8 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
     memo = ''
     explorer = None
     if (resume or test) and resume_dir is not None:
-        ret = joblib.load(resume_dir)
+        di = os.path.join(os.getcwd(),resume_dir,'params.pkl')
+        ret = joblib.load(di)
         agent_ = ret['actor'] # the old version : exploration policy
         memo += f'this exp resumes {resume_dir}\n'
     # else:
@@ -104,9 +106,9 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
 
     if ptu.gpu_enabled():
         algorithm.to()
-    # if test: algorithm.test(newenv)
-    # else:
-    algorithm.train(fast_debug=debug and fast_debug)
+    if test: algorithm.test(None)
+    else:
+        algorithm.train(fast_debug=debug and fast_debug)
 
 @click.command()
 @click.argument('config', default=None, type=str)
@@ -127,7 +129,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
-@click.option('--test', default=False, is_flag=True)
+@click.option('--test', default=True, is_flag=True)
 def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp, confine_num_c, eq_enc, infer_freq, rew_mode, sar2gam, num_exp,
          fast_debug, note, resume, docker, test):
     configs = dict() # use a default json

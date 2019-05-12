@@ -4,7 +4,7 @@ from typing import Iterable
 import pickle
 
 import numpy as np
-
+import torch
 from rlkit.core import logger
 from rlkit.core.eval_util import dprint
 from rlkit.core.rl_algorithm import MetaRLAlgorithm
@@ -137,20 +137,24 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
             if self.infer_freq==0:
                 self.explorer.update_context([o, a, r, None, None])
-            self.explorer.infer_posterior(self.explorer.context)
-            if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
-        self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
-        test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
-                                                                accum_context=False, infer_freq=0,
-                                                                max_samples=self.max_path_length,
-                                                                max_trajs=1,
-                                                                resample=np.inf)  # eval_sampler is also explorer for pearl
+            self.explorer.infer_posterior(self.explorer.context, infer_freq=self.infer_freq)
+            # if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
+        z_means = self.explorer.z_means.view(-1,1,self.explorer.z_dim)
+        z_vars = self.explorer.z_vars.view(-1,1,self.explorer.z_dim) # nup,1,5
+        paths = list()
+        for z_mean,z_var in zip(torch.unbind(z_means),torch.unbind(z_vars)):
 
-        if not eval_task: self.replay_buffer.add_paths(idx, test_paths)
-        # if self.sparse_rewards:
-        #     for p in test_paths:
-        #         p['rewards'] = ptu.sparsify_rewards(p['rewards'])
-        return test_paths, n_steps
+            self.agent.trans_z(z_mean,z_var) # nup*ntask,5
+            test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+                                                                    accum_context=False, infer_freq=0,
+                                                                    max_samples=self.max_path_length,
+                                                                    max_trajs=1,
+                                                                    resample=np.inf)  # eval_sampler is also explorer for pearl
+            paths.append(test_paths[0])
+
+        returns = [sum(path["rewards"]) for path in paths]
+
+        return returns
 
     def online_eval_paths_exp(self, idx, eval_task=False, deterministic=False):
         '''
@@ -460,7 +464,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         online_returns = []
         for idx in indices:
             # runs, all_rets = [], []
-            all_rets = self.collect_test_paths(idx, max_attempt=5)
+            all_rets = self.online_test_paths_exp(idx, False, True)
             # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.
             # final_returns.append(all_rets[-1])
             online_returns.append(all_rets)
@@ -647,16 +651,18 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if self.eval_statistics is None:
             self.eval_statistics = OrderedDict()
 
-        indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
+        indices = np.random.choice(self.train_tasks, len(self.eval_tasks), replace=False)
         eval_util.dprint('testing on {} train tasks'.format(len(indices)))
         ### eval train tasks with on-policy data to match eval of test tasks
         train_online_returns = self._do_test(indices)
+        print(train_online_returns)
         eval_util.dprint('train online returns')
         eval_util.dprint(train_online_returns)
 
         ### test tasks
         eval_util.dprint('testing on {} test tasks'.format(len(self.eval_tasks)))
         test_online_returns = self._do_test(self.eval_tasks)
+        print(test_online_returns)
         eval_util.dprint('test online returns')
         eval_util.dprint(test_online_returns)
 
@@ -683,7 +689,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # if self.plotter:
         #     self.plotter.draw()
 
-        return avg_train_online_return, avg_test_online_return
+        return train_online_returns, test_online_returns
         # statistics = OrderedDict()
         # if self.eval_statistics is not None:
         #     statistics.update(self.eval_statistics)

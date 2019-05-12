@@ -43,6 +43,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
+        path_length += 1
         if need_cupdate:
             agent.update_context([o, a, r, next_o, d])
             if infer_freq>0 and path_length%infer_freq==0:
@@ -55,7 +56,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
         actions.append(a)
         agent_infos.append(agent_info)
         env_infos.append(env_info)
-        path_length += 1
+
         if d:
             break
         o = next_o

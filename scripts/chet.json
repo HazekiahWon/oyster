@@ -1,6 +1,6 @@
 {
   "exp_id": "cheetah-vel",
-  "resume_dir": "",
+  "resume_dir": "pearl-190512-144738",
   "num_tasks": 130,
   "num_eval_tasks": 30,
   "gamma_dim": 1,
