@@ -201,9 +201,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         inp = torch.cuda.FloatTensor(var)
         return inp
 
-    def pretrain(self):
-        pass
-
     def train(self, fast_debug=False):
         '''
         meta-training loop
