@@ -453,15 +453,16 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             ## TODO: combination, distribution
             if self.eq_enc and self.sar2gam:
                 rew1 = -gam_rew
-                if self.infer_freq==0:
-                    rew2 = -.01*qerr_agt - g_rec - kl_o # combination
-                else:
-                    # TODO add discounting factor
-                    tmp =  -.01*qerr_agt.squeeze(-1) - g_rec.view(-1,num_tasks) - kl_o.view(-1,num_tasks) # nup, ntask
-                    tmp = tmp*self.factors
-                    tmp = tmp.repeat(self.infer_freq,1)[:self.batch_size] # bs,ntask,1
-                    rew2 = tmp.transpose(1,0) # ntask,bs
-                rew_enc = rew1+rew2
+                if self.rew_mode==1: # combination reward mode
+                    if self.infer_freq==0:
+                        rew2 = -.01*qerr_agt - g_rec - kl_o # combination
+                    else:
+                        tmp =  -.01*qerr_agt.squeeze(-1) - g_rec.view(-1,num_tasks) - kl_o.view(-1,num_tasks) # nup, ntask
+                        tmp = tmp*self.factors
+                        tmp = tmp.repeat(self.infer_freq,1)[:self.batch_size] # bs,ntask,1
+                        rew2 = tmp.transpose(1,0) # ntask,bs
+                    rew_enc = rew1+rew2
+                else: rew_enc = rew1
             else:
                 # qloss_agt, rec_loss, kl div
                 ## TODO if the density ratio is added to kl div2, this may also change
