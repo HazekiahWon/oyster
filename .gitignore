@@ -5,6 +5,7 @@
 __pycache__
 
 *.npy
+*pkl
 
 *.swp
 *.swo
