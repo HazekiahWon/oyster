@@ -502,7 +502,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 if self.dif_policy==1: self.writer.add_histogram('e_logp', pout_agt[-1], step)
                 if self.sar2gam:
                     self.writer.add_histogram('trans_rew', rew1, step)
-                    self.writer.add_histogram('batch_rew',rew2, step)
+                    if self.rew_mode==1: self.writer.add_histogram('batch_rew',rew2, step)
             self.writer.add_scalar('qf_exp', qf_exp, step)
             self.writer.add_scalar('vf_exp', vf_exp, step)
         #################################
