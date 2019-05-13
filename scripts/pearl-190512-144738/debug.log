@@ -1,0 +1,2468 @@
+2019-05-12 14:47:42.373847 CST | [pearl-190512-144738] [cheetah-vel] this exp wants to infer freq 20, disc .99, q loss include inferior z
+2019-05-12 14:47:42.869193 CST | [pearl-190512-144738] Iteration #0 | collecting initial pool of data for train and eval
+2019-05-12 14:53:26.738009 CST | [pearl-190512-144738] Iteration #0 | pretraining
+2019-05-12 14:53:31.118905 CST | [pearl-190512-144738] Iteration #0 | iteration 0.
+----------------------------------  ----------------
+Z mean train                             0.00352977
+Z variance train                         0.186179
+KL Divergence                           44.7365
+KL Loss                                 52.8939
+QF Loss                                271.96
+VF Loss                                 16.2133
+Policy Loss                             -3.99497
+Q Predictions Mean                      -0.00207269
+Q Predictions Std                        0.00240097
+Q Predictions Max                        0.00433681
+Q Predictions Min                       -0.0113003
+V Predictions Mean                       0.00445883
+V Predictions Std                        0.00333755
+V Predictions Max                        0.0132548
+V Predictions Min                       -0.00588655
+Log Pis Mean                            -4.01892
+Log Pis Std                              0.537627
+Log Pis Max                             -1.96027
+Log Pis Min                             -6.87024
+Policy mu Mean                          -0.000816125
+Policy mu Std                            0.00113044
+Policy mu Max                            0.00291258
+Policy mu Min                           -0.00436589
+Policy log std Mean                      0.00089889
+Policy log std Std                       0.000980492
+Policy log std Max                       0.00503795
+Policy log std Min                      -0.00213507
+AverageTrainReturn_all_train_tasks    -272.274
+AverageReturn_all_train_tasks         -271.08
+AverageReturn_all_test_tasks          -232.306
+Number of train steps total           4000
+Number of env steps total           404000
+Number of rollouts total                 0
+Train Time (s)                        1827.18
+(Previous) Eval Time (s)                 0
+Sample Time (s)                        348.244
+Epoch Time (s)                        2175.43
+Total Train Time (s)                  2218.81
+Epoch                                    0
+----------------------------------  ----------------
+2019-05-12 15:24:41.684459 CST | [pearl-190512-144738] Iteration #0 | Epoch Duration: 2218.816483974457
+2019-05-12 15:24:41.684921 CST | [pearl-190512-144738] Iteration #0 | Started Training: True
+2019-05-12 15:24:45.530344 CST | [pearl-190512-144738] Iteration #1 | iteration 1.
+----------------------------------  --------------
+Z mean train                             0.130506
+Z variance train                         0.805873
+KL Divergence                           36.7987
+KL Loss                                 36.9552
+QF Loss                                 45.0208
+VF Loss                                  5.11603
+Policy Loss                             70.5533
+Q Predictions Mean                     -76.8767
+Q Predictions Std                       50.9311
+Q Predictions Max                        0.192264
+Q Predictions Min                     -219.207
+V Predictions Mean                     -70.6894
+V Predictions Std                       50.1615
+V Predictions Max                        2.14317
+V Predictions Min                     -210.074
+Log Pis Mean                            -2.37847
+Log Pis Std                              1.9127
+Log Pis Max                              7.17509
+Log Pis Min                            -14.0934
+Policy mu Mean                           0.167391
+Policy mu Std                            0.581603
+Policy mu Max                            1.95827
+Policy mu Min                           -1.79336
+Policy log std Mean                     -0.317862
+Policy log std Std                       0.139468
+Policy log std Max                       0.0255883
+Policy log std Min                      -0.837511
+AverageTrainReturn_all_train_tasks    -233.098
+AverageReturn_all_train_tasks         -232.017
+AverageReturn_all_test_tasks          -209.417
+Number of train steps total           8000
+Number of env steps total           408000
+Number of rollouts total                 0
+Train Time (s)                        1832.17
+(Previous) Eval Time (s)                43.3829
+Sample Time (s)                          3.84502
+Epoch Time (s)                        1879.4
+Total Train Time (s)                  4097.62
+Epoch                                    1
+----------------------------------  --------------
+2019-05-12 15:56:00.499274 CST | [pearl-190512-144738] Iteration #1 | Epoch Duration: 1878.814120054245
+2019-05-12 15:56:00.499951 CST | [pearl-190512-144738] Iteration #1 | Started Training: True
+2019-05-12 15:56:04.554983 CST | [pearl-190512-144738] Iteration #2 | iteration 2.
+----------------------------------  -------------
+Z mean train                             0.166968
+Z variance train                         0.808854
+KL Divergence                           42.1559
+KL Loss                                 42.2537
+QF Loss                                 55.959
+VF Loss                                  7.15982
+Policy Loss                             87.8881
+Q Predictions Mean                     -94.4149
+Q Predictions Std                       97.2303
+Q Predictions Max                       10.919
+Q Predictions Min                     -366.674
+V Predictions Mean                     -88.2459
+V Predictions Std                       96.7166
+V Predictions Max                       14.3224
+V Predictions Min                     -361.588
+Log Pis Mean                            -2.11279
+Log Pis Std                              2.09271
+Log Pis Max                              8.50135
+Log Pis Min                            -11.292
+Policy mu Mean                           0.062567
+Policy mu Std                            0.616546
+Policy mu Max                            2.25733
+Policy mu Min                           -2.09746
+Policy log std Mean                     -0.388858
+Policy log std Std                       0.199501
+Policy log std Max                       0.378376
+Policy log std Min                      -1.15309
+AverageTrainReturn_all_train_tasks    -140.124
+AverageReturn_all_train_tasks         -141.336
+AverageReturn_all_test_tasks          -139.08
+Number of train steps total          12000
+Number of env steps total           412000
+Number of rollouts total                 0
+Train Time (s)                        1830.41
+(Previous) Eval Time (s)                42.7986
+Sample Time (s)                          4.05468
+Epoch Time (s)                        1877.26
+Total Train Time (s)                  5972.73
+Epoch                                    2
+----------------------------------  -------------
+2019-05-12 16:27:15.608908 CST | [pearl-190512-144738] Iteration #2 | Epoch Duration: 1875.1087477207184
+2019-05-12 16:27:15.609511 CST | [pearl-190512-144738] Iteration #2 | Started Training: True
+2019-05-12 16:27:19.800022 CST | [pearl-190512-144738] Iteration #3 | iteration 3.
+----------------------------------  --------------
+Z mean train                             0.213268
+Z variance train                         0.776378
+KL Divergence                           47.9262
+KL Loss                                 47.9662
+QF Loss                                 67.2306
+VF Loss                                 13.6053
+Policy Loss                            170.947
+Q Predictions Mean                    -177.789
+Q Predictions Std                      130.357
+Q Predictions Max                       23.9829
+Q Predictions Min                     -490.483
+V Predictions Mean                    -172.413
+V Predictions Std                      130.893
+V Predictions Max                       26.7341
+V Predictions Min                     -489.41
+Log Pis Mean                            -1.56813
+Log Pis Std                              2.2938
+Log Pis Max                              8.01193
+Log Pis Min                            -12.0366
+Policy mu Mean                          -0.0250517
+Policy mu Std                            0.708205
+Policy mu Max                            2.1802
+Policy mu Min                           -2.3523
+Policy log std Mean                     -0.419743
+Policy log std Std                       0.230938
+Policy log std Max                       0.300735
+Policy log std Min                      -1.63156
+AverageTrainReturn_all_train_tasks    -105.102
+AverageReturn_all_train_tasks         -104.469
+AverageReturn_all_test_tasks          -109.67
+Number of train steps total          16000
+Number of env steps total           416000
+Number of rollouts total                 0
+Train Time (s)                        1829.23
+(Previous) Eval Time (s)                40.643
+Sample Time (s)                          4.18982
+Epoch Time (s)                        1874.07
+Total Train Time (s)                  7850.99
+Epoch                                    3
+----------------------------------  --------------
+2019-05-12 16:58:33.864635 CST | [pearl-190512-144738] Iteration #3 | Epoch Duration: 1878.2546792030334
+2019-05-12 16:58:33.865128 CST | [pearl-190512-144738] Iteration #3 | Started Training: True
+2019-05-12 16:58:37.758898 CST | [pearl-190512-144738] Iteration #4 | iteration 4.
+----------------------------------  ----------------
+Z mean train                             0.022925
+Z variance train                         0.790161
+KL Divergence                           48.8239
+KL Loss                                 48.8952
+QF Loss                                 46.213
+VF Loss                                 10.2756
+Policy Loss                            162.656
+Q Predictions Mean                    -170.908
+Q Predictions Std                      153.524
+Q Predictions Max                       45.9422
+Q Predictions Min                     -545.479
+V Predictions Mean                    -163.749
+V Predictions Std                      151.886
+V Predictions Max                       48.8224
+V Predictions Min                     -531.914
+Log Pis Mean                            -1.55753
+Log Pis Std                              2.34832
+Log Pis Max                              9.90606
+Log Pis Min                            -11.9926
+Policy mu Mean                          -2.61002e-06
+Policy mu Std                            0.712579
+Policy mu Max                            2.29595
+Policy mu Min                           -2.29794
+Policy log std Mean                     -0.410284
+Policy log std Std                       0.231706
+Policy log std Max                       0.180142
+Policy log std Min                      -1.68851
+AverageTrainReturn_all_train_tasks     -96.7376
+AverageReturn_all_train_tasks          -94.2032
+AverageReturn_all_test_tasks           -96.2675
+Number of train steps total          20000
+Number of env steps total           420000
+Number of rollouts total                 0
+Train Time (s)                        1830.85
+(Previous) Eval Time (s)                44.8305
+Sample Time (s)                          3.89338
+Epoch Time (s)                        1879.58
+Total Train Time (s)                  9727.87
+Epoch                                    4
+----------------------------------  ----------------
+2019-05-12 17:29:50.748308 CST | [pearl-190512-144738] Iteration #4 | Epoch Duration: 1876.882972240448
+2019-05-12 17:29:50.748775 CST | [pearl-190512-144738] Iteration #4 | Started Training: True
+2019-05-12 17:29:54.378747 CST | [pearl-190512-144738] Iteration #5 | iteration 5.
+----------------------------------  --------------
+Z mean train                             0.127123
+Z variance train                         0.78789
+KL Divergence                           47.8009
+KL Loss                                 47.878
+QF Loss                                 59.3317
+VF Loss                                 33.6582
+Policy Loss                            191.794
+Q Predictions Mean                    -198.755
+Q Predictions Std                      174.342
+Q Predictions Max                       57.2218
+Q Predictions Min                     -723.646
+V Predictions Mean                    -195.472
+V Predictions Std                      175.019
+V Predictions Max                       60.0269
+V Predictions Min                     -735.514
+Log Pis Mean                            -1.5364
+Log Pis Std                              2.29816
+Log Pis Max                              7.8964
+Log Pis Min                            -12.1166
+Policy mu Mean                          -0.0111104
+Policy mu Std                            0.704204
+Policy mu Max                            2.35135
+Policy mu Min                           -2.22292
+Policy log std Mean                     -0.42616
+Policy log std Std                       0.239458
+Policy log std Max                       0.0828548
+Policy log std Min                      -1.7518
+AverageTrainReturn_all_train_tasks     -82.026
+AverageReturn_all_train_tasks          -77.9461
+AverageReturn_all_test_tasks           -79.1798
+Number of train steps total          24000
+Number of env steps total           424000
+Number of rollouts total                 0
+Train Time (s)                        1826.65
+(Previous) Eval Time (s)                42.1371
+Sample Time (s)                          3.62956
+Epoch Time (s)                        1872.42
+Total Train Time (s)                 11599.1
+Epoch                                    5
+----------------------------------  --------------
+2019-05-12 18:01:01.975756 CST | [pearl-190512-144738] Iteration #5 | Epoch Duration: 1871.2267334461212
+2019-05-12 18:01:01.976227 CST | [pearl-190512-144738] Iteration #5 | Started Training: True
+2019-05-12 18:01:05.596514 CST | [pearl-190512-144738] Iteration #6 | iteration 6.
+----------------------------------  --------------
+Z mean train                             0.10837
+Z variance train                         0.794805
+KL Divergence                           49.099
+KL Loss                                 49.1539
+QF Loss                                 45.5885
+VF Loss                                 12.1794
+Policy Loss                            166.646
+Q Predictions Mean                    -174.585
+Q Predictions Std                      195.791
+Q Predictions Max                       66.4101
+Q Predictions Min                     -845.058
+V Predictions Mean                    -168.039
+V Predictions Std                      194.998
+V Predictions Max                       70.8153
+V Predictions Min                     -850.357
+Log Pis Mean                            -1.94045
+Log Pis Std                              2.16566
+Log Pis Max                              8.01612
+Log Pis Min                            -11.7969
+Policy mu Mean                          -0.0226777
+Policy mu Std                            0.639022
+Policy mu Max                            2.3863
+Policy mu Min                           -2.23738
+Policy log std Mean                     -0.416954
+Policy log std Std                       0.23173
+Policy log std Max                       0.182482
+Policy log std Min                      -1.78964
+AverageTrainReturn_all_train_tasks     -75.3643
+AverageReturn_all_train_tasks          -73.1235
+AverageReturn_all_test_tasks           -76.4987
+Number of train steps total          28000
+Number of env steps total           428000
+Number of rollouts total                 0
+Train Time (s)                        1827.79
+(Previous) Eval Time (s)                40.943
+Sample Time (s)                          3.61986
+Epoch Time (s)                        1872.35
+Total Train Time (s)                 13475.8
+Epoch                                    6
+----------------------------------  --------------
+2019-05-12 18:32:18.719922 CST | [pearl-190512-144738] Iteration #6 | Epoch Duration: 1876.743437051773
+2019-05-12 18:32:18.720575 CST | [pearl-190512-144738] Iteration #6 | Started Training: True
+2019-05-12 18:32:22.624492 CST | [pearl-190512-144738] Iteration #7 | iteration 7.
+----------------------------------  -------------
+Z mean train                             0.220112
+Z variance train                         0.79346
+KL Divergence                           47.6866
+KL Loss                                 47.79
+QF Loss                                 37.4181
+VF Loss                                  8.79226
+Policy Loss                            125.527
+Q Predictions Mean                    -132.311
+Q Predictions Std                      205.088
+Q Predictions Max                       79.7678
+Q Predictions Min                     -835.329
+V Predictions Mean                    -125.119
+V Predictions Std                      202.785
+V Predictions Max                       82.6165
+V Predictions Min                     -834.425
+Log Pis Mean                            -2.2425
+Log Pis Std                              2.16021
+Log Pis Max                             10.0928
+Log Pis Min                            -10.5133
+Policy mu Mean                          -0.014671
+Policy mu Std                            0.598127
+Policy mu Max                            2.39875
+Policy mu Min                           -2.16349
+Policy log std Mean                     -0.375024
+Policy log std Std                       0.227513
+Policy log std Max                       0.312577
+Policy log std Min                      -1.79621
+AverageTrainReturn_all_train_tasks     -78.7315
+AverageReturn_all_train_tasks          -80.3328
+AverageReturn_all_test_tasks           -75.2016
+Number of train steps total          32000
+Number of env steps total           432000
+Number of rollouts total                 0
+Train Time (s)                        1833.7
+(Previous) Eval Time (s)                45.3375
+Sample Time (s)                          3.90348
+Epoch Time (s)                        1882.94
+Total Train Time (s)                 15357.4
+Epoch                                    7
+----------------------------------  -------------
+2019-05-12 19:03:40.267550 CST | [pearl-190512-144738] Iteration #7 | Epoch Duration: 1881.5466794967651
+2019-05-12 19:03:40.267953 CST | [pearl-190512-144738] Iteration #7 | Started Training: True
+2019-05-12 19:03:44.746033 CST | [pearl-190512-144738] Iteration #8 | iteration 8.
+----------------------------------  --------------
+Z mean train                             0.0834401
+Z variance train                         0.803441
+KL Divergence                           50.4883
+KL Loss                                 50.5719
+QF Loss                                 41.0191
+VF Loss                                  8.16638
+Policy Loss                            197.498
+Q Predictions Mean                    -204.334
+Q Predictions Std                      215.677
+Q Predictions Max                       71.4205
+Q Predictions Min                     -985.303
+V Predictions Mean                    -197.477
+V Predictions Std                      213.678
+V Predictions Max                       74.2095
+V Predictions Min                     -990.139
+Log Pis Mean                            -1.97573
+Log Pis Std                              2.1086
+Log Pis Max                              9.08335
+Log Pis Min                            -11.7836
+Policy mu Mean                          -0.0394456
+Policy mu Std                            0.627158
+Policy mu Max                            2.33841
+Policy mu Min                           -2.20488
+Policy log std Mean                     -0.427299
+Policy log std Std                       0.223706
+Policy log std Max                       0.104988
+Policy log std Min                      -1.83795
+AverageTrainReturn_all_train_tasks     -72.9541
+AverageReturn_all_train_tasks          -74.138
+AverageReturn_all_test_tasks           -74.1151
+Number of train steps total          36000
+Number of env steps total           436000
+Number of rollouts total                 0
+Train Time (s)                        1829.66
+(Previous) Eval Time (s)                43.9464
+Sample Time (s)                          4.47753
+Epoch Time (s)                        1878.08
+Total Train Time (s)                 17232.7
+Epoch                                    8
+----------------------------------  --------------
+2019-05-12 19:34:55.603523 CST | [pearl-190512-144738] Iteration #8 | Epoch Duration: 1875.3353431224823
+2019-05-12 19:34:55.603995 CST | [pearl-190512-144738] Iteration #8 | Started Training: True
+2019-05-12 19:34:59.702340 CST | [pearl-190512-144738] Iteration #9 | iteration 9.
+----------------------------------  --------------
+Z mean train                             0.259155
+Z variance train                         0.79603
+KL Divergence                           45.3933
+KL Loss                                 45.4575
+QF Loss                                 28.5139
+VF Loss                                  7.85034
+Policy Loss                             76.9841
+Q Predictions Mean                     -82.3372
+Q Predictions Std                      153.786
+Q Predictions Max                       77.5207
+Q Predictions Min                     -536.259
+V Predictions Mean                     -77.0296
+V Predictions Std                      153.847
+V Predictions Max                       83.5907
+V Predictions Min                     -538.551
+Log Pis Mean                            -2.3385
+Log Pis Std                              1.9395
+Log Pis Max                              8.45687
+Log Pis Min                            -11.4343
+Policy mu Mean                           0.0331987
+Policy mu Std                            0.558259
+Policy mu Max                            2.31035
+Policy mu Min                           -2.08188
+Policy log std Mean                     -0.415018
+Policy log std Std                       0.217342
+Policy log std Max                       0.128837
+Policy log std Min                      -2.07351
+AverageTrainReturn_all_train_tasks     -65.8595
+AverageReturn_all_train_tasks          -66.7679
+AverageReturn_all_test_tasks           -66.2571
+Number of train steps total          40000
+Number of env steps total           440000
+Number of rollouts total                 0
+Train Time (s)                        1836.16
+(Previous) Eval Time (s)                41.1998
+Sample Time (s)                          4.09782
+Epoch Time (s)                        1881.46
+Total Train Time (s)                 19117.5
+Epoch                                    9
+----------------------------------  --------------
+2019-05-12 20:06:20.353928 CST | [pearl-190512-144738] Iteration #9 | Epoch Duration: 1884.749665737152
+2019-05-12 20:06:20.354295 CST | [pearl-190512-144738] Iteration #9 | Started Training: True
+2019-05-12 20:06:24.765451 CST | [pearl-190512-144738] Iteration #10 | iteration 10.
+----------------------------------  --------------
+Z mean train                             0.151905
+Z variance train                         0.807947
+KL Divergence                           44.1066
+KL Loss                                 44.1549
+QF Loss                                 34.4906
+VF Loss                                 10.1498
+Policy Loss                            145.948
+Q Predictions Mean                    -153.577
+Q Predictions Std                      137.302
+Q Predictions Max                       76.5374
+Q Predictions Min                     -743.498
+V Predictions Mean                    -146.332
+V Predictions Std                      135.643
+V Predictions Max                       77.8649
+V Predictions Min                     -755.487
+Log Pis Mean                            -1.82065
+Log Pis Std                              2.16504
+Log Pis Max                              9.13359
+Log Pis Min                            -11.6331
+Policy mu Mean                          -0.0193977
+Policy mu Std                            0.652535
+Policy mu Max                            2.60203
+Policy mu Min                           -2.29069
+Policy log std Mean                     -0.439362
+Policy log std Std                       0.227099
+Policy log std Max                       0.325158
+Policy log std Min                      -1.7977
+AverageTrainReturn_all_train_tasks     -68.8606
+AverageReturn_all_train_tasks          -69.8527
+AverageReturn_all_test_tasks           -63.0986
+Number of train steps total          44000
+Number of env steps total           444000
+Number of rollouts total                 0
+Train Time (s)                        1833.31
+(Previous) Eval Time (s)                44.4894
+Sample Time (s)                          4.41073
+Epoch Time (s)                        1882.21
+Total Train Time (s)                 20998.6
+Epoch                                   10
+----------------------------------  --------------
+2019-05-12 20:37:41.480097 CST | [pearl-190512-144738] Iteration #10 | Epoch Duration: 1881.125619649887
+2019-05-12 20:37:41.480405 CST | [pearl-190512-144738] Iteration #10 | Started Training: True
+2019-05-12 20:37:45.640076 CST | [pearl-190512-144738] Iteration #11 | iteration 11.
+----------------------------------  --------------
+Z mean train                             0.0292862
+Z variance train                         0.778207
+KL Divergence                           43.7753
+KL Loss                                 43.844
+QF Loss                                 29.4586
+VF Loss                                  7.28017
+Policy Loss                             78.4879
+Q Predictions Mean                     -84.8825
+Q Predictions Std                      187.689
+Q Predictions Max                       98.621
+Q Predictions Min                    -1065.91
+V Predictions Mean                     -79.0786
+V Predictions Std                      186
+V Predictions Max                      102.526
+V Predictions Min                    -1065.82
+Log Pis Mean                            -2.42184
+Log Pis Std                              1.91847
+Log Pis Max                             13.0356
+Log Pis Min                            -11.3955
+Policy mu Mean                           0.0184769
+Policy mu Std                            0.547727
+Policy mu Max                            2.43463
+Policy mu Min                           -2.56419
+Policy log std Mean                     -0.393025
+Policy log std Std                       0.221939
+Policy log std Max                       0.190222
+Policy log std Min                      -1.95546
+AverageTrainReturn_all_train_tasks     -54.9556
+AverageReturn_all_train_tasks          -59.0573
+AverageReturn_all_test_tasks           -59.8478
+Number of train steps total          48000
+Number of env steps total           448000
+Number of rollouts total                 0
+Train Time (s)                        1841.53
+(Previous) Eval Time (s)                43.4029
+Sample Time (s)                          4.15908
+Epoch Time (s)                        1889.09
+Total Train Time (s)                 22883.4
+Epoch                                   11
+----------------------------------  --------------
+2019-05-12 21:09:06.267797 CST | [pearl-190512-144738] Iteration #11 | Epoch Duration: 1884.7869999408722
+2019-05-12 21:09:06.268303 CST | [pearl-190512-144738] Iteration #11 | Started Training: True
+2019-05-12 21:09:09.894022 CST | [pearl-190512-144738] Iteration #12 | iteration 12.
+----------------------------------  --------------
+Z mean train                             0.0546962
+Z variance train                         0.756064
+KL Divergence                           46.5713
+KL Loss                                 46.6528
+QF Loss                                 38.9271
+VF Loss                                 20.9206
+Policy Loss                            163.546
+Q Predictions Mean                    -171.667
+Q Predictions Std                      207.49
+Q Predictions Max                      115.163
+Q Predictions Min                     -966.513
+V Predictions Mean                    -166.544
+V Predictions Std                      204.746
+V Predictions Max                      114.989
+V Predictions Min                     -964.178
+Log Pis Mean                            -1.9503
+Log Pis Std                              2.24433
+Log Pis Max                             13.3082
+Log Pis Min                            -11.1109
+Policy mu Mean                          -0.0122579
+Policy mu Std                            0.62857
+Policy mu Max                            2.74633
+Policy mu Min                           -2.59734
+Policy log std Mean                     -0.427511
+Policy log std Std                       0.241285
+Policy log std Max                       0.185667
+Policy log std Min                      -2.15769
+AverageTrainReturn_all_train_tasks     -60.5399
+AverageReturn_all_train_tasks          -61.61
+AverageReturn_all_test_tasks           -56.8085
+Number of train steps total          52000
+Number of env steps total           452000
+Number of rollouts total                 0
+Train Time (s)                        1817.77
+(Previous) Eval Time (s)                39.1014
+Sample Time (s)                          3.62529
+Epoch Time (s)                        1860.49
+Total Train Time (s)                 24748.6
+Epoch                                   12
+----------------------------------  --------------
+2019-05-12 21:40:11.533815 CST | [pearl-190512-144738] Iteration #12 | Epoch Duration: 1865.2652213573456
+2019-05-12 21:40:11.534193 CST | [pearl-190512-144738] Iteration #12 | Started Training: True
+2019-05-12 21:40:15.418100 CST | [pearl-190512-144738] Iteration #13 | iteration 13.
+----------------------------------  --------------
+Z mean train                             0.0549757
+Z variance train                         0.78703
+KL Divergence                           47.4191
+KL Loss                                 47.4805
+QF Loss                                 29.3121
+VF Loss                                  9.19548
+Policy Loss                            126.438
+Q Predictions Mean                    -133.326
+Q Predictions Std                      187.108
+Q Predictions Max                      113.938
+Q Predictions Min                    -1060.68
+V Predictions Mean                    -125.164
+V Predictions Std                      184.768
+V Predictions Max                      117.78
+V Predictions Min                    -1054.92
+Log Pis Mean                            -2.06865
+Log Pis Std                              2.14537
+Log Pis Max                             13.207
+Log Pis Min                            -11.1697
+Policy mu Mean                          -0.0268536
+Policy mu Std                            0.608436
+Policy mu Max                            3.3073
+Policy mu Min                           -2.97239
+Policy log std Mean                     -0.42436
+Policy log std Std                       0.229178
+Policy log std Max                       0.183852
+Policy log std Min                      -1.87508
+AverageTrainReturn_all_train_tasks     -54.5081
+AverageReturn_all_train_tasks          -55.9739
+AverageReturn_all_test_tasks           -55.2553
+Number of train steps total          56000
+Number of env steps total           456000
+Number of rollouts total                 0
+Train Time (s)                        1811.09
+(Previous) Eval Time (s)                43.8745
+Sample Time (s)                          3.88316
+Epoch Time (s)                        1858.85
+Total Train Time (s)                 26608.6
+Epoch                                   13
+----------------------------------  --------------
+2019-05-12 22:11:11.511595 CST | [pearl-190512-144738] Iteration #13 | Epoch Duration: 1859.9769654273987
+2019-05-12 22:11:11.512146 CST | [pearl-190512-144738] Iteration #13 | Started Training: True
+2019-05-12 22:11:15.402230 CST | [pearl-190512-144738] Iteration #14 | iteration 14.
+----------------------------------  --------------
+Z mean train                             0.146535
+Z variance train                         0.799136
+KL Divergence                           50.0062
+KL Loss                                 50.0685
+QF Loss                                 41.8037
+VF Loss                                 13.4052
+Policy Loss                            235.944
+Q Predictions Mean                    -244.496
+Q Predictions Std                      212.718
+Q Predictions Max                      110.448
+Q Predictions Min                    -1047.19
+V Predictions Mean                    -236.742
+V Predictions Std                      211.874
+V Predictions Max                      113.097
+V Predictions Min                    -1053.84
+Log Pis Mean                            -1.43746
+Log Pis Std                              2.42284
+Log Pis Max                             12.5219
+Log Pis Min                            -11.1313
+Policy mu Mean                          -0.0556457
+Policy mu Std                            0.707851
+Policy mu Max                            2.64681
+Policy mu Min                           -2.55623
+Policy log std Mean                     -0.454751
+Policy log std Std                       0.25852
+Policy log std Max                       0.078228
+Policy log std Min                      -2.21289
+AverageTrainReturn_all_train_tasks     -46.6968
+AverageReturn_all_train_tasks          -47.3472
+AverageReturn_all_test_tasks           -51.6762
+Number of train steps total          60000
+Number of env steps total           460000
+Number of rollouts total                 0
+Train Time (s)                        1814.6
+(Previous) Eval Time (s)                45.0019
+Sample Time (s)                          3.8897
+Epoch Time (s)                        1863.5
+Total Train Time (s)                 28468.6
+Epoch                                   14
+----------------------------------  --------------
+2019-05-12 22:42:11.510202 CST | [pearl-190512-144738] Iteration #14 | Epoch Duration: 1859.9978370666504
+2019-05-12 22:42:11.510673 CST | [pearl-190512-144738] Iteration #14 | Started Training: True
+2019-05-12 22:42:15.854173 CST | [pearl-190512-144738] Iteration #15 | iteration 15.
+----------------------------------  --------------
+Z mean train                             0.19135
+Z variance train                         0.803191
+KL Divergence                           43.6202
+KL Loss                                 43.6668
+QF Loss                                 28.0765
+VF Loss                                 15.0203
+Policy Loss                            104.544
+Q Predictions Mean                    -110.851
+Q Predictions Std                      166.734
+Q Predictions Max                       92.782
+Q Predictions Min                     -857.961
+V Predictions Mean                    -105.509
+V Predictions Std                      163.49
+V Predictions Max                       94.6704
+V Predictions Min                     -848.029
+Log Pis Mean                            -2.18055
+Log Pis Std                              2.03977
+Log Pis Max                             11.9525
+Log Pis Min                            -14.6549
+Policy mu Mean                          -0.0174151
+Policy mu Std                            0.585553
+Policy mu Max                            2.50465
+Policy mu Min                           -2.4844
+Policy log std Mean                     -0.419584
+Policy log std Std                       0.236515
+Policy log std Max                       0.286701
+Policy log std Min                      -2.08189
+AverageTrainReturn_all_train_tasks     -53.4966
+AverageReturn_all_train_tasks          -52.3791
+AverageReturn_all_test_tasks           -50.0595
+Number of train steps total          64000
+Number of env steps total           464000
+Number of rollouts total                 0
+Train Time (s)                        1853.76
+(Previous) Eval Time (s)                41.5037
+Sample Time (s)                          4.34296
+Epoch Time (s)                        1899.61
+Total Train Time (s)                 30371.3
+Epoch                                   15
+----------------------------------  --------------
+2019-05-12 23:13:54.149047 CST | [pearl-190512-144738] Iteration #15 | Epoch Duration: 1902.6380949020386
+2019-05-12 23:13:54.149590 CST | [pearl-190512-144738] Iteration #15 | Started Training: True
+2019-05-12 23:13:58.412468 CST | [pearl-190512-144738] Iteration #16 | iteration 16.
+----------------------------------  -------------
+Z mean train                             0.317826
+Z variance train                         0.786821
+KL Divergence                           49.4172
+KL Loss                                 49.5336
+QF Loss                                 30.0119
+VF Loss                                 10.1066
+Policy Loss                            162.222
+Q Predictions Mean                    -168.591
+Q Predictions Std                      214.519
+Q Predictions Max                      128.629
+Q Predictions Min                    -1205.17
+V Predictions Mean                    -160.925
+V Predictions Std                      211.212
+V Predictions Max                      131.867
+V Predictions Min                    -1207.95
+Log Pis Mean                            -1.79522
+Log Pis Std                              2.32459
+Log Pis Max                             19.8252
+Log Pis Min                            -12.6888
+Policy mu Mean                           0.012187
+Policy mu Std                            0.655607
+Policy mu Max                            3.54682
+Policy mu Min                           -2.6974
+Policy log std Mean                     -0.438654
+Policy log std Std                       0.253486
+Policy log std Max                       0.186255
+Policy log std Min                      -2.22626
+AverageTrainReturn_all_train_tasks     -46.4336
+AverageReturn_all_train_tasks          -48.0005
+AverageReturn_all_test_tasks           -51.2597
+Number of train steps total          68000
+Number of env steps total           468000
+Number of rollouts total                 0
+Train Time (s)                        1966.18
+(Previous) Eval Time (s)                44.5326
+Sample Time (s)                          4.2623
+Epoch Time (s)                        2014.97
+Total Train Time (s)                 32388.8
+Epoch                                   16
+----------------------------------  -------------
+2019-05-12 23:47:31.740463 CST | [pearl-190512-144738] Iteration #16 | Epoch Duration: 2017.5906882286072
+2019-05-12 23:47:31.740944 CST | [pearl-190512-144738] Iteration #16 | Started Training: True
+2019-05-12 23:47:35.853260 CST | [pearl-190512-144738] Iteration #17 | iteration 17.
+----------------------------------  --------------
+Z mean train                             0.12626
+Z variance train                         0.781861
+KL Divergence                           50.155
+KL Loss                                 50.2497
+QF Loss                                 31.1733
+VF Loss                                  7.98251
+Policy Loss                            162.209
+Q Predictions Mean                    -169.378
+Q Predictions Std                      231.021
+Q Predictions Max                      123.913
+Q Predictions Min                    -1317.75
+V Predictions Mean                    -161.782
+V Predictions Std                      228.597
+V Predictions Max                      126.851
+V Predictions Min                    -1306.06
+Log Pis Mean                            -1.8268
+Log Pis Std                              2.33019
+Log Pis Max                             12.4593
+Log Pis Min                            -10.9681
+Policy mu Mean                          -0.0238676
+Policy mu Std                            0.645104
+Policy mu Max                            2.90996
+Policy mu Min                           -2.64992
+Policy log std Mean                     -0.440786
+Policy log std Std                       0.249121
+Policy log std Max                       0.214478
+Policy log std Min                      -2.17721
+AverageTrainReturn_all_train_tasks     -45.4534
+AverageReturn_all_train_tasks          -44.9428
+AverageReturn_all_test_tasks           -46.3915
+Number of train steps total          72000
+Number of env steps total           472000
+Number of rollouts total                 0
+Train Time (s)                        1973.35
+(Previous) Eval Time (s)                47.1508
+Sample Time (s)                          4.11187
+Epoch Time (s)                        2024.62
+Total Train Time (s)                 34411.6
+Epoch                                   17
+----------------------------------  --------------
+2019-05-13 00:21:14.450196 CST | [pearl-190512-144738] Iteration #17 | Epoch Duration: 2022.7089977264404
+2019-05-13 00:21:14.450558 CST | [pearl-190512-144738] Iteration #17 | Started Training: True
+2019-05-13 00:21:18.416583 CST | [pearl-190512-144738] Iteration #18 | iteration 18.
+----------------------------------  ---------------
+Z mean train                             0.34178
+Z variance train                         0.814144
+KL Divergence                           46.2304
+KL Loss                                 46.3478
+QF Loss                                 20.5387
+VF Loss                                  6.62529
+Policy Loss                             64.5022
+Q Predictions Mean                     -70.3945
+Q Predictions Std                      226.83
+Q Predictions Max                      129.35
+Q Predictions Min                    -1303.12
+V Predictions Mean                     -65.0469
+V Predictions Std                      225.181
+V Predictions Max                      131.391
+V Predictions Min                    -1306.14
+Log Pis Mean                            -2.42358
+Log Pis Std                              2.03843
+Log Pis Max                             14.7246
+Log Pis Min                             -9.91793
+Policy mu Mean                           0.00473718
+Policy mu Std                            0.542148
+Policy mu Max                            2.62092
+Policy mu Min                           -2.58168
+Policy log std Mean                     -0.401242
+Policy log std Std                       0.224589
+Policy log std Max                       0.151368
+Policy log std Min                      -2.11455
+AverageTrainReturn_all_train_tasks     -49.7264
+AverageReturn_all_train_tasks          -46.2204
+AverageReturn_all_test_tasks           -45.3054
+Number of train steps total          76000
+Number of env steps total           476000
+Number of rollouts total                 0
+Train Time (s)                        1972.33
+(Previous) Eval Time (s)                45.2428
+Sample Time (s)                          3.96571
+Epoch Time (s)                        2021.54
+Total Train Time (s)                 36434.6
+Epoch                                   18
+----------------------------------  ---------------
+2019-05-13 00:54:57.505686 CST | [pearl-190512-144738] Iteration #18 | Epoch Duration: 2023.0549504756927
+2019-05-13 00:54:57.506062 CST | [pearl-190512-144738] Iteration #18 | Started Training: True
+2019-05-13 00:55:02.074717 CST | [pearl-190512-144738] Iteration #19 | iteration 19.
+----------------------------------  --------------
+Z mean train                             0.328161
+Z variance train                         0.791935
+KL Divergence                           48.7931
+KL Loss                                 48.847
+QF Loss                                 31.4108
+VF Loss                                 10.2814
+Policy Loss                            195.227
+Q Predictions Mean                    -201.655
+Q Predictions Std                      207.108
+Q Predictions Max                      125.414
+Q Predictions Min                    -1098.59
+V Predictions Mean                    -195.508
+V Predictions Std                      205.931
+V Predictions Max                      127.796
+V Predictions Min                    -1103.6
+Log Pis Mean                            -1.58512
+Log Pis Std                              2.43889
+Log Pis Max                             17.3795
+Log Pis Min                            -14.0926
+Policy mu Mean                          -0.0556932
+Policy mu Std                            0.685934
+Policy mu Max                            2.44403
+Policy mu Min                           -2.8002
+Policy log std Mean                     -0.451432
+Policy log std Std                       0.257153
+Policy log std Max                       0.162424
+Policy log std Min                      -2.15716
+AverageTrainReturn_all_train_tasks     -54.8525
+AverageReturn_all_train_tasks          -55.1098
+AverageReturn_all_test_tasks           -50.9902
+Number of train steps total          80000
+Number of env steps total           480000
+Number of rollouts total                 0
+Train Time (s)                        1980.93
+(Previous) Eval Time (s)                46.758
+Sample Time (s)                          4.56828
+Epoch Time (s)                        2032.26
+Total Train Time (s)                 38469.2
+Epoch                                   19
+----------------------------------  --------------
+2019-05-13 01:28:52.076069 CST | [pearl-190512-144738] Iteration #19 | Epoch Duration: 2034.5698170661926
+2019-05-13 01:28:52.076725 CST | [pearl-190512-144738] Iteration #19 | Started Training: True
+2019-05-13 01:28:56.808880 CST | [pearl-190512-144738] Iteration #20 | iteration 20.
+----------------------------------  --------------
+Z mean train                             0.180928
+Z variance train                         0.788646
+KL Divergence                           48.0678
+KL Loss                                 48.1205
+QF Loss                                 31.0646
+VF Loss                                 11.1718
+Policy Loss                            155.818
+Q Predictions Mean                    -162.382
+Q Predictions Std                      228.783
+Q Predictions Max                      127.277
+Q Predictions Min                    -1136.29
+V Predictions Mean                    -156.812
+V Predictions Std                      226.174
+V Predictions Max                      128.411
+V Predictions Min                    -1133.64
+Log Pis Mean                            -1.81573
+Log Pis Std                              2.38712
+Log Pis Max                             19.6938
+Log Pis Min                            -10.9893
+Policy mu Mean                          -0.0150489
+Policy mu Std                            0.647515
+Policy mu Max                            2.65402
+Policy mu Min                           -2.94967
+Policy log std Mean                     -0.44087
+Policy log std Std                       0.256092
+Policy log std Max                       0.157546
+Policy log std Min                      -2.08153
+AverageTrainReturn_all_train_tasks     -47.1019
+AverageReturn_all_train_tasks          -44.9646
+AverageReturn_all_test_tasks           -41.9595
+Number of train steps total          84000
+Number of env steps total           484000
+Number of rollouts total                 0
+Train Time (s)                        1974.24
+(Previous) Eval Time (s)                49.0696
+Sample Time (s)                          4.7316
+Epoch Time (s)                        2028.04
+Total Train Time (s)                 40492.4
+Epoch                                   20
+----------------------------------  --------------
+2019-05-13 02:02:35.309680 CST | [pearl-190512-144738] Iteration #20 | Epoch Duration: 2023.232664823532
+2019-05-13 02:02:35.310436 CST | [pearl-190512-144738] Iteration #20 | Started Training: True
+2019-05-13 02:02:39.328192 CST | [pearl-190512-144738] Iteration #21 | iteration 21.
+----------------------------------  --------------
+Z mean train                             0.0979183
+Z variance train                         0.78735
+KL Divergence                           41.361
+KL Loss                                 41.4305
+QF Loss                                 17.8334
+VF Loss                                  8.7519
+Policy Loss                             46.3962
+Q Predictions Mean                     -52.378
+Q Predictions Std                      131.211
+Q Predictions Max                      141.529
+Q Predictions Min                     -894.079
+V Predictions Mean                     -47.9285
+V Predictions Std                      129.214
+V Predictions Max                      145.315
+V Predictions Min                     -886.272
+Log Pis Mean                            -2.15634
+Log Pis Std                              2.13921
+Log Pis Max                             16.7897
+Log Pis Min                            -11.8091
+Policy mu Mean                          -0.0150929
+Policy mu Std                            0.582684
+Policy mu Max                            2.61768
+Policy mu Min                           -2.4939
+Policy log std Mean                     -0.429807
+Policy log std Std                       0.245095
+Policy log std Max                       0.261449
+Policy log std Min                      -2.10603
+AverageTrainReturn_all_train_tasks     -48.2013
+AverageReturn_all_train_tasks          -47.6695
+AverageReturn_all_test_tasks           -39.0409
+Number of train steps total          88000
+Number of env steps total           488000
+Number of rollouts total                 0
+Train Time (s)                        1972.87
+(Previous) Eval Time (s)                44.2619
+Sample Time (s)                          4.01725
+Epoch Time (s)                        2021.15
+Total Train Time (s)                 42516.6
+Epoch                                   21
+----------------------------------  --------------
+2019-05-13 02:36:19.486580 CST | [pearl-190512-144738] Iteration #21 | Epoch Duration: 2024.1758136749268
+2019-05-13 02:36:19.486942 CST | [pearl-190512-144738] Iteration #21 | Started Training: True
+2019-05-13 02:36:23.488143 CST | [pearl-190512-144738] Iteration #22 | iteration 22.
+----------------------------------  ---------------
+Z mean train                             0.0301675
+Z variance train                         0.793387
+KL Divergence                           41.1578
+KL Loss                                 41.225
+QF Loss                                 22.4124
+VF Loss                                  5.88951
+Policy Loss                             60.0715
+Q Predictions Mean                     -65.8868
+Q Predictions Std                      143.776
+Q Predictions Max                      130.945
+Q Predictions Min                     -788.592
+V Predictions Mean                     -60.5897
+V Predictions Std                      141.741
+V Predictions Max                      133.788
+V Predictions Min                     -792.95
+Log Pis Mean                            -2.18257
+Log Pis Std                              2.17837
+Log Pis Max                             19.6328
+Log Pis Min                            -11.5307
+Policy mu Mean                          -0.00571693
+Policy mu Std                            0.577335
+Policy mu Max                            2.75658
+Policy mu Min                           -2.84338
+Policy log std Mean                     -0.437797
+Policy log std Std                       0.240845
+Policy log std Max                       0.112809
+Policy log std Min                      -2.03258
+AverageTrainReturn_all_train_tasks     -42.4398
+AverageReturn_all_train_tasks          -41.0897
+AverageReturn_all_test_tasks           -41.7919
+Number of train steps total          92000
+Number of env steps total           492000
+Number of rollouts total                 0
+Train Time (s)                        1973.75
+(Previous) Eval Time (s)                47.2863
+Sample Time (s)                          4.00091
+Epoch Time (s)                        2025.03
+Total Train Time (s)                 44539.7
+Epoch                                   22
+----------------------------------  ---------------
+2019-05-13 03:10:02.562865 CST | [pearl-190512-144738] Iteration #22 | Epoch Duration: 2023.0757462978363
+2019-05-13 03:10:02.563230 CST | [pearl-190512-144738] Iteration #22 | Started Training: True
+2019-05-13 03:10:06.582574 CST | [pearl-190512-144738] Iteration #23 | iteration 23.
+----------------------------------  --------------
+Z mean train                             0.24658
+Z variance train                         0.785897
+KL Divergence                           45.8679
+KL Loss                                 45.8992
+QF Loss                                 27.7017
+VF Loss                                 11.1079
+Policy Loss                            137.027
+Q Predictions Mean                    -144.722
+Q Predictions Std                      202.047
+Q Predictions Max                      100.644
+Q Predictions Min                    -1221.79
+V Predictions Mean                    -138.321
+V Predictions Std                      199.583
+V Predictions Max                      101.322
+V Predictions Min                    -1220.44
+Log Pis Mean                            -1.72701
+Log Pis Std                              2.44026
+Log Pis Max                             21.3529
+Log Pis Min                            -10.8588
+Policy mu Mean                          -0.0180552
+Policy mu Std                            0.659068
+Policy mu Max                            3.18436
+Policy mu Min                           -2.87783
+Policy log std Mean                     -0.452082
+Policy log std Std                       0.255042
+Policy log std Max                       0.118394
+Policy log std Min                      -2.17241
+AverageTrainReturn_all_train_tasks     -40.584
+AverageReturn_all_train_tasks          -40.948
+AverageReturn_all_test_tasks           -39.5548
+Number of train steps total          96000
+Number of env steps total           496000
+Number of rollouts total                 0
+Train Time (s)                        1966.11
+(Previous) Eval Time (s)                45.3271
+Sample Time (s)                          4.01873
+Epoch Time (s)                        2015.45
+Total Train Time (s)                 46556.1
+Epoch                                   23
+----------------------------------  --------------
+2019-05-13 03:43:38.968655 CST | [pearl-190512-144738] Iteration #23 | Epoch Duration: 2016.404956817627
+2019-05-13 03:43:38.969431 CST | [pearl-190512-144738] Iteration #23 | Started Training: True
+2019-05-13 03:43:43.254971 CST | [pearl-190512-144738] Iteration #24 | iteration 24.
+----------------------------------  --------------
+Z mean train                             0.0557519
+Z variance train                         0.782851
+KL Divergence                           43.6523
+KL Loss                                 43.7185
+QF Loss                                 21.9401
+VF Loss                                  7.1024
+Policy Loss                            134.749
+Q Predictions Mean                    -140.459
+Q Predictions Std                      144.83
+Q Predictions Max                       38.9298
+Q Predictions Min                    -1164.67
+V Predictions Mean                    -134.553
+V Predictions Std                      143.527
+V Predictions Max                       44.0869
+V Predictions Min                    -1156.91
+Log Pis Mean                            -1.61157
+Log Pis Std                              2.28271
+Log Pis Max                             21.6451
+Log Pis Min                            -12.2877
+Policy mu Mean                          -0.106554
+Policy mu Std                            0.654184
+Policy mu Max                            3.56973
+Policy mu Min                           -3.15299
+Policy log std Mean                     -0.480879
+Policy log std Std                       0.258507
+Policy log std Max                       0.197465
+Policy log std Min                      -2.23028
+AverageTrainReturn_all_train_tasks     -39.4674
+AverageReturn_all_train_tasks          -38.5047
+AverageReturn_all_test_tasks           -43.5641
+Number of train steps total         100000
+Number of env steps total           500000
+Number of rollouts total                 0
+Train Time (s)                        1965.69
+(Previous) Eval Time (s)                46.281
+Sample Time (s)                          4.28518
+Epoch Time (s)                        2016.26
+Total Train Time (s)                 48573.5
+Epoch                                   24
+----------------------------------  --------------
+2019-05-13 04:17:16.413975 CST | [pearl-190512-144738] Iteration #24 | Epoch Duration: 2017.444347858429
+2019-05-13 04:17:16.414449 CST | [pearl-190512-144738] Iteration #24 | Started Training: True
+2019-05-13 04:17:20.427422 CST | [pearl-190512-144738] Iteration #25 | iteration 25.
+----------------------------------  --------------
+Z mean train                             0.149506
+Z variance train                         0.811138
+KL Divergence                           39.275
+KL Loss                                 39.352
+QF Loss                                 21.7998
+VF Loss                                  7.60538
+Policy Loss                             36.9291
+Q Predictions Mean                     -42.2131
+Q Predictions Std                      126.363
+Q Predictions Max                      107.42
+Q Predictions Min                     -823.911
+V Predictions Mean                     -37.1252
+V Predictions Std                      126.227
+V Predictions Max                      110.538
+V Predictions Min                     -827.576
+Log Pis Mean                            -2.34759
+Log Pis Std                              1.92633
+Log Pis Max                             11.9572
+Log Pis Min                            -10.3997
+Policy mu Mean                          -0.0426936
+Policy mu Std                            0.540933
+Policy mu Max                            2.11759
+Policy mu Min                           -2.51048
+Policy log std Mean                     -0.432131
+Policy log std Std                       0.235895
+Policy log std Max                       0.277508
+Policy log std Min                      -2.05151
+AverageTrainReturn_all_train_tasks     -46.1909
+AverageReturn_all_train_tasks          -46.3132
+AverageReturn_all_test_tasks           -40.109
+Number of train steps total         104000
+Number of env steps total           504000
+Number of rollouts total                 0
+Train Time (s)                        1974.97
+(Previous) Eval Time (s)                47.4683
+Sample Time (s)                          4.01251
+Epoch Time (s)                        2026.46
+Total Train Time (s)                 50600.6
+Epoch                                   25
+----------------------------------  --------------
+2019-05-13 04:51:03.474335 CST | [pearl-190512-144738] Iteration #25 | Epoch Duration: 2027.0596497058868
+2019-05-13 04:51:03.475113 CST | [pearl-190512-144738] Iteration #25 | Started Training: True
+2019-05-13 04:51:07.740132 CST | [pearl-190512-144738] Iteration #26 | iteration 26.
+----------------------------------  ---------------
+Z mean train                             0.00325884
+Z variance train                         0.784017
+KL Divergence                           40.5166
+KL Loss                                 40.557
+QF Loss                                 28.0207
+VF Loss                                 11.2669
+Policy Loss                             85.6104
+Q Predictions Mean                     -90.7461
+Q Predictions Std                      140.472
+Q Predictions Max                       50.473
+Q Predictions Min                    -1112.65
+V Predictions Mean                     -85.0764
+V Predictions Std                      140.255
+V Predictions Max                       53.5687
+V Predictions Min                    -1110.97
+Log Pis Mean                            -1.85373
+Log Pis Std                              2.1932
+Log Pis Max                             16.0965
+Log Pis Min                            -13.2762
+Policy mu Mean                          -0.0613602
+Policy mu Std                            0.631513
+Policy mu Max                            2.85749
+Policy mu Min                           -2.73412
+Policy log std Mean                     -0.454965
+Policy log std Std                       0.247708
+Policy log std Max                       0.168881
+Policy log std Min                      -1.97614
+AverageTrainReturn_all_train_tasks     -32.1885
+AverageReturn_all_train_tasks          -33.4479
+AverageReturn_all_test_tasks           -35.9954
+Number of train steps total         108000
+Number of env steps total           508000
+Number of rollouts total                 0
+Train Time (s)                        1968.35
+(Previous) Eval Time (s)                48.0723
+Sample Time (s)                          4.26468
+Epoch Time (s)                        2020.68
+Total Train Time (s)                 52620.2
+Epoch                                   26
+----------------------------------  ---------------
+2019-05-13 05:24:43.109568 CST | [pearl-190512-144738] Iteration #26 | Epoch Duration: 2019.634253501892
+2019-05-13 05:24:43.110114 CST | [pearl-190512-144738] Iteration #26 | Started Training: True
+2019-05-13 05:24:46.670345 CST | [pearl-190512-144738] Iteration #27 | iteration 27.
+----------------------------------  --------------
+Z mean train                             0.146466
+Z variance train                         0.804691
+KL Divergence                           40.0336
+KL Loss                                 40.1428
+QF Loss                                 19.6939
+VF Loss                                  5.04033
+Policy Loss                             41.3412
+Q Predictions Mean                     -47.2629
+Q Predictions Std                      156.935
+Q Predictions Max                      129.945
+Q Predictions Min                     -957.266
+V Predictions Mean                     -41.5013
+V Predictions Std                      155.152
+V Predictions Max                      132.315
+V Predictions Min                     -948.114
+Log Pis Mean                            -2.22976
+Log Pis Std                              2.06369
+Log Pis Max                             10.9524
+Log Pis Min                            -10.4038
+Policy mu Mean                          -0.0343616
+Policy mu Std                            0.571207
+Policy mu Max                            2.41356
+Policy mu Min                           -2.67536
+Policy log std Mean                     -0.428264
+Policy log std Std                       0.241169
+Policy log std Max                       0.170837
+Policy log std Min                      -2.15731
+AverageTrainReturn_all_train_tasks     -39.6279
+AverageReturn_all_train_tasks          -42.7812
+AverageReturn_all_test_tasks           -37.9994
+Number of train steps total         112000
+Number of env steps total           512000
+Number of rollouts total                 0
+Train Time (s)                        1962.98
+(Previous) Eval Time (s)                47.0219
+Sample Time (s)                          3.55972
+Epoch Time (s)                        2013.57
+Total Train Time (s)                 54631.9
+Epoch                                   27
+----------------------------------  --------------
+2019-05-13 05:58:14.766516 CST | [pearl-190512-144738] Iteration #27 | Epoch Duration: 2011.6560988426208
+2019-05-13 05:58:14.767034 CST | [pearl-190512-144738] Iteration #27 | Started Training: True
+2019-05-13 05:58:18.787388 CST | [pearl-190512-144738] Iteration #28 | iteration 28.
+----------------------------------  --------------
+Z mean train                             0.202171
+Z variance train                         0.802589
+KL Divergence                           42.9855
+KL Loss                                 43.0379
+QF Loss                                 24.6963
+VF Loss                                  6.75534
+Policy Loss                             94.5516
+Q Predictions Mean                     -99.8961
+Q Predictions Std                      146.217
+Q Predictions Max                      113.364
+Q Predictions Min                    -1280.54
+V Predictions Mean                     -93.8394
+V Predictions Std                      144.552
+V Predictions Max                      115.72
+V Predictions Min                    -1268.32
+Log Pis Mean                            -1.70487
+Log Pis Std                              2.32728
+Log Pis Max                             17.0685
+Log Pis Min                            -11.0225
+Policy mu Mean                          -0.0473782
+Policy mu Std                            0.646796
+Policy mu Max                            2.57086
+Policy mu Min                           -3.01873
+Policy log std Mean                     -0.474371
+Policy log std Std                       0.264674
+Policy log std Max                       0.138553
+Policy log std Min                      -2.07628
+AverageTrainReturn_all_train_tasks     -32.4146
+AverageReturn_all_train_tasks          -34.9793
+AverageReturn_all_test_tasks           -35.3009
+Number of train steps total         116000
+Number of env steps total           516000
+Number of rollouts total                 0
+Train Time (s)                        1969.78
+(Previous) Eval Time (s)                45.1115
+Sample Time (s)                          4.02002
+Epoch Time (s)                        2018.91
+Total Train Time (s)                 56648.1
+Epoch                                   28
+----------------------------------  --------------
+2019-05-13 06:31:50.993437 CST | [pearl-190512-144738] Iteration #28 | Epoch Duration: 2016.2262208461761
+2019-05-13 06:31:50.993923 CST | [pearl-190512-144738] Iteration #28 | Started Training: True
+2019-05-13 06:31:55.003960 CST | [pearl-190512-144738] Iteration #29 | iteration 29.
+----------------------------------  --------------
+Z mean train                             0.313339
+Z variance train                         0.811882
+KL Divergence                           45.1559
+KL Loss                                 45.2429
+QF Loss                                 18.8326
+VF Loss                                  5.7354
+Policy Loss                             91.8736
+Q Predictions Mean                     -98.0499
+Q Predictions Std                      196.341
+Q Predictions Max                      135.352
+Q Predictions Min                    -1269.18
+V Predictions Mean                     -91.9803
+V Predictions Std                      194.372
+V Predictions Max                      136.998
+V Predictions Min                    -1282.13
+Log Pis Mean                            -1.84223
+Log Pis Std                              2.33168
+Log Pis Max                             15.4647
+Log Pis Min                             -9.42896
+Policy mu Mean                          -0.0293585
+Policy mu Std                            0.635767
+Policy mu Max                            2.83281
+Policy mu Min                           -2.80161
+Policy log std Mean                     -0.457198
+Policy log std Std                       0.259014
+Policy log std Max                       0.14741
+Policy log std Min                      -2.28268
+AverageTrainReturn_all_train_tasks     -34.1924
+AverageReturn_all_train_tasks          -32.9638
+AverageReturn_all_test_tasks           -35.4774
+Number of train steps total         120000
+Number of env steps total           520000
+Number of rollouts total                 0
+Train Time (s)                        1971.15
+(Previous) Eval Time (s)                42.4245
+Sample Time (s)                          4.00964
+Epoch Time (s)                        2017.58
+Total Train Time (s)                 58663.4
+Epoch                                   29
+----------------------------------  --------------
+2019-05-13 07:05:26.295915 CST | [pearl-190512-144738] Iteration #29 | Epoch Duration: 2015.3017406463623
+2019-05-13 07:05:26.296413 CST | [pearl-190512-144738] Iteration #29 | Started Training: True
+2019-05-13 07:05:29.849047 CST | [pearl-190512-144738] Iteration #30 | iteration 30.
+----------------------------------  --------------
+Z mean train                             0.0314429
+Z variance train                         0.787201
+KL Divergence                           40.0762
+KL Loss                                 40.1685
+QF Loss                                 13.0396
+VF Loss                                  3.91799
+Policy Loss                             -5.98733
+Q Predictions Mean                       1.2471
+Q Predictions Std                      106.114
+Q Predictions Max                      160.002
+Q Predictions Min                     -813.988
+V Predictions Mean                       6.16133
+V Predictions Std                      104.367
+V Predictions Max                      161.678
+V Predictions Min                     -809.436
+Log Pis Mean                            -2.425
+Log Pis Std                              1.90134
+Log Pis Max                             12.7602
+Log Pis Min                            -10.6584
+Policy mu Mean                          -0.0258043
+Policy mu Std                            0.529797
+Policy mu Max                            2.5811
+Policy mu Min                           -2.46397
+Policy log std Mean                     -0.428189
+Policy log std Std                       0.227187
+Policy log std Max                       0.167753
+Policy log std Min                      -2.12504
+AverageTrainReturn_all_train_tasks     -36.3565
+AverageReturn_all_train_tasks          -35.3354
+AverageReturn_all_test_tasks           -37.7696
+Number of train steps total         124000
+Number of env steps total           524000
+Number of rollouts total                 0
+Train Time (s)                        1979.81
+(Previous) Eval Time (s)                40.1411
+Sample Time (s)                          3.55217
+Epoch Time (s)                        2023.5
+Total Train Time (s)                 60692.8
+Epoch                                   30
+----------------------------------  --------------
+2019-05-13 07:39:15.696841 CST | [pearl-190512-144738] Iteration #30 | Epoch Duration: 2029.4001438617706
+2019-05-13 07:39:15.697332 CST | [pearl-190512-144738] Iteration #30 | Started Training: True
+2019-05-13 07:39:19.268046 CST | [pearl-190512-144738] Iteration #31 | iteration 31.
+----------------------------------  --------------
+Z mean train                             0.0866071
+Z variance train                         0.803284
+KL Divergence                           43.1992
+KL Loss                                 43.243
+QF Loss                                 19.466
+VF Loss                                  7.89695
+Policy Loss                             91.4565
+Q Predictions Mean                     -97.3816
+Q Predictions Std                      193.613
+Q Predictions Max                       87.5547
+Q Predictions Min                    -1227.17
+V Predictions Mean                     -92.5227
+V Predictions Std                      191.451
+V Predictions Max                       89.6047
+V Predictions Min                    -1222.55
+Log Pis Mean                            -1.90741
+Log Pis Std                              2.3219
+Log Pis Max                             16.2362
+Log Pis Min                             -9.7861
+Policy mu Mean                          -0.045397
+Policy mu Std                            0.624186
+Policy mu Max                            2.5882
+Policy mu Min                           -2.93975
+Policy log std Mean                     -0.448691
+Policy log std Std                       0.246074
+Policy log std Max                       0.291907
+Policy log std Min                      -2.2045
+AverageTrainReturn_all_train_tasks     -40.6139
+AverageReturn_all_train_tasks          -41.5416
+AverageReturn_all_test_tasks           -38.3137
+Number of train steps total         128000
+Number of env steps total           528000
+Number of rollouts total                 0
+Train Time (s)                        1972.05
+(Previous) Eval Time (s)                46.0413
+Sample Time (s)                          3.57028
+Epoch Time (s)                        2021.66
+Total Train Time (s)                 62719.9
+Epoch                                   31
+----------------------------------  --------------
+2019-05-13 08:13:02.841856 CST | [pearl-190512-144738] Iteration #31 | Epoch Duration: 2027.1443519592285
+2019-05-13 08:13:02.842124 CST | [pearl-190512-144738] Iteration #31 | Started Training: True
+2019-05-13 08:13:07.424481 CST | [pearl-190512-144738] Iteration #32 | iteration 32.
+----------------------------------  --------------
+Z mean train                             0.346624
+Z variance train                         0.791138
+KL Divergence                           47.1985
+KL Loss                                 47.2578
+QF Loss                                 22.4071
+VF Loss                                  9.77009
+Policy Loss                             57.9444
+Q Predictions Mean                     -62.8697
+Q Predictions Std                      176.943
+Q Predictions Max                      147.315
+Q Predictions Min                    -1223.07
+V Predictions Mean                     -59.974
+V Predictions Std                      174.871
+V Predictions Max                      148.187
+V Predictions Min                    -1221.42
+Log Pis Mean                            -2.09558
+Log Pis Std                              2.1798
+Log Pis Max                              8.66163
+Log Pis Min                            -10.2203
+Policy mu Mean                          -0.0174004
+Policy mu Std                            0.59261
+Policy mu Max                            2.34067
+Policy mu Min                           -2.81377
+Policy log std Mean                     -0.436012
+Policy log std Std                       0.250706
+Policy log std Max                       0.129115
+Policy log std Min                      -2.24374
+AverageTrainReturn_all_train_tasks     -34.6864
+AverageReturn_all_train_tasks          -35.3909
+AverageReturn_all_test_tasks           -35.1781
+Number of train steps total         132000
+Number of env steps total           532000
+Number of rollouts total                 0
+Train Time (s)                        1975.47
+(Previous) Eval Time (s)                51.5282
+Sample Time (s)                          4.58203
+Epoch Time (s)                        2031.58
+Total Train Time (s)                 64746.2
+Epoch                                   32
+----------------------------------  --------------
+2019-05-13 08:46:49.083777 CST | [pearl-190512-144738] Iteration #32 | Epoch Duration: 2026.2415058612823
+2019-05-13 08:46:49.084291 CST | [pearl-190512-144738] Iteration #32 | Started Training: True
+2019-05-13 08:46:53.317380 CST | [pearl-190512-144738] Iteration #33 | iteration 33.
+----------------------------------  --------------
+Z mean train                             0.202813
+Z variance train                         0.791759
+KL Divergence                           41.014
+KL Loss                                 41.0615
+QF Loss                                 18.0078
+VF Loss                                  7.7292
+Policy Loss                             23.5445
+Q Predictions Mean                     -29.5593
+Q Predictions Std                      150.247
+Q Predictions Max                      112.595
+Q Predictions Min                    -1089.07
+V Predictions Mean                     -24.1606
+V Predictions Std                      149.356
+V Predictions Max                      114.475
+V Predictions Min                    -1081.36
+Log Pis Mean                            -2.22229
+Log Pis Std                              2.03726
+Log Pis Max                             19.5288
+Log Pis Min                            -10.8957
+Policy mu Mean                          -0.0435517
+Policy mu Std                            0.562832
+Policy mu Max                            3.01961
+Policy mu Min                           -3.15556
+Policy log std Mean                     -0.441547
+Policy log std Std                       0.241243
+Policy log std Max                       0.217499
+Policy log std Min                      -2.28441
+AverageTrainReturn_all_train_tasks     -37.6977
+AverageReturn_all_train_tasks          -38.4753
+AverageReturn_all_test_tasks           -37.8343
+Number of train steps total         136000
+Number of env steps total           536000
+Number of rollouts total                 0
+Train Time (s)                        1971.38
+(Previous) Eval Time (s)                46.1898
+Sample Time (s)                          4.23258
+Epoch Time (s)                        2021.8
+Total Train Time (s)                 66768.5
+Epoch                                   33
+----------------------------------  --------------
+2019-05-13 09:20:31.372050 CST | [pearl-190512-144738] Iteration #33 | Epoch Duration: 2022.2873980998993
+2019-05-13 09:20:31.372526 CST | [pearl-190512-144738] Iteration #33 | Started Training: True
+2019-05-13 09:20:35.378082 CST | [pearl-190512-144738] Iteration #34 | iteration 34.
+----------------------------------  --------------
+Z mean train                             0.136708
+Z variance train                         0.802395
+KL Divergence                           37.8961
+KL Loss                                 37.9551
+QF Loss                                 19.417
+VF Loss                                  5.96762
+Policy Loss                             78.6406
+Q Predictions Mean                     -84.4823
+Q Predictions Std                      164.172
+Q Predictions Max                      100.22
+Q Predictions Min                     -921.834
+V Predictions Mean                     -78.7595
+V Predictions Std                      162.969
+V Predictions Max                      103.259
+V Predictions Min                     -925.049
+Log Pis Mean                            -1.80096
+Log Pis Std                              2.38186
+Log Pis Max                             20.7627
+Log Pis Min                            -11.4501
+Policy mu Mean                          -0.0453123
+Policy mu Std                            0.635432
+Policy mu Max                            3.06157
+Policy mu Min                           -2.84919
+Policy log std Mean                     -0.472747
+Policy log std Std                       0.258667
+Policy log std Max                       0.233283
+Policy log std Min                      -2.16549
+AverageTrainReturn_all_train_tasks     -40.3914
+AverageReturn_all_train_tasks          -39.0167
+AverageReturn_all_test_tasks           -34.0726
+Number of train steps total         140000
+Number of env steps total           540000
+Number of rollouts total                 0
+Train Time (s)                        1974.49
+(Previous) Eval Time (s)                46.6725
+Sample Time (s)                          4.00516
+Epoch Time (s)                        2025.17
+Total Train Time (s)                 68797.7
+Epoch                                   34
+----------------------------------  --------------
+2019-05-13 09:54:20.579616 CST | [pearl-190512-144738] Iteration #34 | Epoch Duration: 2029.2068526744843
+2019-05-13 09:54:20.580073 CST | [pearl-190512-144738] Iteration #34 | Started Training: True
+2019-05-13 09:54:24.626521 CST | [pearl-190512-144738] Iteration #35 | iteration 35.
+----------------------------------  ---------------
+Z mean train                             0.294728
+Z variance train                         0.801505
+KL Divergence                           39.7539
+KL Loss                                 39.8171
+QF Loss                                 15.9042
+VF Loss                                  5.32081
+Policy Loss                             38.0641
+Q Predictions Mean                     -43.623
+Q Predictions Std                      188.217
+Q Predictions Max                      139.238
+Q Predictions Min                    -1141.22
+V Predictions Mean                     -37.8682
+V Predictions Std                      186.214
+V Predictions Max                      140.941
+V Predictions Min                    -1140
+Log Pis Mean                            -2.32743
+Log Pis Std                              2.01687
+Log Pis Max                              8.96328
+Log Pis Min                            -11.181
+Policy mu Mean                          -0.00868616
+Policy mu Std                            0.546261
+Policy mu Max                            2.39493
+Policy mu Min                           -2.35161
+Policy log std Mean                     -0.433418
+Policy log std Std                       0.245859
+Policy log std Max                       0.183311
+Policy log std Min                      -2.13334
+AverageTrainReturn_all_train_tasks     -37.7743
+AverageReturn_all_train_tasks          -36.4585
+AverageReturn_all_test_tasks           -34.9435
+Number of train steps total         144000
+Number of env steps total           544000
+Number of rollouts total                 0
+Train Time (s)                        1969.7
+(Previous) Eval Time (s)                50.7136
+Sample Time (s)                          4.04584
+Epoch Time (s)                        2024.46
+Total Train Time (s)                 70820.2
+Epoch                                   35
+----------------------------------  ---------------
+2019-05-13 10:28:03.124811 CST | [pearl-190512-144738] Iteration #35 | Epoch Duration: 2022.5443661212921
+2019-05-13 10:28:03.125191 CST | [pearl-190512-144738] Iteration #35 | Started Training: True
+2019-05-13 10:28:07.601234 CST | [pearl-190512-144738] Iteration #36 | iteration 36.
+----------------------------------  --------------
+Z mean train                             0.0559375
+Z variance train                         0.794313
+KL Divergence                           38.0755
+KL Loss                                 38.1287
+QF Loss                                 16.1841
+VF Loss                                  5.60635
+Policy Loss                             18.1129
+Q Predictions Mean                     -22.9534
+Q Predictions Std                      131.327
+Q Predictions Max                      118.691
+Q Predictions Min                    -1098.06
+V Predictions Mean                     -18.3661
+V Predictions Std                      130.001
+V Predictions Max                      120.466
+V Predictions Min                    -1106.5
+Log Pis Mean                            -2.22675
+Log Pis Std                              2.09214
+Log Pis Max                             16.5934
+Log Pis Min                            -12.5755
+Policy mu Mean                          -0.0395377
+Policy mu Std                            0.565102
+Policy mu Max                            2.81296
+Policy mu Min                           -2.80805
+Policy log std Mean                     -0.437042
+Policy log std Std                       0.243127
+Policy log std Max                       0.239595
+Policy log std Min                      -2.06965
+AverageTrainReturn_all_train_tasks     -41.4607
+AverageReturn_all_train_tasks          -38.3955
+AverageReturn_all_test_tasks           -34.1039
+Number of train steps total         148000
+Number of env steps total           548000
+Number of rollouts total                 0
+Train Time (s)                        1987.43
+(Previous) Eval Time (s)                48.7963
+Sample Time (s)                          4.4756
+Epoch Time (s)                        2040.7
+Total Train Time (s)                 72863.6
+Epoch                                   36
+----------------------------------  --------------
+2019-05-13 11:02:06.527253 CST | [pearl-190512-144738] Iteration #36 | Epoch Duration: 2043.4018836021423
+2019-05-13 11:02:06.527746 CST | [pearl-190512-144738] Iteration #36 | Started Training: True
+2019-05-13 11:02:11.230166 CST | [pearl-190512-144738] Iteration #37 | iteration 37.
+----------------------------------  --------------
+Z mean train                             0.327583
+Z variance train                         0.804777
+KL Divergence                           40.1288
+KL Loss                                 40.1921
+QF Loss                                 16.6166
+VF Loss                                  5.78093
+Policy Loss                             27.9971
+Q Predictions Mean                     -33.1747
+Q Predictions Std                      138.534
+Q Predictions Max                      148.973
+Q Predictions Min                    -1221.63
+V Predictions Mean                     -27.2672
+V Predictions Std                      136.587
+V Predictions Max                      151.123
+V Predictions Min                    -1222.52
+Log Pis Mean                            -2.09682
+Log Pis Std                              2.12952
+Log Pis Max                             18.417
+Log Pis Min                            -10.6857
+Policy mu Mean                          -0.0371176
+Policy mu Std                            0.581272
+Policy mu Max                            2.53797
+Policy mu Min                           -3.16032
+Policy log std Mean                     -0.46079
+Policy log std Std                       0.248298
+Policy log std Max                       0.163656
+Policy log std Min                      -2.19625
+AverageTrainReturn_all_train_tasks     -35.8246
+AverageReturn_all_train_tasks          -36.7588
+AverageReturn_all_test_tasks           -31.6151
+Number of train steps total         152000
+Number of env steps total           552000
+Number of rollouts total                 0
+Train Time (s)                        1980.75
+(Previous) Eval Time (s)                51.5005
+Sample Time (s)                          4.702
+Epoch Time (s)                        2036.95
+Total Train Time (s)                 74894.2
+Epoch                                   37
+----------------------------------  --------------
+2019-05-13 11:35:57.148638 CST | [pearl-190512-144738] Iteration #37 | Epoch Duration: 2030.6206457614899
+2019-05-13 11:35:57.148929 CST | [pearl-190512-144738] Iteration #37 | Started Training: True
+2019-05-13 11:36:01.136045 CST | [pearl-190512-144738] Iteration #38 | iteration 38.
+----------------------------------  --------------
+Z mean train                             0.118808
+Z variance train                         0.794783
+KL Divergence                           39.7571
+KL Loss                                 39.8032
+QF Loss                                 24.3895
+VF Loss                                 12.0335
+Policy Loss                             55.7555
+Q Predictions Mean                     -59.9111
+Q Predictions Std                      146.86
+Q Predictions Max                      131.832
+Q Predictions Min                    -1102.02
+V Predictions Mean                     -57.3235
+V Predictions Std                      147.693
+V Predictions Max                      133.416
+V Predictions Min                    -1111.5
+Log Pis Mean                            -1.94857
+Log Pis Std                              2.22504
+Log Pis Max                             16.5066
+Log Pis Min                            -10.5392
+Policy mu Mean                          -0.0203731
+Policy mu Std                            0.611886
+Policy mu Max                            2.59503
+Policy mu Min                           -3.20144
+Policy log std Mean                     -0.460449
+Policy log std Std                       0.256337
+Policy log std Max                       0.272656
+Policy log std Min                      -2.08109
+AverageTrainReturn_all_train_tasks     -40.0047
+AverageReturn_all_train_tasks          -38.5194
+AverageReturn_all_test_tasks           -35.4452
+Number of train steps total         156000
+Number of env steps total           556000
+Number of rollouts total                 0
+Train Time (s)                        1903.86
+(Previous) Eval Time (s)                45.1709
+Sample Time (s)                          3.98662
+Epoch Time (s)                        1953.02
+Total Train Time (s)                 76844.8
+Epoch                                   38
+----------------------------------  --------------
+2019-05-13 12:08:27.718175 CST | [pearl-190512-144738] Iteration #38 | Epoch Duration: 1950.5688774585724
+2019-05-13 12:08:27.718542 CST | [pearl-190512-144738] Iteration #38 | Started Training: True
+2019-05-13 12:08:31.514013 CST | [pearl-190512-144738] Iteration #39 | iteration 39.
+----------------------------------  --------------
+Z mean train                             0.0654543
+Z variance train                         0.783862
+KL Divergence                           38.2109
+KL Loss                                 38.261
+QF Loss                                 14.8542
+VF Loss                                  5.14456
+Policy Loss                             31.3565
+Q Predictions Mean                     -36.512
+Q Predictions Std                      143.125
+Q Predictions Max                      141.622
+Q Predictions Min                    -1123.72
+V Predictions Mean                     -31.1533
+V Predictions Std                      141.204
+V Predictions Max                      143.036
+V Predictions Min                    -1122.96
+Log Pis Mean                            -2.23153
+Log Pis Std                              2.08743
+Log Pis Max                             19.7401
+Log Pis Min                            -11.1463
+Policy mu Mean                          -0.0230542
+Policy mu Std                            0.560421
+Policy mu Max                            3.04091
+Policy mu Min                           -3.17262
+Policy log std Mean                     -0.443049
+Policy log std Std                       0.244608
+Policy log std Max                       0.182914
+Policy log std Min                      -2.09233
+AverageTrainReturn_all_train_tasks     -32.2137
+AverageReturn_all_train_tasks          -29.1476
+AverageReturn_all_test_tasks           -35.6345
+Number of train steps total         160000
+Number of env steps total           560000
+Number of rollouts total                 0
+Train Time (s)                        1817.52
+(Previous) Eval Time (s)                42.7186
+Sample Time (s)                          3.79506
+Epoch Time (s)                        1864.03
+Total Train Time (s)                 78712.4
+Epoch                                   39
+----------------------------------  --------------
+2019-05-13 12:39:35.271118 CST | [pearl-190512-144738] Iteration #39 | Epoch Duration: 1867.5524084568024
+2019-05-13 12:39:35.271622 CST | [pearl-190512-144738] Iteration #39 | Started Training: True
+2019-05-13 12:39:38.821433 CST | [pearl-190512-144738] Iteration #40 | iteration 40.
+----------------------------------  ---------------
+Z mean train                             0.115416
+Z variance train                         0.789649
+KL Divergence                           38.2497
+KL Loss                                 38.3061
+QF Loss                                 11.0681
+VF Loss                                  4.43457
+Policy Loss                             -8.95919
+Q Predictions Mean                       4.03005
+Q Predictions Std                      135.456
+Q Predictions Max                      136.09
+Q Predictions Min                    -1173.81
+V Predictions Mean                       9.30444
+V Predictions Std                      134.026
+V Predictions Max                      138.855
+V Predictions Min                    -1163.42
+Log Pis Mean                            -2.39319
+Log Pis Std                              1.95523
+Log Pis Max                             17.8721
+Log Pis Min                            -10.9151
+Policy mu Mean                          -0.00593939
+Policy mu Std                            0.533411
+Policy mu Max                            2.94344
+Policy mu Min                           -2.72334
+Policy log std Mean                     -0.423709
+Policy log std Std                       0.240491
+Policy log std Max                       0.13836
+Policy log std Min                      -2.13933
+AverageTrainReturn_all_train_tasks     -36.5559
+AverageReturn_all_train_tasks          -38.3373
+AverageReturn_all_test_tasks           -34.1187
+Number of train steps total         164000
+Number of env steps total           564000
+Number of rollouts total                 0
+Train Time (s)                        1765.76
+(Previous) Eval Time (s)                46.2358
+Sample Time (s)                          3.54936
+Epoch Time (s)                        1815.55
+Total Train Time (s)                 80527
+Epoch                                   40
+----------------------------------  ---------------
+2019-05-13 13:09:49.897229 CST | [pearl-190512-144738] Iteration #40 | Epoch Duration: 1814.6253933906555
+2019-05-13 13:09:49.897761 CST | [pearl-190512-144738] Iteration #40 | Started Training: True
+2019-05-13 13:09:54.009972 CST | [pearl-190512-144738] Iteration #41 | iteration 41.
+----------------------------------  --------------
+Z mean train                             0.341282
+Z variance train                         0.803191
+KL Divergence                           39.0756
+KL Loss                                 39.1229
+QF Loss                                 15.3938
+VF Loss                                  4.91798
+Policy Loss                             52.6835
+Q Predictions Mean                     -58.1657
+Q Predictions Std                      158.442
+Q Predictions Max                       93.4548
+Q Predictions Min                    -1217.55
+V Predictions Mean                     -52.3693
+V Predictions Std                      157.207
+V Predictions Max                       95.3951
+V Predictions Min                    -1220.79
+Log Pis Mean                            -1.9012
+Log Pis Std                              2.16831
+Log Pis Max                             15.5922
+Log Pis Min                            -11.9893
+Policy mu Mean                          -0.0633772
+Policy mu Std                            0.605176
+Policy mu Max                            2.74246
+Policy mu Min                           -3.43677
+Policy log std Mean                     -0.475133
+Policy log std Std                       0.256275
+Policy log std Max                       0.223718
+Policy log std Min                      -2.22995
+AverageTrainReturn_all_train_tasks     -35.1137
+AverageReturn_all_train_tasks          -40.5424
+AverageReturn_all_test_tasks           -33.0677
+Number of train steps total         168000
+Number of env steps total           568000
+Number of rollouts total                 0
+Train Time (s)                        1824.76
+(Previous) Eval Time (s)                45.3153
+Sample Time (s)                          4.11176
+Epoch Time (s)                        1874.18
+Total Train Time (s)                 82398.9
+Epoch                                   41
+----------------------------------  --------------
+2019-05-13 13:41:01.827986 CST | [pearl-190512-144738] Iteration #41 | Epoch Duration: 1871.929928779602
+2019-05-13 13:41:01.828400 CST | [pearl-190512-144738] Iteration #41 | Started Training: True
+2019-05-13 13:41:06.042678 CST | [pearl-190512-144738] Iteration #42 | iteration 42.
+----------------------------------  --------------
+Z mean train                             0.350928
+Z variance train                         0.798152
+KL Divergence                           41.681
+KL Loss                                 41.805
+QF Loss                                 12.3218
+VF Loss                                  3.96932
+Policy Loss                             10.4175
+Q Predictions Mean                     -15.4192
+Q Predictions Std                      146.874
+Q Predictions Max                      153.909
+Q Predictions Min                    -1181.78
+V Predictions Mean                     -10.803
+V Predictions Std                      144.545
+V Predictions Max                      155.351
+V Predictions Min                    -1165.89
+Log Pis Mean                            -2.25463
+Log Pis Std                              2.05935
+Log Pis Max                             18.8308
+Log Pis Min                            -11.4551
+Policy mu Mean                          -0.0230768
+Policy mu Std                            0.556002
+Policy mu Max                            2.75618
+Policy mu Min                           -2.98927
+Policy log std Mean                     -0.447229
+Policy log std Std                       0.245506
+Policy log std Max                       0.110694
+Policy log std Min                      -2.07062
+AverageTrainReturn_all_train_tasks     -38.5414
+AverageReturn_all_train_tasks          -37.389
+AverageReturn_all_test_tasks           -37.3837
+Number of train steps total         172000
+Number of env steps total           572000
+Number of rollouts total                 0
+Train Time (s)                        1831.16
+(Previous) Eval Time (s)                43.0623
+Sample Time (s)                          4.21377
+Epoch Time (s)                        1878.43
+Total Train Time (s)                 84276.7
+Epoch                                   42
+----------------------------------  --------------
+2019-05-13 14:12:19.644112 CST | [pearl-190512-144738] Iteration #42 | Epoch Duration: 1877.8153941631317
+2019-05-13 14:12:19.644487 CST | [pearl-190512-144738] Iteration #42 | Started Training: True
+2019-05-13 14:12:23.962106 CST | [pearl-190512-144738] Iteration #43 | iteration 43.
+----------------------------------  --------------
+Z mean train                             0.304785
+Z variance train                         0.79455
+KL Divergence                           45.8203
+KL Loss                                 45.8511
+QF Loss                                 23.9852
+VF Loss                                  6.29844
+Policy Loss                            108.674
+Q Predictions Mean                    -114.507
+Q Predictions Std                      168.647
+Q Predictions Max                       97.077
+Q Predictions Min                    -1330.7
+V Predictions Mean                    -108.779
+V Predictions Std                      166.297
+V Predictions Max                       99.6908
+V Predictions Min                    -1320.78
+Log Pis Mean                            -1.58893
+Log Pis Std                              2.38107
+Log Pis Max                             16.4881
+Log Pis Min                            -10.4725
+Policy mu Mean                          -0.0472952
+Policy mu Std                            0.659503
+Policy mu Max                            3.01913
+Policy mu Min                           -2.61462
+Policy log std Mean                     -0.496712
+Policy log std Std                       0.268846
+Policy log std Max                       0.146682
+Policy log std Min                      -2.31912
+AverageTrainReturn_all_train_tasks     -33.1054
+AverageReturn_all_train_tasks          -33.1039
+AverageReturn_all_test_tasks           -33.536
+Number of train steps total         176000
+Number of env steps total           576000
+Number of rollouts total                 0
+Train Time (s)                        1836.48
+(Previous) Eval Time (s)                42.4455
+Sample Time (s)                          4.31729
+Epoch Time (s)                        1883.25
+Total Train Time (s)                 86163.5
+Epoch                                   43
+----------------------------------  --------------
+2019-05-13 14:43:46.431161 CST | [pearl-190512-144738] Iteration #43 | Epoch Duration: 1886.786503314972
+2019-05-13 14:43:46.431664 CST | [pearl-190512-144738] Iteration #43 | Started Training: True
+2019-05-13 14:43:50.349453 CST | [pearl-190512-144738] Iteration #44 | iteration 44.
+----------------------------------  --------------
+Z mean train                             0.217725
+Z variance train                         0.798538
+KL Divergence                           38.5887
+KL Loss                                 38.6801
+QF Loss                                  9.90572
+VF Loss                                  4.72708
+Policy Loss                            -16.2239
+Q Predictions Mean                      11.5731
+Q Predictions Std                      147.078
+Q Predictions Max                      148.183
+Q Predictions Min                    -1088.56
+V Predictions Mean                      16.1783
+V Predictions Std                      146.005
+V Predictions Max                      150.389
+V Predictions Min                    -1085.34
+Log Pis Mean                            -2.52286
+Log Pis Std                              1.86633
+Log Pis Max                              8.86266
+Log Pis Min                            -12.0238
+Policy mu Mean                           0.0161769
+Policy mu Std                            0.504197
+Policy mu Max                            2.27811
+Policy mu Min                           -2.3104
+Policy log std Mean                     -0.421548
+Policy log std Std                       0.237672
+Policy log std Max                       0.123442
+Policy log std Min                      -2.26784
+AverageTrainReturn_all_train_tasks     -36.0906
+AverageReturn_all_train_tasks          -38.032
+AverageReturn_all_test_tasks           -32.1362
+Number of train steps total         180000
+Number of env steps total           580000
+Number of rollouts total                 0
+Train Time (s)                        1823.2
+(Previous) Eval Time (s)                45.9859
+Sample Time (s)                          3.91732
+Epoch Time (s)                        1873.1
+Total Train Time (s)                 88030.3
+Epoch                                   44
+----------------------------------  --------------
+2019-05-13 15:14:53.233377 CST | [pearl-190512-144738] Iteration #44 | Epoch Duration: 1866.8014628887177
+2019-05-13 15:14:53.233795 CST | [pearl-190512-144738] Iteration #44 | Started Training: True
+2019-05-13 15:14:57.389058 CST | [pearl-190512-144738] Iteration #45 | iteration 45.
+----------------------------------  --------------
+Z mean train                             0.238121
+Z variance train                         0.79594
+KL Divergence                           35.1476
+KL Loss                                 35.2039
+QF Loss                                 12.2303
+VF Loss                                  4.25716
+Policy Loss                            -15.2684
+Q Predictions Mean                      10.1845
+Q Predictions Std                       90.3562
+Q Predictions Max                      125.187
+Q Predictions Min                     -470.842
+V Predictions Mean                      15.1593
+V Predictions Std                       87.1055
+V Predictions Max                      126.759
+V Predictions Min                     -447.838
+Log Pis Mean                            -2.31694
+Log Pis Std                              2.02235
+Log Pis Max                             19.15
+Log Pis Min                            -13.7254
+Policy mu Mean                          -0.0209589
+Policy mu Std                            0.54142
+Policy mu Max                            2.83958
+Policy mu Min                           -2.8814
+Policy log std Mean                     -0.444215
+Policy log std Std                       0.247442
+Policy log std Max                       0.143407
+Policy log std Min                      -2.11992
+AverageTrainReturn_all_train_tasks     -38.0185
+AverageReturn_all_train_tasks          -36.9423
+AverageReturn_all_test_tasks           -33.4742
+Number of train steps total         184000
+Number of env steps total           584000
+Number of rollouts total                 0
+Train Time (s)                        1824.26
+(Previous) Eval Time (s)                39.6859
+Sample Time (s)                          4.15486
+Epoch Time (s)                        1868.1
+Total Train Time (s)                 89901.6
+Epoch                                   45
+----------------------------------  --------------
+2019-05-13 15:46:04.507834 CST | [pearl-190512-144738] Iteration #45 | Epoch Duration: 1871.2738251686096
+2019-05-13 15:46:04.508305 CST | [pearl-190512-144738] Iteration #45 | Started Training: True
+2019-05-13 15:46:08.686567 CST | [pearl-190512-144738] Iteration #46 | iteration 46.
+----------------------------------  --------------
+Z mean train                             0.0483152
+Z variance train                         0.791317
+KL Divergence                           38.4683
+KL Loss                                 38.5484
+QF Loss                                 12.8636
+VF Loss                                  4.40783
+Policy Loss                             10.3795
+Q Predictions Mean                     -15.8547
+Q Predictions Std                      155.173
+Q Predictions Max                      149.156
+Q Predictions Min                    -1171.47
+V Predictions Mean                     -10.5645
+V Predictions Std                      152.972
+V Predictions Max                      150.679
+V Predictions Min                    -1166.22
+Log Pis Mean                            -2.29107
+Log Pis Std                              2.03115
+Log Pis Max                             16.979
+Log Pis Min                            -11.9602
+Policy mu Mean                          -0.034186
+Policy mu Std                            0.546243
+Policy mu Max                            2.58582
+Policy mu Min                           -3.77213
+Policy log std Mean                     -0.451832
+Policy log std Std                       0.244322
+Policy log std Max                       0.0793732
+Policy log std Min                      -2.22145
+AverageTrainReturn_all_train_tasks     -37.7445
+AverageReturn_all_train_tasks          -39.044
+AverageReturn_all_test_tasks           -33.0506
+Number of train steps total         188000
+Number of env steps total           588000
+Number of rollouts total                 0
+Train Time (s)                        1831.27
+(Previous) Eval Time (s)                42.8621
+Sample Time (s)                          4.17772
+Epoch Time (s)                        1878.31
+Total Train Time (s)                 91780.1
+Epoch                                   46
+----------------------------------  --------------
+2019-05-13 16:17:23.014006 CST | [pearl-190512-144738] Iteration #46 | Epoch Duration: 1878.5053596496582
+2019-05-13 16:17:23.014473 CST | [pearl-190512-144738] Iteration #46 | Started Training: True
+2019-05-13 16:17:26.754169 CST | [pearl-190512-144738] Iteration #47 | iteration 47.
+----------------------------------  --------------
+Z mean train                             0.213968
+Z variance train                         0.785622
+KL Divergence                           38.9574
+KL Loss                                 38.9915
+QF Loss                                 13.9525
+VF Loss                                  5.73887
+Policy Loss                             52.7975
+Q Predictions Mean                     -57.6625
+Q Predictions Std                      155.273
+Q Predictions Max                      127.402
+Q Predictions Min                    -1092.54
+V Predictions Mean                     -53.6069
+V Predictions Std                      154.086
+V Predictions Max                      128.271
+V Predictions Min                    -1086.37
+Log Pis Mean                            -2.06592
+Log Pis Std                              2.19111
+Log Pis Max                             18.3514
+Log Pis Min                            -11.5638
+Policy mu Mean                          -0.0445481
+Policy mu Std                            0.586213
+Policy mu Max                            2.76768
+Policy mu Min                           -3.14339
+Policy log std Mean                     -0.455194
+Policy log std Std                       0.256435
+Policy log std Max                       0.23671
+Policy log std Min                      -2.26304
+AverageTrainReturn_all_train_tasks     -40.5154
+AverageReturn_all_train_tasks          -40.1968
+AverageReturn_all_test_tasks           -36.4792
+Number of train steps total         192000
+Number of env steps total           592000
+Number of rollouts total                 0
+Train Time (s)                        1836.95
+(Previous) Eval Time (s)                43.0576
+Sample Time (s)                          3.73924
+Epoch Time (s)                        1883.74
+Total Train Time (s)                 93665.5
+Epoch                                   47
+----------------------------------  --------------
+2019-05-13 16:48:48.408504 CST | [pearl-190512-144738] Iteration #47 | Epoch Duration: 1885.393816947937
+2019-05-13 16:48:48.408935 CST | [pearl-190512-144738] Iteration #47 | Started Training: True
+2019-05-13 16:48:52.781245 CST | [pearl-190512-144738] Iteration #48 | iteration 48.
+----------------------------------  --------------
+Z mean train                             0.0100833
+Z variance train                         0.784629
+KL Divergence                           38.6546
+KL Loss                                 38.6923
+QF Loss                                 12.9718
+VF Loss                                  7.25304
+Policy Loss                             20.504
+Q Predictions Mean                     -26.0429
+Q Predictions Std                      158.206
+Q Predictions Max                      128.487
+Q Predictions Min                    -1213.04
+V Predictions Mean                     -20.3868
+V Predictions Std                      155.047
+V Predictions Max                      130.166
+V Predictions Min                    -1200.03
+Log Pis Mean                            -2.22287
+Log Pis Std                              1.99955
+Log Pis Max                             11.238
+Log Pis Min                            -12.4226
+Policy mu Mean                          -0.0115868
+Policy mu Std                            0.555008
+Policy mu Max                            2.63236
+Policy mu Min                           -2.61282
+Policy log std Mean                     -0.451595
+Policy log std Std                       0.250502
+Policy log std Max                       0.194767
+Policy log std Min                      -2.02994
+AverageTrainReturn_all_train_tasks     -40.095
+AverageReturn_all_train_tasks          -39.1151
+AverageReturn_all_test_tasks           -36.1181
+Number of train steps total         196000
+Number of env steps total           596000
+Number of rollouts total                 0
+Train Time (s)                        1820.11
+(Previous) Eval Time (s)                44.7077
+Sample Time (s)                          4.37175
+Epoch Time (s)                        1869.19
+Total Train Time (s)                 95536.6
+Epoch                                   48
+----------------------------------  --------------
+2019-05-13 17:19:59.550215 CST | [pearl-190512-144738] Iteration #48 | Epoch Duration: 1871.140950202942
+2019-05-13 17:19:59.550736 CST | [pearl-190512-144738] Iteration #48 | Started Training: True
+2019-05-13 17:20:04.015250 CST | [pearl-190512-144738] Iteration #49 | iteration 49.
+----------------------------------  --------------
+Z mean train                             0.0915529
+Z variance train                         0.794193
+KL Divergence                           37.8502
+KL Loss                                 37.929
+QF Loss                                 20.5426
+VF Loss                                  9.00271
+Policy Loss                              8.73919
+Q Predictions Mean                     -15.097
+Q Predictions Std                      132.52
+Q Predictions Max                      149.004
+Q Predictions Min                    -1149.72
+V Predictions Mean                     -10.6263
+V Predictions Std                      130.473
+V Predictions Max                      149.719
+V Predictions Min                    -1151.59
+Log Pis Mean                            -2.15497
+Log Pis Std                              2.09706
+Log Pis Max                             18.8197
+Log Pis Min                            -11.0682
+Policy mu Mean                          -0.0348547
+Policy mu Std                            0.558542
+Policy mu Max                            2.79459
+Policy mu Min                           -2.71851
+Policy log std Mean                     -0.470062
+Policy log std Std                       0.256077
+Policy log std Max                       0.121068
+Policy log std Min                      -2.10399
+AverageTrainReturn_all_train_tasks     -35.8031
+AverageReturn_all_train_tasks          -36.9956
+AverageReturn_all_test_tasks           -33.6404
+Number of train steps total         200000
+Number of env steps total           600000
+Number of rollouts total                 0
+Train Time (s)                        1831.13
+(Previous) Eval Time (s)                46.657
+Sample Time (s)                          4.4641
+Epoch Time (s)                        1882.25
+Total Train Time (s)                 97416.7
+Epoch                                   49
+----------------------------------  --------------
+2019-05-13 17:51:19.615020 CST | [pearl-190512-144738] Iteration #49 | Epoch Duration: 1880.0640189647675
+2019-05-13 17:51:19.615533 CST | [pearl-190512-144738] Iteration #49 | Started Training: True
+2019-05-13 17:51:23.819637 CST | [pearl-190512-144738] Iteration #50 | iteration 50.
+----------------------------------  --------------
+Z mean train                             0.0858479
+Z variance train                         0.792898
+KL Divergence                           38.387
+KL Loss                                 38.4661
+QF Loss                                 11.3134
+VF Loss                                  6.67038
+Policy Loss                             26.144
+Q Predictions Mean                     -30.8909
+Q Predictions Std                      136.166
+Q Predictions Max                      101.693
+Q Predictions Min                    -1198.22
+V Predictions Mean                     -25.1072
+V Predictions Std                      134.501
+V Predictions Max                      103.238
+V Predictions Min                    -1204.39
+Log Pis Mean                            -2.15588
+Log Pis Std                              2.0155
+Log Pis Max                             14.4021
+Log Pis Min                            -11.3973
+Policy mu Mean                          -0.0571331
+Policy mu Std                            0.558588
+Policy mu Max                            2.5296
+Policy mu Min                           -2.54024
+Policy log std Mean                     -0.469472
+Policy log std Std                       0.251671
+Policy log std Max                       0.146284
+Policy log std Min                      -2.21601
+AverageTrainReturn_all_train_tasks     -31.2686
+AverageReturn_all_train_tasks          -31.9947
+AverageReturn_all_test_tasks           -30.9764
+Number of train steps total         204000
+Number of env steps total           604000
+Number of rollouts total                 0
+Train Time (s)                        1835.91
+(Previous) Eval Time (s)                44.4669
+Sample Time (s)                          4.2035
+Epoch Time (s)                        1884.58
+Total Train Time (s)                 99300.7
+Epoch                                   50
+----------------------------------  --------------
+2019-05-13 18:22:43.649747 CST | [pearl-190512-144738] Iteration #50 | Epoch Duration: 1884.0339469909668
+2019-05-13 18:22:43.650240 CST | [pearl-190512-144738] Iteration #50 | Started Training: True
+2019-05-13 18:22:47.701439 CST | [pearl-190512-144738] Iteration #51 | iteration 51.
+----------------------------------  --------------
+Z mean train                             0.324873
+Z variance train                         0.796593
+KL Divergence                           37.7531
+KL Loss                                 37.8139
+QF Loss                                 12.5846
+VF Loss                                  4.27488
+Policy Loss                              5.15974
+Q Predictions Mean                     -10.4004
+Q Predictions Std                      120.699
+Q Predictions Max                      145.917
+Q Predictions Min                     -904.822
+V Predictions Mean                      -5.75788
+V Predictions Std                      118.196
+V Predictions Max                      146.469
+V Predictions Min                     -891.569
+Log Pis Mean                            -2.20488
+Log Pis Std                              2.04736
+Log Pis Max                             10.957
+Log Pis Min                            -12.8942
+Policy mu Mean                          -0.0373371
+Policy mu Std                            0.559024
+Policy mu Max                            2.36648
+Policy mu Min                           -2.4526
+Policy log std Mean                     -0.454725
+Policy log std Std                       0.244755
+Policy log std Max                       0.199492
+Policy log std Min                      -2.0975
+AverageTrainReturn_all_train_tasks     -34.8039
+AverageReturn_all_train_tasks          -35.1663
+AverageReturn_all_test_tasks           -32.5909
+Number of train steps total         208000
+Number of env steps total           608000
+Number of rollouts total                 0
+Train Time (s)                        1828.69
+(Previous) Eval Time (s)                43.9239
+Sample Time (s)                          4.05069
+Epoch Time (s)                        1876.66
+Total Train Time (s)                101180
+Epoch                                   51
+----------------------------------  --------------
+2019-05-13 18:54:03.171765 CST | [pearl-190512-144738] Iteration #51 | Epoch Duration: 1879.5212893486023
+2019-05-13 18:54:03.172305 CST | [pearl-190512-144738] Iteration #51 | Started Training: True
+2019-05-13 18:54:07.469247 CST | [pearl-190512-144738] Iteration #52 | iteration 52.
+----------------------------------  ---------------
+Z mean train                             0.323953
+Z variance train                         0.815859
+KL Divergence                           33.9518
+KL Loss                                 34.0305
+QF Loss                                  7.8393
+VF Loss                                  3.25489
+Policy Loss                            -61.4347
+Q Predictions Mean                      56.4901
+Q Predictions Std                       89.234
+Q Predictions Max                      137.496
+Q Predictions Min                     -830.793
+V Predictions Mean                      61.2071
+V Predictions Std                       87.894
+V Predictions Max                      139.514
+V Predictions Min                     -820.184
+Log Pis Mean                            -2.7655
+Log Pis Std                              1.61977
+Log Pis Max                             16.7061
+Log Pis Min                            -10.9901
+Policy mu Mean                           0.00816792
+Policy mu Std                            0.45863
+Policy mu Max                            2.63699
+Policy mu Min                           -2.64236
+Policy log std Mean                     -0.400431
+Policy log std Std                       0.220298
+Policy log std Max                       0.175571
+Policy log std Min                      -2.16096
+AverageTrainReturn_all_train_tasks     -33.7321
+AverageReturn_all_train_tasks          -32.997
+AverageReturn_all_test_tasks           -32.9844
+Number of train steps total         212000
+Number of env steps total           612000
+Number of rollouts total                 0
+Train Time (s)                        1841.84
+(Previous) Eval Time (s)                46.7849
+Sample Time (s)                          4.29638
+Epoch Time (s)                        1892.92
+Total Train Time (s)                103072
+Epoch                                   52
+----------------------------------  ---------------
+2019-05-13 19:25:34.823618 CST | [pearl-190512-144738] Iteration #52 | Epoch Duration: 1891.6509399414062
+2019-05-13 19:25:34.824003 CST | [pearl-190512-144738] Iteration #52 | Started Training: True
+2019-05-13 19:25:38.895963 CST | [pearl-190512-144738] Iteration #53 | iteration 53.
+----------------------------------  --------------
+Z mean train                             0.159572
+Z variance train                         0.798135
+KL Divergence                           38.0076
+KL Loss                                 38.0934
+QF Loss                                 10.9869
+VF Loss                                  3.37402
+Policy Loss                              5.70992
+Q Predictions Mean                     -10.5973
+Q Predictions Std                      142.172
+Q Predictions Max                      145.116
+Q Predictions Min                    -1100.72
+V Predictions Mean                      -5.77447
+V Predictions Std                      139.96
+V Predictions Max                      146.559
+V Predictions Min                    -1095.06
+Log Pis Mean                            -2.27243
+Log Pis Std                              2.01421
+Log Pis Max                             17.5958
+Log Pis Min                            -11.0908
+Policy mu Mean                          -0.0431155
+Policy mu Std                            0.54327
+Policy mu Max                            3.00462
+Policy mu Min                           -2.68486
+Policy log std Mean                     -0.460552
+Policy log std Std                       0.244957
+Policy log std Max                       0.11531
+Policy log std Min                      -2.23249
+AverageTrainReturn_all_train_tasks     -33.3218
+AverageReturn_all_train_tasks          -34.1043
+AverageReturn_all_test_tasks           -34.3252
+Number of train steps total         216000
+Number of env steps total           616000
+Number of rollouts total                 0
+Train Time (s)                        1828.77
+(Previous) Eval Time (s)                45.5142
+Sample Time (s)                          4.07163
+Epoch Time (s)                        1878.35
+Total Train Time (s)                104948
+Epoch                                   53
+----------------------------------  --------------
+2019-05-13 19:56:50.948283 CST | [pearl-190512-144738] Iteration #53 | Epoch Duration: 1876.1241014003754
+2019-05-13 19:56:50.948782 CST | [pearl-190512-144738] Iteration #53 | Started Training: True
+2019-05-13 19:56:55.517826 CST | [pearl-190512-144738] Iteration #54 | iteration 54.
+----------------------------------  --------------
+Z mean train                             0.0403147
+Z variance train                         0.803574
+KL Divergence                           33.8747
+KL Loss                                 33.9346
+QF Loss                                 10.0719
+VF Loss                                  3.3778
+Policy Loss                            -21.4612
+Q Predictions Mean                      17.1774
+Q Predictions Std                       83.97
+Q Predictions Max                       99.0215
+Q Predictions Min                     -555.891
+V Predictions Mean                      21.2701
+V Predictions Std                       82.2443
+V Predictions Max                      100.052
+V Predictions Min                     -551.613
+Log Pis Mean                            -2.45808
+Log Pis Std                              1.78042
+Log Pis Max                             11.0354
+Log Pis Min                            -11.9941
+Policy mu Mean                          -0.0415487
+Policy mu Std                            0.504046
+Policy mu Max                            2.21203
+Policy mu Min                           -3.07993
+Policy log std Mean                     -0.450744
+Policy log std Std                       0.231599
+Policy log std Max                       0.295822
+Policy log std Min                      -2.2297
+AverageTrainReturn_all_train_tasks     -38.1074
+AverageReturn_all_train_tasks          -37.3006
+AverageReturn_all_test_tasks           -34.55
+Number of train steps total         220000
+Number of env steps total           620000
+Number of rollouts total                 0
+Train Time (s)                        1825.7
+(Previous) Eval Time (s)                43.2868
+Sample Time (s)                          4.56858
+Epoch Time (s)                        1873.55
+Total Train Time (s)                106823
+Epoch                                   54
+----------------------------------  --------------
+2019-05-13 20:28:05.901429 CST | [pearl-190512-144738] Iteration #54 | Epoch Duration: 1874.9524188041687
+2019-05-13 20:28:05.901907 CST | [pearl-190512-144738] Iteration #54 | Started Training: True
+2019-05-13 20:28:09.432082 CST | [pearl-190512-144738] Iteration #55 | iteration 55.
+----------------------------------  --------------
+Z mean train                             0.239925
+Z variance train                         0.788113
+KL Divergence                           40.0976
+KL Loss                                 40.1789
+QF Loss                                 13.0052
+VF Loss                                  5.15791
+Policy Loss                             58.8599
+Q Predictions Mean                     -63.4714
+Q Predictions Std                      175.6
+Q Predictions Max                      146.897
+Q Predictions Min                    -1209.68
+V Predictions Mean                     -58.8599
+V Predictions Std                      173.451
+V Predictions Max                      148.11
+V Predictions Min                    -1204.45
+Log Pis Mean                            -1.99005
+Log Pis Std                              2.26285
+Log Pis Max                             16.9377
+Log Pis Min                            -12.4511
+Policy mu Mean                          -0.0558172
+Policy mu Std                            0.596176
+Policy mu Max                            2.51954
+Policy mu Min                           -3.1943
+Policy log std Mean                     -0.467444
+Policy log std Std                       0.254408
+Policy log std Max                       0.0541274
+Policy log std Min                      -2.18242
+AverageTrainReturn_all_train_tasks     -36.6274
+AverageReturn_all_train_tasks          -36.7603
+AverageReturn_all_test_tasks           -31.3237
+Number of train steps total         224000
+Number of env steps total           624000
+Number of rollouts total                 0
+Train Time (s)                        1829.06
+(Previous) Eval Time (s)                44.6863
+Sample Time (s)                          3.52984
+Epoch Time (s)                        1877.28
+Total Train Time (s)                108702
+Epoch                                   55
+----------------------------------  --------------
+2019-05-13 20:59:25.430084 CST | [pearl-190512-144738] Iteration #55 | Epoch Duration: 1879.527951002121
+2019-05-13 20:59:25.430599 CST | [pearl-190512-144738] Iteration #55 | Started Training: True
+2019-05-13 20:59:29.791004 CST | [pearl-190512-144738] Iteration #56 | iteration 56.

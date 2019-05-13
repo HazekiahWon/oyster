@@ -1,0 +1,90 @@
+{
+  "algo_params": {
+    "batch_size": 256,
+    "context_lr": 0.0003,
+    "discount": 0.99,
+    "dump_eval_paths": false,
+    "embedding_batch_size": 256,
+    "embedding_mini_batch_size": 256,
+    "eval_embedding_source": "online_exploration_trajectories",
+    "kl_lambda": 1.0,
+    "max_path_length": 200,
+    "meta_batch": 8,
+    "num_evals": 2,
+    "num_exp_traj_eval": 1,
+    "num_iterations": 500,
+    "num_steps_per_eval": 400,
+    "num_steps_per_task": 400,
+    "num_tasks_sample": 5,
+    "num_train_steps_per_itr": 4000,
+    "policy_lr": 0.0003,
+    "qf_lr": 0.0003,
+    "recurrent": false,
+    "reparameterize": true,
+    "replay_buffer_size": 100000,
+    "reward_scale": 5.0,
+    "soft_target_tau": 0.005,
+    "sparse_rewards": false,
+    "train_embedding_source": "online_exploration_trajectories",
+    "use_information_bottleneck": true,
+    "vf_lr": 0.0003
+  },
+  "cmd_params": {
+    "confine_num_c": false,
+    "debug": false,
+    "dif_policy": 0,
+    "eq_enc": true,
+    "exp_offp": false,
+    "fast_debug": false,
+    "infer_freq": 20,
+    "num_exp": 1,
+    "rew_mode": 0,
+    "sar2gam": true,
+    "use_ae": false,
+    "use_explorer": true
+  },
+  "configs": {
+    "anet_sizes": [
+      300,
+      300,
+      300
+    ],
+    "ci2gam": [
+      32,
+      32
+    ],
+    "eta_dim": 32,
+    "etanet_sizes": [
+      128,
+      64
+    ],
+    "exp_id": "cheetah-vel",
+    "gam2z": [
+      32,
+      32
+    ],
+    "gamma_dim": 1,
+    "num_eval_tasks": 30,
+    "num_iters": 500,
+    "num_tasks": 130,
+    "obs_emb_dim": 0,
+    "obsemb_sizes": [
+      64
+    ],
+    "resume_dir": "",
+    "sample_mode": 0,
+    "z2gam": [
+      32,
+      32
+    ],
+    "z_dim": 5
+  },
+  "gpu_id": 3,
+  "net_size": 300,
+  "task_params": {
+    "low_gear": false,
+    "n_tasks": 130,
+    "randomize_tasks": true
+  },
+  "use_gpu": true
+}
