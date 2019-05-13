@@ -5,10 +5,11 @@ import pathlib
 import os
 import sys
 import json
-sys.path.append('/home/zhjl/oyster')
+sys.path.append(os.path.abspath('.'))
+# print(sys.path)
 ######################
 import joblib
-from scripts.shared import setup_nets
+from shared import setup_nets
 resume = False
 
 # exp_id = 'half-cheetah-vel'
