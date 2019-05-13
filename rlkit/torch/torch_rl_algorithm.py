@@ -148,7 +148,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         paths = list()
         for z_mean,z_var in zip(torch.unbind(z_means),torch.unbind(z_vars)):
 
-            self.agent.trans_z(z_mean,z_var) # nup*ntask,5
+            self.agent.trans_z(z_mean,z_var, deterministic=True) # nup*ntask,5
             test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
                                                                     accum_context=False, infer_freq=0,
                                                                     max_samples=self.max_path_length,
@@ -156,6 +156,32 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                                                                     resample=np.inf,
                                                                     animated=animated)  # eval_sampler is also explorer for pearl
             paths.append(test_paths[0])
+        # self.explorer.clear_z()
+        # # i think explorer should not be deterministic
+        # num_exp = self.num_exp_traj_eval
+        # for _ in range(num_exp):
+        #     # whether the exp update once every traj is determined by the infer freq
+        #     # resample doesnt matter cuz max_traj is set 1
+        #     test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False,
+        #                                                       accum_context=self.infer_freq != 0,
+        #                                                       infer_freq=self.infer_freq,
+        #                                                       max_samples=self.max_path_length,
+        #                                                       max_trajs=1,
+        #                                                       resample=np.inf)  # eval_sampler is also explorer for pearl
+        #
+        #     test_paths = test_paths[0]
+        #     o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
+        #     if self.infer_freq == 0:
+        #         self.explorer.update_context([o, a, r, None, None])
+        #     self.explorer.infer_posterior(self.explorer.context)
+        #     # if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths)  # add to buffer while evaluating
+        # self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
+        # test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+        #                                                         accum_context=False, infer_freq=0,
+        #                                                         max_samples=self.max_path_length,
+        #                                                         max_trajs=1,
+        #                                                         resample=np.inf)  # eval_sampler is also explorer for pearl
+        # paths = test_paths
 
         returns = [sum(path["rewards"]) for path in paths]
 
@@ -188,7 +214,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 self.explorer.update_context([o, a, r, None, None])
             self.explorer.infer_posterior(self.explorer.context)
             if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
-        self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars)
+        self.agent.trans_z(self.explorer.z_means, self.explorer.z_vars, deterministic=True)
         test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
                                                                 accum_context=False, infer_freq=0,
                                                                 max_samples=self.max_path_length,
@@ -469,7 +495,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         online_returns = []
         for idx in indices:
             # runs, all_rets = [], []
-            all_rets = self.online_test_paths_exp(idx, False, True, animated=True)
+            all_rets = self.online_test_paths_exp(idx, False, True, animated=False)
             # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.
             # final_returns.append(all_rets[-1])
             online_returns.append(all_rets)

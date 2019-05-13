@@ -15,7 +15,7 @@ def _product_of_gaussians(mus, sigmas_squared):
     '''
     compute mu, sigma of product of gaussians
     '''
-    sigmas_squared = torch.clamp(sigmas_squared, min=1e-7)
+    # sigmas_squared = torch.clamp(sigmas_squared, min=1e-7)
     sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
     mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
     return mu, torch.sqrt(sigma_squared)
@@ -94,11 +94,11 @@ class ProtoAgent(nn.Module):
         self.context = None
         self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
 
-    def trans_z(self, mu, var):
+    def trans_z(self, mu, var, deterministic=False):
         self.z_means = mu
         self.z_vars = var
         # sample a new z from the prior
-        self.sample_z()
+        self.sample_z(deterministic=deterministic)
 
     def detach_z(self):
         self.z = self.z.detach()
@@ -164,17 +164,28 @@ class ProtoAgent(nn.Module):
 
             num = context.size(1)
             start = 0
-            m = torch.unbind(mu)
+            m = torch.unbind(mu) # ntask, nsample, dim
             s = torch.unbind(sigma_squared)
 
             while start<num:
                 # alist of b list of mean and variance
-                z_params = [_product_of_gaussians(mm[start:min(num,start+infer_freq)], ss[start:min(num,start+infer_freq)]) for mm, ss in zip(m,s)]
+                # if start>0:
+                #     z_params = [_product_of_gaussians(torch.cat((mm[start:min(num,start+infer_freq)],zm)),
+                #                                       torch.cat((ss[start:min(num,start+infer_freq)],zs)))
+                #                 for mm, ss,zm,zs in zip(m,s,z_mean,z_var)]
+                # else:
+                #     z_params = [_product_of_gaussians(mm[start:min(num,start+infer_freq)], ss[start:min(num,start+infer_freq)]) for mm, ss in zip(m,s)]
+                z_params = [_product_of_gaussians(mm[:min(num,start+infer_freq)], ss[:min(num,start+infer_freq)]) for mm, ss in zip(m,s)]
+                # mp2,sp2 = zip(*z_params2)
                 mp,sp = zip(*z_params)
-                z_mparams_list.append(torch.stack(mp))# a list of a list of b tasks'z posterior params
-                z_sparams_list.append(torch.stack(sp))
+                z_mean = torch.stack(mp) # ntask,dim
+                z_var = torch.stack(sp) # ntask,dim
+                z_mparams_list.append(z_mean)# a list of a list of b tasks'z posterior params
+                z_sparams_list.append(z_var)
+                # z_mean = torch.unbind(z_mean.view(-1,1,self.z_dim))
+                # z_var = torch.unbind(z_var.view(-1,1,self.z_dim))
                 start += infer_freq
-            # numupdate,b,zdim > nb,zdim
+            # # numupdate,b,zdim > nb,zdim
             if self.num_updates is None: self.num_updates = len(z_mparams_list)
             self.z_means = torch.cat(z_mparams_list)#.view(-1,self.z_dim)
             self.z_vars = torch.cat(z_sparams_list)#.view(-1,self.z_dim)
@@ -184,13 +195,16 @@ class ProtoAgent(nn.Module):
         #     self.z_means = torch.mean(params, dim=1)
         self.sample_z()
 
-    def sample_z(self, batch=None, z_means=None):
+    def sample_z(self, batch=None, z_means=None, deterministic=False):
         if z_means is None:
             z_means = self.z_means
             z_vars = self.z_vars
         else:
             z_vars = torch.stack([ptu.ones(self.z_dim) for _ in range(z_means.size(0))])
         if self.use_ib:
+            if deterministic:
+                if batch is None: self.z = self.z_means
+                else: self.z = self.z_means.view(-1,1,self.z_dim).repeat(1,batch,1) # ntask,bs,dim
             posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in zip(torch.unbind(z_means), torch.unbind(z_vars))]
             if batch is None:
                 z = [d.rsample() for d in posteriors]
@@ -198,6 +212,7 @@ class ProtoAgent(nn.Module):
             else:
                 z = [torch.stack([d.rsample() for _ in range(batch)]) for d in posteriors]
                 return torch.stack(z) # mb,b,dim
+
         else:
             self.z = self.z_means
 
