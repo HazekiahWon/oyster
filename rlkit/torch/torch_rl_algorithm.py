@@ -11,6 +11,7 @@ from rlkit.core.rl_algorithm import MetaRLAlgorithm
 from rlkit.torch import pytorch_util as ptu
 from rlkit.torch.core import PyTorchModule, np_ify, torch_ify
 from rlkit.core import logger, eval_util
+from os import path as osp
 import copy
 
 
@@ -112,7 +113,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                                                        resample=np.inf) # eval_sampler is also explorer for pearl
         return test_paths,n_steps
 
-    def online_test_paths_exp(self, idx, eval_task=False, deterministic=False):
+    def online_test_paths_exp(self, idx, eval_task=False, deterministic=False, animated=False):
         '''
         for actor-explorer:
             1. explorer collect traj, defaut 1.
@@ -124,14 +125,15 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.explorer.clear_z()
         # i think explorer should not be deterministic
         num_exp = self.num_exp_traj_eval
-        for _ in range(num_exp):
+        for cnt in range(num_exp):
             # whether the exp update once every traj is determined by the infer freq
             # resample doesnt matter cuz max_traj is set 1
             test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False,
                                                               accum_context=self.infer_freq!=0, infer_freq=self.infer_freq, # if infer freq==0 willnot accum
                                                               max_samples=self.max_path_length,
                                                               max_trajs=1,
-                                                              resample=np.inf)  # eval_sampler is also explorer for pearl
+                                                              resample=np.inf,
+                                                              animated=animated)  # eval_sampler is also explorer for pearl
 
             test_paths = test_paths[0]
             o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
@@ -139,6 +141,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 self.explorer.update_context([o, a, r, None, None])
             self.explorer.infer_posterior(self.explorer.context, infer_freq=self.infer_freq)
             # if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
+            if animated:
+                np.save(osp.join('videos',f'{idx}_exp_{cnt}'))
         z_means = self.explorer.z_means.view(-1,1,self.explorer.z_dim)
         z_vars = self.explorer.z_vars.view(-1,1,self.explorer.z_dim) # nup,1,5
         paths = list()
@@ -149,7 +153,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                                                                     accum_context=False, infer_freq=0,
                                                                     max_samples=self.max_path_length,
                                                                     max_trajs=1,
-                                                                    resample=np.inf)  # eval_sampler is also explorer for pearl
+                                                                    resample=np.inf,
+                                                                    animated=animated)  # eval_sampler is also explorer for pearl
             paths.append(test_paths[0])
 
         returns = [sum(path["rewards"]) for path in paths]
@@ -464,7 +469,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         online_returns = []
         for idx in indices:
             # runs, all_rets = [], []
-            all_rets = self.online_test_paths_exp(idx, False, True)
+            all_rets = self.online_test_paths_exp(idx, False, True, animated=True)
             # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.
             # final_returns.append(all_rets[-1])
             online_returns.append(all_rets)
@@ -650,14 +655,15 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
     def test(self, newenv=None):
         if self.eval_statistics is None:
             self.eval_statistics = OrderedDict()
-
-        indices = np.random.choice(self.train_tasks, len(self.eval_tasks), replace=False)
-        eval_util.dprint('testing on {} train tasks'.format(len(indices)))
-        ### eval train tasks with on-policy data to match eval of test tasks
-        train_online_returns = self._do_test(indices)
-        print(train_online_returns)
-        eval_util.dprint('train online returns')
-        eval_util.dprint(train_online_returns)
+        train_online_returns = None
+        # indices = np.random.choice(self.train_tasks, len(self.eval_tasks), replace=False)
+        # eval_util.dprint('testing on {} train tasks'.format(len(indices)))
+        # ### eval train tasks with on-policy data to match eval of test tasks
+        # train_online_returns = self._do_test(indices)
+        # print(train_online_returns)
+        # eval_util.dprint('train online returns')
+        # eval_util.dprint(train_online_returns)
+        # logger.save_test_results(train_online_returns, 'train_res')
 
         ### test tasks
         eval_util.dprint('testing on {} test tasks'.format(len(self.eval_tasks)))
@@ -666,7 +672,6 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         eval_util.dprint('test online returns')
         eval_util.dprint(test_online_returns)
 
-        logger.save_test_results(train_online_returns, 'train_res')
         logger.save_test_results(test_online_returns, 'test_res')
         # avg_train_return = np.mean(train_final_returns)
         # avg_test_return = np.mean(test_final_returns)

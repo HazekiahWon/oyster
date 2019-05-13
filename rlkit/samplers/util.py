@@ -38,8 +38,10 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
     o = env.reset()
     next_o = None
     path_length = 0
+    video = list()
     if animated:
-        env.render()
+        tmp = env.render(mode='rgb_array')
+        video.append(tmp)
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
@@ -84,6 +86,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=agent_infos,
         env_infos=env_infos,
+        frames=np.stack(video) if len(video)!=0 else None
     )
 
 def act_while_explore(env, agent, env2, actor, freq=20, num_avg_test=2, max_path_length=np.inf, animated=False, infer_freq=0):

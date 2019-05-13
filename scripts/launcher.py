@@ -129,7 +129,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
-@click.option('--test', default=False, is_flag=True)
+@click.option('--test', default=True, is_flag=True)
 def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp, confine_num_c, eq_enc, infer_freq, rew_mode, sar2gam, num_exp,
          fast_debug, note, resume, docker, test):
     configs = dict() # use a default json
