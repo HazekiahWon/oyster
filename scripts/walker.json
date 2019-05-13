@@ -4,7 +4,7 @@
   "num_tasks": 130,
   "num_eval_tasks": 30,
   "gamma_dim": 65,
-  "z_dim": 5,
+  "z_dim": 16,
   "eta_dim": 10,
   "sample_mode": 0,
   "z2gam": [200,200,200],
