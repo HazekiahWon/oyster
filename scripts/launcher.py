@@ -40,7 +40,7 @@ def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, confine_num_c, eq_enc, infer_freq,
+def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, test_suffix, confine_num_c, eq_enc, infer_freq,
                rew_mode, sar2gam, exp_offp,
                configs):
     keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim','sample_mode']
@@ -103,6 +103,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
         sar2gam=sar2gam,
         dif_policy=dif_policy,
         test=test,
+        test_suffix=test_suffix,
         **variant['algo_params']
     )
 
@@ -116,6 +117,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
 @click.argument('config', default=None, type=str)
 @click.argument('gpu', default=0)
 @click.argument('debug', default=False, type=bool)
+@click.argument('infer_freq', default=0, type=int)
 @click.argument('use_explorer', default=False, type=bool)
 @click.argument('use_ae',default=False, type=bool)
 @click.argument('eq_enc', default=False, type=bool) # higher priority over ae
@@ -125,15 +127,15 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
 @click.argument('obs_emb', default=False, type=bool)
 @click.argument('exp_offp', default=False, type=bool)
 @click.argument('confine_num_c', default=False, type=bool) # make effect only when allowing extended exploration
-@click.argument('infer_freq', default=0, type=int)
 @click.argument('num_exp', default=1, type=int)
 @click.option('--fast_debug', default=fast_debug, type=bool)
 @click.option('--note', default='-')
 @click.option('--resume', default=resume, is_flag=True) # 0 is false, any other is true
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
+@click.option('--test_suffix', default="", )
 def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp, confine_num_c, eq_enc, infer_freq, rew_mode, sar2gam, num_exp,
-         fast_debug, note, resume, docker, test):
+         fast_debug, note, resume, docker, test, test_suffix):
     configs = dict() # use a default json
     if config:
         with open(os.path.join(config+'.json')) as f:
@@ -215,7 +217,7 @@ def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, confine_num_c, eq_enc, infer_freq,
+    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, test_suffix, confine_num_c, eq_enc, infer_freq,
                rew_mode, sar2gam, exp_offp,
                configs)
 

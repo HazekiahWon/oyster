@@ -124,15 +124,14 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         '''
 
         self.explorer.clear_z()
-        # is_pearl = id(self.explorer) == id(self.agent)
+        is_pearl = not causal_update#id(self.explorer) == id(self.agent)
         # i think explorer should not be deterministic
         num_exp = self.num_exp_traj_eval
         for cnt in range(num_exp):
-            # whether the exp update once every traj is determined by the infer freq
-            # resample doesnt matter cuz max_traj is set 1
+            # TODO not sure if enc_determinstic should be true, should we allow the encoder to guess?
             test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, enc_determ=True,
-                                                              accum_context=self.infer_freq!=0 and causal_update,
-                                                              infer_freq=0 if not causal_update else self.infer_freq, # if infer freq==0 willnot accum
+                                                              accum_context=self.infer_freq!=0 and not is_pearl,
+                                                              infer_freq=0 if is_pearl else self.infer_freq, # if infer freq==0 willnot accum
                                                               max_samples=self.max_path_length,
                                                               max_trajs=1,
                                                               resample=np.inf,
@@ -140,13 +139,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
             test_paths = test_paths[0]
             o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
-            if self.infer_freq==0 or not causal_update:
+            if self.infer_freq==0 or is_pearl:
                 self.explorer.update_context([o, a, r, None, None])
             if animated:
                 fname = f'{idx}_exp_{cnt}.npy'
                 np.save(osp.join('videos',fname), test_paths['frames'])
                 print(f'{fname} saved.')
-            self.explorer.infer_posterior(self.explorer.context, infer_freq=self.infer_freq, deterministic=False) # enc determ is true
+            self.explorer.infer_posterior(self.explorer.context, infer_freq=self.infer_freq) # let z sampled or not
             # if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
         z_means = self.explorer.z_means.view(-1,1,self.explorer.z_dim)
         z_vars = self.explorer.z_vars.view(-1,1,self.explorer.z_dim) # nup,1,5
@@ -508,9 +507,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         cnt=0
         for idx in indices:
             # runs, all_rets = [], []
-            # old versions that is not trained with causal z update turns off
             print(idx)
-            all_rets = self.online_test_paths_exp(idx, deterministic=True, animated=animated, causal_update=False)
+            # better do several times
+            all_rets = [self.online_test_paths_exp(idx, deterministic=True, animated=animated, causal_update=False) for _ in range(3)]
+            all_rets = np.mean(np.stack(all_rets), axis=0)
             # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.
             # final_returns.append(all_rets[-1])
             online_returns.append(all_rets)

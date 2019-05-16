@@ -52,6 +52,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             exp_offp=False,
             infer_freq=20,
             test=False,
+            test_suffix="",
             **kwargs
     ):
         """
@@ -174,7 +175,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         expname = time.strftime('%y%m%d_%H%M%S', time.localtime())
         test_prefix = "test_" if test else ""
         folder = "test_results" if test else "saved_models"
-        self.writer = SummaryWriter(os.path.join(folder,test_prefix+expname))
+        self.writer = SummaryWriter(os.path.join(folder,test_prefix+expname+test_suffix))
 
     def make_exploration_policy(self, policy):
          return policy
