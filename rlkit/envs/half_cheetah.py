@@ -19,15 +19,18 @@ class HalfCheetahEnv(HalfCheetahEnv_):
 
     def render(self, mode='human'):
         if mode == 'rgb_array':
-            print('1')
-            # self._get_viewer(mode).render()
-            print('2')
+            # print('1')
+            self._get_viewer(mode).render()
+            # print('2')
             # window size used for old mujoco-py:
             width, height = 500, 500
             viewer = self._get_viewer(mode)
             data = viewer.read_pixels(width, height, depth=False)
             return data
         elif mode == 'human':
-            self._get_viewer(mode).render()
+            viewer = self._get_viewer(mode)
+            viewer.render()
+            data = viewer._read_pixels_as_in_window()
+            return data
 
 

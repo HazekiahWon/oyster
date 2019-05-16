@@ -6,7 +6,7 @@ def random_choice(tensor, size=256):
         indices = np.random.choice(np.arange(tensor.size(-2)), size, replace=False)
     return tensor[...,indices,:]
 
-def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True, infer_freq=0):
+def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True, infer_freq=0, deterministic=False):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -39,9 +39,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
     next_o = None
     path_length = 0
     video = list()
-    if animated:
-        tmp = env.render(mode='rgb_array')
-        video.append(tmp)
+
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
@@ -51,7 +49,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
             if infer_freq>0 and path_length%infer_freq==0:
                 # c = random_choice(agent.context)
                 # c = agent.context
-                agent.infer_posterior(agent.context)
+                agent.infer_posterior(agent.context, deterministic)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -63,7 +61,8 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
             break
         o = next_o
         if animated:
-            env.render()
+            tmp = env.render(mode='human')
+            video.append(tmp)
 
     actions = np.array(actions)
     if len(actions.shape) == 1:

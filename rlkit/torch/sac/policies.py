@@ -41,14 +41,14 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             self,
             hidden_sizes,
             obs_dim,
-            lat_dim,
+            # lat_dim,
             action_dim,
             std=None,
             init_w=1e-3,
             **kwargs
     ):
         self.save_init_params(locals())
-        obs_dim += lat_dim # adding lat_dim is to match with embpolicy
+        # obs_dim += lat_dim # adding lat_dim is to match with embpolicy
         super().__init__(
             hidden_sizes,
             input_size=obs_dim,

@@ -12,6 +12,7 @@ from rlkit.torch import pytorch_util as ptu
 from rlkit.torch.core import PyTorchModule, np_ify, torch_ify
 from rlkit.core import logger, eval_util
 from os import path as osp
+import os
 import copy
 
 
@@ -113,7 +114,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                                                        resample=np.inf) # eval_sampler is also explorer for pearl
         return test_paths,n_steps
 
-    def online_test_paths_exp(self, idx, eval_task=False, deterministic=False, animated=False):
+    def online_test_paths_exp(self, idx, deterministic=False, animated=False, causal_update=True):
         '''
         for actor-explorer:
             1. explorer collect traj, defaut 1.
@@ -123,13 +124,15 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         '''
 
         self.explorer.clear_z()
+        # is_pearl = id(self.explorer) == id(self.agent)
         # i think explorer should not be deterministic
         num_exp = self.num_exp_traj_eval
         for cnt in range(num_exp):
             # whether the exp update once every traj is determined by the infer freq
             # resample doesnt matter cuz max_traj is set 1
-            test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False,
-                                                              accum_context=self.infer_freq!=0, infer_freq=self.infer_freq, # if infer freq==0 willnot accum
+            test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, enc_determ=True,
+                                                              accum_context=self.infer_freq!=0 and causal_update,
+                                                              infer_freq=0 if not causal_update else self.infer_freq, # if infer freq==0 willnot accum
                                                               max_samples=self.max_path_length,
                                                               max_trajs=1,
                                                               resample=np.inf,
@@ -137,15 +140,19 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
             test_paths = test_paths[0]
             o, a, r = test_paths['observations'], test_paths['actions'], test_paths['rewards']
-            if self.infer_freq==0:
+            if self.infer_freq==0 or not causal_update:
                 self.explorer.update_context([o, a, r, None, None])
-            self.explorer.infer_posterior(self.explorer.context, infer_freq=self.infer_freq)
-            # if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
             if animated:
-                np.save(osp.join('videos',f'{idx}_exp_{cnt}'))
+                fname = f'{idx}_exp_{cnt}.npy'
+                np.save(osp.join('videos',fname), test_paths['frames'])
+                print(f'{fname} saved.')
+            self.explorer.infer_posterior(self.explorer.context, infer_freq=self.infer_freq, deterministic=False) # enc determ is true
+            # if not eval_task: self.enc_replay_buffer.add_path(idx, test_paths) # add to buffer while evaluating
         z_means = self.explorer.z_means.view(-1,1,self.explorer.z_dim)
         z_vars = self.explorer.z_vars.view(-1,1,self.explorer.z_dim) # nup,1,5
         paths = list()
+        cnt = 0
+        n = z_means.size(0)
         for z_mean,z_var in zip(torch.unbind(z_means),torch.unbind(z_vars)):
 
             self.agent.trans_z(z_mean,z_var, deterministic=True) # nup*ntask,5
@@ -154,7 +161,12 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                                                                     max_samples=self.max_path_length,
                                                                     max_trajs=1,
                                                                     resample=np.inf,
-                                                                    animated=animated)  # eval_sampler is also explorer for pearl
+                                                                    animated=animated if cnt==n-1 else False)  # eval_sampler is also explorer for pearl
+            if animated and cnt==n-1:
+                fname = f'{idx}_test_{cnt}.npy'
+                np.save(osp.join('videos',fname), test_paths[0]['frames'])
+                print(f'{fname} saved.')
+            cnt += 1
             paths.append(test_paths[0])
         # self.explorer.clear_z()
         # # i think explorer should not be deterministic
@@ -483,7 +495,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             online_returns.append(all_rets)
         return online_returns
 
-    def _do_test(self, indices):
+    def _do_test(self, indices, animated):
         """
         # return the (averaged) testing traj return list
         (n_ind,1)
@@ -493,12 +505,16 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         """
         # final_returns = []
         online_returns = []
+        cnt=0
         for idx in indices:
             # runs, all_rets = [], []
-            all_rets = self.online_test_paths_exp(idx, False, True, animated=False)
+            # old versions that is not trained with causal z update turns off
+            print(idx)
+            all_rets = self.online_test_paths_exp(idx, deterministic=True, animated=animated, causal_update=False)
             # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.
             # final_returns.append(all_rets[-1])
             online_returns.append(all_rets)
+            cnt += 1
         online_returns = np.mean(np.stack(online_returns), axis=0)
         return online_returns
 
@@ -678,10 +694,11 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         #
         # return avg_train_return,avg_test_return
 
-    def test(self, newenv=None):
+    def test(self, animated=False):
         if self.eval_statistics is None:
             self.eval_statistics = OrderedDict()
         train_online_returns = None
+        os.makedirs('videos', exist_ok=True)
         # indices = np.random.choice(self.train_tasks, len(self.eval_tasks), replace=False)
         # eval_util.dprint('testing on {} train tasks'.format(len(indices)))
         # ### eval train tasks with on-policy data to match eval of test tasks
@@ -693,7 +710,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         ### test tasks
         eval_util.dprint('testing on {} test tasks'.format(len(self.eval_tasks)))
-        test_online_returns = self._do_test(self.eval_tasks)
+        test_online_returns = self._do_test(self.eval_tasks, animated)
+        # print(test_online_returns)
+        for cnt,r in enumerate(test_online_returns):
+            self.writer.add_scalar('meta-test return per trial', r, cnt)
         print(test_online_returns)
         eval_util.dprint('test online returns')
         eval_util.dprint(test_online_returns)
@@ -705,8 +725,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # avg_train_online_return = np.mean(np.stack(train_online_returns))
         # avg_test_online_return = np.mean(np.stack(test_online_returns))
         # self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
-        self.eval_statistics['AverageReturn_all_train_tasks'] = train_online_returns
-        self.eval_statistics['AverageReturn_all_test_tasks'] = test_online_returns
+        # self.eval_statistics['AverageReturn_all_train_tasks'] = train_online_returns
+        # self.eval_statistics['AverageReturn_all_test_tasks'] = test_online_returns
         # logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
         # logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 

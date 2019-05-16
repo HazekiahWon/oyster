@@ -40,8 +40,8 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
     if dif_policy==0:
         policy = TanhGaussianPolicy(
             hidden_sizes=[net_size, net_size, net_size],
-            obs_dim=obs_dim,
-            lat_dim=z_dim,
+            obs_dim=obs_dim+z_dim,
+            # lat_dim=z_dim,
             action_dim=action_dim,
         )
     elif dif_policy==1:

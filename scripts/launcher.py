@@ -102,6 +102,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
         rew_mode=rew_mode,
         sar2gam=sar2gam,
         dif_policy=dif_policy,
+        test=test,
         **variant['algo_params']
     )
 

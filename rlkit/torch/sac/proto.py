@@ -143,7 +143,7 @@ class ProtoAgent(nn.Module):
         else: self.context = torch.cat([self.context, data], dim=1)
         # self.update_z(data)
 
-    def infer_posterior(self, context, infer_freq=0):
+    def infer_posterior(self, context, infer_freq=0, deterministic=False):
         ''' compute q(z|c) as a function of input context and sample new z from it
         return nb,zdim if inferfreq==0 else nb,nupdate,zdim
         '''
@@ -193,7 +193,7 @@ class ProtoAgent(nn.Module):
         # sum rather than product of gaussians structure
         # else:
         #     self.z_means = torch.mean(params, dim=1)
-        self.sample_z()
+        self.sample_z(deterministic=deterministic)
 
     def sample_z(self, batch=None, z_means=None, deterministic=False):
         if z_means is None:
