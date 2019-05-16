@@ -93,7 +93,7 @@ class InPlacePathSampler(object):
         n_steps_total = 0
         n_trajs = 0
         while n_steps_total < max_samples and n_trajs < max_trajs:
-            path = rollout(
+            path = rollout( # enc_determ make the sample from posterior map
                 self.env, policy, max_path_length=self.max_path_length, need_cupdate=accum_context, infer_freq=infer_freq, animated=animated, deterministic=enc_determ)
             # save the latent context that generated this trajectory
             path['context'] = policy.z.detach().cpu().numpy()

@@ -129,7 +129,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         num_exp = self.num_exp_traj_eval
         for cnt in range(num_exp):
             # TODO not sure if enc_determinstic should be true, should we allow the encoder to guess?
-            test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, enc_determ=True,
+            test_paths, _ = self.eval_sampler.obtain_samples3(self.explorer, deterministic=False, enc_determ=False,
                                                               accum_context=self.infer_freq!=0 and not is_pearl,
                                                               infer_freq=0 if is_pearl else self.infer_freq, # if infer freq==0 willnot accum
                                                               max_samples=self.max_path_length,
@@ -155,7 +155,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for z_mean,z_var in zip(torch.unbind(z_means),torch.unbind(z_vars)):
 
             self.agent.trans_z(z_mean,z_var, deterministic=True) # nup*ntask,5
-            test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic,
+            test_paths, n_steps = self.eval_sampler.obtain_samples3(self.agent, deterministic=deterministic, enc_determ=False,
                                                                     accum_context=False, infer_freq=0,
                                                                     max_samples=self.max_path_length,
                                                                     max_trajs=1,
@@ -509,7 +509,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             # runs, all_rets = [], []
             print(idx)
             # better do several times
-            all_rets = [self.online_test_paths_exp(idx, deterministic=True, animated=animated, causal_update=False) for _ in range(3)]
+            all_rets = [self.online_test_paths_exp(idx, deterministic=True, animated=animated, causal_update=True) for _ in range(3)]
             all_rets = np.mean(np.stack(all_rets), axis=0)
             # a list of n_trial, in each trial : is a list of trajs, most often 1 for a single testing traj.
             # final_returns.append(all_rets[-1])

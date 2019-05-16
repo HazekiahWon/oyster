@@ -49,7 +49,7 @@ def rollout(env, agent,max_path_length=np.inf, animated=False, need_cupdate=True
             if infer_freq>0 and path_length%infer_freq==0:
                 # c = random_choice(agent.context)
                 # c = agent.context
-                agent.infer_posterior(agent.context, deterministic)
+                agent.infer_posterior(agent.context, deterministic=deterministic)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
