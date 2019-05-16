@@ -1,6 +1,6 @@
 {
   "exp_id": "cheetah-vel",
-  "resume_dir": "chet-prlexp",
+  "resume_dir": "chet-freq20-old-eval",
   "num_tasks": 130,
   "num_eval_tasks": 30,
   "gamma_dim": 1,

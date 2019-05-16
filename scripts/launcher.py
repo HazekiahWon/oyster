@@ -5,7 +5,6 @@ import pathlib
 import os
 import sys
 import json
-sys.path.append(os.path.abspath('.'))
 # print(sys.path)
 ######################
 import joblib
