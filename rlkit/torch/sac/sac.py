@@ -283,6 +283,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # TODO: a can possibly ingest a detached eta
         if dif_policy==1: a_logp += e_logp
         a_logp = a_logp*alpha
+        #
         v_target = min_q_new_actions - a_logp
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         vf_optimizer.zero_grad()
@@ -458,7 +459,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # optimize actor and valuenet
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent,
                                                           (self.hpolicy_optimizer,self.lpolicy_optimizer) if self.dif_policy==1 else self.policy_optimizer,
-                        obs_agt, v_pred_agt, pout_agt, terms_agt, dif_policy=self.dif_policy)
+                        obs_agt, v_pred_agt, pout_agt, terms_agt, dif_policy=self.dif_policy, alpha=0.1)
 
         self.writer.add_scalar('rew', rew_loss, step)
         self.writer.add_scalar('vf',vloss_agt, step)
@@ -513,6 +514,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                     self.writer.add_histogram('logp_exp', exp_log_pi, step)
                 self.writer.add_histogram('a_logp', new_a_logp_agt, step)
                 self.writer.add_histogram('newa_q', new_a_q_agt, step)
+                self.writer.add_histogram('real_rew', rew_agt, step)
+                self.writer.add_histogram('pred_rew', cur_rew_pred, step)
+                self.writer.add_histogram('v_pred', v_pred_agt, step)
                 if self.dif_policy==1: self.writer.add_histogram('e_logp', pout_agt[-1], step)
                 if self.sar2gam:
                     self.writer.add_histogram('trans_rew', rew1, step)
