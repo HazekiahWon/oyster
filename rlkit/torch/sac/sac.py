@@ -422,6 +422,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             #### encourage the shortening of encoder data,
             if self.inc_enc!=0:
                 tmp = [self.agent.compute_kl_div2((m_zmean[i+1],m_zvars[i+1]),(m_zmean[i],m_zvars[i])) for i in range(m_zmean.size(0)-1)]
+                tmp.append(self.agent.compute_kl_div(None)) # bridge the final z posterior with n01
                 kl_o,kl_div = [torch.mean(torch.stack(x,dim=0),dim=0) for x in zip(*tmp)] # nup-1, ntask, 1; nup-1,1
             ##################
             else:
