@@ -42,8 +42,8 @@ def datetimestamp(divider=''):
 def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, test_suffix, confine_num_c, eq_enc, infer_freq,
                rew_mode, sar2gam, exp_offp,
                configs):
-    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim','sample_mode']
-    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim, sample_mode = [configs.get(k) for k in keynames]
+    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim','sample_mode','inc_enc']
+    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim, sample_mode,inc_enc = [configs.get(k) for k in keynames]
     Env = env_cls[exp_id]
     task_params = variant['task_params']
     env = NormalizedBoxEnv(Env(n_tasks=task_params['n_tasks'], sample_mode=sample_mode))
@@ -75,11 +75,11 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
         memo += f'this exp resumes {resume_dir}\n'
     # else:
     # share the task enc with these two agents
-    agent, task_enc = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
+    agent, task_enc, rew_func = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
                                  dif_policy=dif_policy, obs_emb=obs_emb, task_enc=None, gt_ae=True if use_ae else None,
                                  confine_num_c=confine_num_c, eq_enc=eq_enc, sar2gam=sar2gam)
     explorer = setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
-                          dif_policy=dif_policy, obs_emb=obs_emb, task_enc=task_enc, confine_num_c=confine_num_c)
+                          dif_policy=dif_policy, obs_emb=obs_emb, task_enc=task_enc, rew_func=rew_func, confine_num_c=confine_num_c)
     if resume or test:
         for snet,tnet in zip(agent_.networks,agent.networks):
             ptu.soft_update_from_to(snet, tnet, tau=1.)
@@ -101,6 +101,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
         rew_mode=rew_mode,
         sar2gam=sar2gam,
         dif_policy=dif_policy,
+        inc_enc=inc_enc,
         test=test,
         test_suffix=test_suffix,
         **variant['algo_params']
@@ -117,6 +118,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
 @click.argument('gpu', default=0)
 @click.argument('debug', default=False, type=bool)
 @click.argument('infer_freq', default=0, type=int)
+@click.argument('inc_enc', default=0, type=int)
 @click.argument('use_explorer', default=False, type=bool)
 @click.argument('use_ae',default=False, type=bool)
 @click.argument('eq_enc', default=False, type=bool) # higher priority over ae

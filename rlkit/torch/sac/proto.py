@@ -43,14 +43,15 @@ class ProtoAgent(nn.Module):
         super().__init__()
         self.z_dim = z_dim
         self.use_ae = use_ae
-        self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets[:5]
+        num_base_net = 4
+        self.task_enc, self.policy, self.rew_func, self.qf2, self.vf = nets[:num_base_net]
         self.dif_policy = dif_policy
-        if len(nets)==6: self.gt_dec = nets[-1]
-        elif len(nets)==7:
+        if len(nets)==num_base_net+1: self.gt_dec = nets[-1]
+        elif len(nets)==num_base_net+2:
             if self.use_ae: self.gt_enc, self.gt_dec = nets[-2:]
             else: self.gt_dec,self.ci2gam = nets[-2:]
 
-        self.target_vf = self.vf.copy()
+        # self.target_vf = self.vf.copy()
         self.recurrent = kwargs['recurrent']
         self.reparam = kwargs['reparameterize']
         self.use_ib = kwargs['use_information_bottleneck']
@@ -246,41 +247,19 @@ class ProtoAgent(nn.Module):
         kl_div_sum = torch.sum(kl_divs)
         return kl_divs, kl_div_sum
 
-    # TODO replace all usage of this to infer posterior
-    # def set_z(self, in_, idx):
-    #     ''' compute latent task embedding only from this input data '''
-    #     new_z = self.task_enc(in_)
-    #     new_z = new_z.view(in_.size(0), -1, self.task_enc.output_size)
-    #     if self.use_ib:
-    #         new_z = self.information_bottleneck(new_z)
-    #     else:
-    #         new_z = torch.mean(new_z, dim=1)
-    #     self.z = new_z
+    def compute_kl_div2(self, large_c, small_c):
+        """
 
-# not used
-    # def update_z(self, in_):
-    #     '''
-    #     update current task embedding
-    #      - by running mean for prototypical encoder
-    #      - by updating hidden state for recurrent encoder
-    #     '''
-    #     z = self.z
-    #     num_z = self.num_z
-    #
-    #     # TODO this only works for single task (t == 1)
-    #     new_z = self.task_enc(in_)
-    #     if new_z.size(0) != 1:
-    #         raise Exception('incremental update for more than 1 task not supported')
-    #     if self.recurrent:
-    #         z = new_z
-    #     else:
-    #         new_z = new_z[0] # batch x feat
-    #         num_updates = new_z.size(0)
-    #         for i in range(num_updates):
-    #             num_z += 1
-    #             z += (new_z[i][None] - z) / num_z
-    #     if self.use_ib:
-    #         z = self.information_bottleneck(z)
+        :param large_c: (mean, var)
+        :param small_c:
+        :return:
+        """
+        p1 = [torch.distributions.Normal(m,v) for m,v in zip(*large_c)]
+        p2 = [torch.distributions.Normal(m, v) for m, v in zip(*small_c)]
+        kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post,prior in zip(p1,p2)]
+        kl_divs = torch.mean(torch.stack(kl_divs),dim=-1, keepdim=True) # mb,1
+        kl_div_sum = torch.sum(kl_divs)
+        return kl_divs, kl_div_sum
 
     def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
@@ -296,18 +275,40 @@ class ProtoAgent(nn.Module):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
     def forward(self, obs, actions, next_obs, enc_data, idx, infer_freq=0):
+        """
+
+        :param obs: ntask,bs,dim
+        :param actions: ntask,bs,dim
+        :param next_obs: ntask,bs,dim
+        :param enc_data:
+        :param idx:
+        :param infer_freq:
+        :return: rew: ntask,bs,1
+        """
         # self.set_z(enc_data, idx)
-        self.infer_posterior(enc_data, infer_freq)
+        self.infer_posterior(enc_data, infer_freq) # from context to z posterior and sample
         return self.infer(obs, actions, next_obs, infer_freq=infer_freq)
 
+    def pred_cur_rew(self, obs, actions, task_z=None):
+        ntask, bs, _ = obs.size()
+        # obs = obs.view(ntask * bs, -1)
+        # actions = actions.view(ntask * bs, -1)
+        if task_z is None:
+            task_z = self.z  # ntask,z_dim
+            task_z = task_z.unsqueeze(-2)  # ntask,1,z_dim
+            task_z = task_z.repeat(1, bs, 1)#ntask,bs,dim .view(-1, self.z_dim)  # ntask*bs
+        return self.rew_func(obs,actions, task_z)
+
     def infer(self, obs, actions, next_obs, task_z=None, infer_freq=0):
-        '''
-        compute predictions of SAC networks for update
+        """
 
-        regularize encoder with reward prediction from latent task embedding
-
-        the returned task_z is txb,dim
-        '''
+        :param obs: ntask,bs,dim
+        :param actions: ntask,bs,dim
+        :param next_obs: ntask,bs,dim
+        :param task_z:
+        :param infer_freq:
+        :return: rew: ntask,bs,1
+        """
 
         ntask, bs, _ = obs.size()
         if infer_freq==0:
@@ -331,36 +332,30 @@ class ProtoAgent(nn.Module):
             # task_z = [z.repeat(bs, 1) for z in task_z]
             # task_z = torch.cat(task_z, dim=0)
 
-        # Q and V networks
-        # encoder will only get gradients from Q nets
-        q1 = self.qf1(obs, actions, task_z)
-        q2 = self.qf2(obs, actions, task_z)
+        # cur_pred_rew = self.rew_func(obs, actions, task_z)
+        # cur_pred_rew = cur_pred_rew.view(ntask,bs,1)
         v = self.vf(obs, task_z.detach())
 
-        # run policy, get log probs and new actions
         in_ = (obs, task_z.detach())#torch.cat([obs, task_z.detach()], dim=1)
         policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
 
-        # get targets for use in V and Q updates
-        with torch.no_grad():
-            target_v_values = self.target_vf(next_obs, task_z)
-
-        return q1, q2, v, policy_outputs, target_v_values, task_z
-
-    def min_q(self, obs, actions, task_z):
+        return v, policy_outputs, task_z
+    # TODO get rid of min_q
+    def q_func(self, obs, actions, task_z, discount, terms):
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
-        # actions = actions.view(-1, actions.size(-1))
+        actions = actions.view(-1, actions.size(-1))
         task_z = task_z.unsqueeze(1).repeat(1,b,1).view(-1,self.z_dim)
+        terms = terms.view(-1,1)
 
-        q1 = self.qf1(obs, actions, task_z)
-        q2 = self.qf2(obs, actions, task_z)
-        min_q = torch.min(q1, q2)
-        return min_q
+        cur_rew = self.rew_func(obs, actions, task_z)
+        ns_ret = self.vf(obs, task_z)
+
+        return cur_rew+(1-terms)*discount*ns_ret
 
     @property
     def networks(self):
-        return [self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.target_vf]
+        return [self.task_enc, self.policy, self.rew_func, self.vf]
 
 # class NewAgent(ProtoAgent):
 #     def __init__(self, explorer, seq_max_length, env, **kwargs):

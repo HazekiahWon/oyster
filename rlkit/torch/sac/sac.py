@@ -37,6 +37,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             rew_mode=False,
             sar2gam=False,
             dif_policy=0,
+            inc_enc=0,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
@@ -81,6 +82,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.rew_mode = rew_mode
         self.sar2gam = sar2gam
         self.dif_policy = dif_policy
+        self.inc_enc = inc_enc
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
@@ -103,14 +105,14 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.agent.policy.parameters(),
                 lr=policy_lr,
             )
-        self.qf1_optimizer = optimizer_class(
-            self.agent.qf1.parameters(),
+        self.rew_optimizer = optimizer_class(
+            self.agent.rew_func.parameters(),
             lr=qf_lr,
         )
-        self.qf2_optimizer = optimizer_class(
-            self.agent.qf2.parameters(),
-            lr=qf_lr,
-        )
+        # self.qf2_optimizer = optimizer_class(
+        #     self.agent.qf2.parameters(),
+        #     lr=qf_lr,
+        # )
         self.vf_optimizer = optimizer_class(
             self.agent.vf.parameters(),
             lr=vf_lr,
@@ -270,11 +272,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             q2_loss = torch.mean(q2_err)
         return q1_err + q2_err, q1_loss + q2_loss
 
-    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, v_pred, pout, dif_policy=0, alpha=1):
+    def optimize_p(self, vf_optimizer, agent, policy_optimizer, obs, v_pred, pout, terms, dif_policy=0, alpha=1):
         act, a_mean, a_logstd, a_logp = pout[:4]
         if dif_policy==1: eta, e_mean, e_logstd, e_logp = pout[4:]
         # compute min Q on the new actions
-        min_q_new_actions = agent.min_q(obs, act, agent.z.detach()) # make obs and act, t,256,dim
+        min_q_new_actions = agent.q_func(obs, act, agent.z.detach(), self.discount, terms) # make obs and act, t,256,dim
         ######### vf loss involves the gradients of
         # v
         ###########
@@ -287,7 +289,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         vf_loss.backward()
         # self.writer.add_scalar('vf', vf_loss, step)
         vf_optimizer.step()
-        agent._update_target_network()
+        # no need for a target network for q
+        # agent._update_target_network()
 
         # policy update
         # n.b. policy update includes dQ/da
@@ -344,21 +347,22 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         z_bs = 20
         num_tasks = len(indices)
 
-        # prepare rl data and enc data
+        # sample data: o,a,r,no,terms from agt buffer
         obs_agt, act_agt, rew_agt, no_agt, terms_agt = self.sample_data(indices)
-        sar_enc = self.prepare_encoder_data(obs_enc, act_enc, rew_enc)
+        sar_enc = self.prepare_encoder_data(obs_enc, act_enc, rew_enc) # squash o,a,r to one tensor
+        # TODO check conflict between inc_enc and infer_freq
+        v_pred_agt, pout_agt, task_z_agt = self.agent.forward(obs_agt, act_agt, no_agt, sar_enc.detach(), indices,
+                                                                                              infer_freq=self.inc_enc if self.inc_enc>0 else self.infer_freq)
+        # ntask,bs1+bs2
+        cur_rew_pred = self.agent.pred_cur_rew(torch.cat((obs_agt,obs_enc),dim=1),
+                                               torch.cat((act_agt,act_enc),dim=1)) # both agt and enc data shaped ntask,bs,dim
+        ntask,bs,_ = cur_rew_pred.shape
+        # TODO extend to infer freq
+        rew_err, rew_loss = self.mse_crit(cur_rew_pred, torch.cat((rew_agt, rew_enc), dim=1), dim_start=2)
+        rew_err = torch.mean(rew_err[:,rew_agt.size(1)],dim=1) # ntask,1
 
-        # get data through q-net v-net actor task-encoder
-        q1_pred_agt, q2_pred_agt, v_pred_agt, pout_agt, target_v_agt, task_z_agt = self.agent(obs_agt, act_agt, no_agt, sar_enc.detach(), indices,
-                                                                                              infer_freq=self.infer_freq)
         new_act_agt, new_a_mean_agt, new_a_lstd_agt, new_a_logp_agt = pout_agt[:4] # 13,5,256,dim
 
-        # new_a_ptan_agt = pout_agt[-1]
-        if self.use_ae or self.eq_enc: self.dec_optimizer.zero_grad()
-        if self.use_ae: self.enc_optimizer.zero_grad()
-        if self.sar2gam: self.dec_optimizer2.zero_grad()
-        self.context_optimizer.zero_grad() # for task encoder
-        ## TODO let eq_enc and use_ae exlusive
         # the loss part
         if self.eq_enc: # when only decoder is used
             # the following is always used, even in sar2gam
@@ -412,24 +416,31 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             kl_o += kl_o2
             kl_loss = self.kl_lambda * kl_div + self.rec_lambda * rec_loss
         else: # the original pearl
+            #### encourage the shortening of encoder data,
+            z_mean,z_var = self.agent.z_means, self.agent.z_vars # nup, ntask,1
+            tmp = [self.agent.compute_kl_div2((z_mean[i+1],z_var[i+1]),(z_mean[i],z_var[i])) for i in range(z_mean.size(0)-1)]
+            kl_o,kl_div = [torch.mean(torch.stack(x,dim=0),dim=0) for x in zip(*tmp)] # nup-1, ntask, 1; nup-1,1
+            ##################
             kl_o,kl_div = self.agent.compute_kl_div() # kl_o:nup*ntask,1 mb,1
             g_rec = torch.zeros_like(kl_o)
             kl_loss = self.kl_lambda * kl_div
 
         self.writer.add_scalar('kl', kl_div, step)
         if self.use_ae or self.eq_enc: self.writer.add_scalar('g_rec', rec_loss, step) # gamma rec error
-        ##########
-        # qf loss involves gradients of
-        # q1 q2 task encoder
-        ##########
-        # get loss for q-net
-        qerr_agt,qloss_agt = self.optimize_q(self.qf1_optimizer, self.qf2_optimizer,
-                        rew_agt, num_tasks, terms_agt, target_v_agt, q1_pred_agt, q2_pred_agt, infer_freq=self.infer_freq)
-        # qerr_agt = qerr_agt.view(-1,self.batch_size)
-        (kl_loss+qloss_agt).backward()
-        self.qf1_optimizer.step()
-        self.qf2_optimizer.step()
+
+        if self.use_ae or self.eq_enc: self.dec_optimizer.zero_grad()
+        if self.use_ae: self.enc_optimizer.zero_grad()
+        if self.sar2gam: self.dec_optimizer2.zero_grad()
+        # TODO consider gradients
+        # encoder: context2z, kl loss, rew loss
+        # rew_func: rew loss
+        # value_net: soft value fit
+        # actor: logp - q
+        self.rew_optimizer.zero_grad()
+        self.context_optimizer.zero_grad() # for task encoder
+        (kl_loss+rew_loss).backward()
         self.context_optimizer.step()
+        self.rew_optimizer.step()
         if self.eq_enc or self.use_ae: self.dec_optimizer.step()
         if self.use_ae:  self.enc_optimizer.step()
         if self.sar2gam: self.dec_optimizer2.step()
@@ -439,15 +450,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             pout_agt = [x.view(-1,x.size(-1)) for x in pout_agt]
             v_pred_agt = v_pred_agt.view(-1,1)
 
-        # if infer freq: pout and vpred include numupdate dim, obs will not
+        # optimize actor and valuenet
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent,
                                                           (self.hpolicy_optimizer,self.lpolicy_optimizer) if self.dif_policy==1 else self.policy_optimizer,
-                        obs_agt, v_pred_agt, pout_agt, dif_policy=self.dif_policy)
-        # self.writer.add_histogram('act_adv', log_pi - log_pi_target + v_pred, step)
-        # self.writer.add_histogram('logp',new_a_logp_agt, step)
-        self.writer.add_scalar('qf', qloss_agt, step)
+                        obs_agt, v_pred_agt, pout_agt, terms_agt, dif_policy=self.dif_policy)
+
+        self.writer.add_scalar('rew', rew_loss, step)
         self.writer.add_scalar('vf',vloss_agt, step)
-        # put exp opt after q and before task enc
 
         if self.use_explorer:
             ## TODO: combination, distribution
@@ -455,9 +464,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 rew1 = -gam_rew
                 if self.rew_mode==1: # combination reward mode
                     if self.infer_freq==0:
-                        rew2 = -.01*qerr_agt - g_rec - kl_o # combination
+                        rew2 = -.01*rew_err - g_rec - kl_o # combination
                     else:
-                        tmp =  -.01*qerr_agt.squeeze(-1) - g_rec.view(-1,num_tasks) - kl_o.view(-1,num_tasks) # nup, ntask
+                        tmp =  -.01*rew_err.squeeze(-1) - g_rec.view(-1,num_tasks) - kl_o.view(-1,num_tasks) # nup, ntask
                         tmp = tmp*self.factors
                         tmp = tmp.repeat(self.infer_freq,1)[:self.batch_size] # bs,ntask,1
                         rew2 = tmp.transpose(1,0) # ntask,bs
@@ -467,11 +476,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 # qloss_agt, rec_loss, kl div
                 ## TODO if the density ratio is added to kl div2, this may also change
                 if self.infer_freq==0:
-                    rew_enc = -.01*qerr_agt - g_rec - kl_o  # e3,e1,e0, 2 kl term, 2 rec term, ## T
+                    rew_enc = -.01*rew_err - g_rec - kl_o  # e3,e1,e0, 2 kl term, 2 rec term, ## T
                     rew_enc = rew_enc.repeat(1, obs_enc.size(1))
                 else:
                     # TODO add discounting factor
-                    tmp = -.01 * qerr_agt.squeeze(-1) - g_rec.view(-1, num_tasks) - kl_o.view(-1,
+                    tmp = -.01 * rew_err.squeeze(-1) - g_rec.view(-1, num_tasks) - kl_o.view(-1,
                                                                                               num_tasks)  # nup, ntask
                     tmp = tmp.repeat(self.infer_freq, 1)[:self.batch_size]  # bs,ntask,1
                     rew_enc = tmp.transpose(1, 0).contiguous()  # ntask,bs
@@ -485,15 +494,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             if hasattr(rew_enc, 'detach'):
                 rew_enc = rew_enc.detach()
 
-            q1_exp, q2_exp, v_exp, pout_exp, target_v_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc, task_z=None)
+            v_exp, pout_exp, _ = self.explorer.infer(obs_enc, act_enc, nobs_enc, task_z=None)
             exp_actions, exp_mean, exp_log_std, exp_log_pi = pout_exp[:4]
-            # exp_tanh_value = pout_exp[-1]
-            _, qf_exp = self.optimize_q(self.qf1exp_optimizer, self.qf2exp_optimizer,
-                                           rew_enc, num_tasks, terms_enc, target_v_exp, q1_exp, q2_exp, scale_reward=True)
-            self.qf1exp_optimizer.step()
-            self.qf2exp_optimizer.step()
+
             exp_logp_target, vf_exp, exp_loss = self.optimize_p(self.vfexp_optimizer, self.explorer, self.exp_optimizer,
-                                                                obs_enc, v_exp, pout_exp, dif_policy=0,
+                                                                obs_enc, v_exp, pout_exp, terms_enc, dif_policy=0,
                                                                 alpha=10)
             if step % 20 == 0:
                 try:
@@ -525,31 +530,31 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 self.eval_statistics['KL Divergence'] = ptu.get_numpy(kl_div)
                 self.eval_statistics['KL Loss'] = ptu.get_numpy(kl_loss)
 
-            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qloss_agt))
+            self.eval_statistics['rew Loss'] = np.mean(ptu.get_numpy(rew_loss))
             self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vloss_agt))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 agt_loss
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Q Predictions',
-                ptu.get_numpy(q1_pred_agt),
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'V Predictions',
-                ptu.get_numpy(v_pred_agt),
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Log Pis',
-                ptu.get_numpy(new_a_logp_agt),
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy mu',
-                ptu.get_numpy(new_a_mean_agt),
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy log std',
-                ptu.get_numpy(new_a_lstd_agt),
-            ))
+            # self.eval_statistics.update(create_stats_ordered_dict(
+            #     'Q Predictions',
+            #     ptu.get_numpy(q1_pred_agt),
+            # ))
+            # self.eval_statistics.update(create_stats_ordered_dict(
+            #     'V Predictions',
+            #     ptu.get_numpy(v_pred_agt),
+            # ))
+            # self.eval_statistics.update(create_stats_ordered_dict(
+            #     'Log Pis',
+            #     ptu.get_numpy(new_a_logp_agt),
+            # ))
+            # self.eval_statistics.update(create_stats_ordered_dict(
+            #     'Policy mu',
+            #     ptu.get_numpy(new_a_mean_agt),
+            # ))
+            # self.eval_statistics.update(create_stats_ordered_dict(
+            #     'Policy log std',
+            #     ptu.get_numpy(new_a_lstd_agt),
+            # ))
         step += 1
     # TODO: this may cause problem if is used in the future, remember to make agent arg.
     def sample_z_from_prior(self):

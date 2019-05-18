@@ -5,7 +5,7 @@ from torch import nn
 def identity(x): return x
 
 def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, net_size, variant, configs,
-               dif_policy=False, obs_emb=False, task_enc=None, gt_ae=None, confine_num_c=False, eq_enc=False,
+               dif_policy=False, obs_emb=False, task_enc=None, rew_func=None, gt_ae=None, confine_num_c=False, eq_enc=False,
                sar2gam=False):
     keynames = ['z_dim','eta_dim', 'gamma_dim', 'gam2z', 'z2gam', 'ci2gam', 'obsemb_sizes','obs_emb_dim','etanet_sizes','anet_sizes', 'gam_act', 'sample_mode']
     z_dim,eta_dim,gamma_dim,gam2z,z2gam,ci2gam, obsemb_sizes, obs_emb_dim, etanet_sizes, anet_sizes, gam_act, sample_mode = [configs.get(k) for k in keynames]
@@ -22,16 +22,16 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
             # layer_norm=True
         )
 
-    qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + z_dim,
-        output_size=1,
-    )
-    qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + z_dim,
-        output_size=1,
-    )
+        rew_func = FlattenMlp(
+            hidden_sizes=[net_size, net_size, net_size],
+            input_size=obs_dim + action_dim + z_dim,
+            output_size=1,
+        )
+    # qf2 = FlattenMlp(
+    #     hidden_sizes=[net_size, net_size, net_size],
+    #     input_size=obs_dim + action_dim + z_dim,
+    #     output_size=1,
+    # )
     vf = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + z_dim,
@@ -109,7 +109,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
     #                            action_dim=action_dim,
     #                            anet_sizes=[net_size, net_size, net_size])
 
-    nets = [task_enc, policy, qf1, qf2, vf]
+    nets = [task_enc, policy, rew_func, vf]
     if is_actor:
         # gt_ae eq enc both
         # no gt ae, eq enc, dec
@@ -159,5 +159,5 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
         confine_num_c=confine_num_c,
         **variant['algo_params']
     )
-    if is_actor: return agent, task_enc
+    if is_actor: return agent, task_enc, rew_func
     else: return agent
