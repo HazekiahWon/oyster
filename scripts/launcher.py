@@ -39,11 +39,11 @@ def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
-def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, test_suffix, confine_num_c, eq_enc, infer_freq,
+def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, test_suffix, confine_num_c, eq_enc, infer_freq, inc_enc,
                rew_mode, sar2gam, exp_offp,
                configs):
-    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim','sample_mode','inc_enc']
-    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim, sample_mode,inc_enc = [configs.get(k) for k in keynames]
+    keynames = ['exp_id', 'resume_dir', 'num_eval_tasks', 'gamma_dim', 'z_dim', 'eta_dim','sample_mode']
+    exp_id, resume_dir, num_eval_tasks, gamma_dim, z_dim, eta_dim, sample_mode = [configs.get(k) for k in keynames]
     Env = env_cls[exp_id]
     task_params = variant['task_params']
     env = NormalizedBoxEnv(Env(n_tasks=task_params['n_tasks'], sample_mode=sample_mode))
@@ -135,7 +135,7 @@ def experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, o
 @click.option('--docker', default=0)
 @click.option('--test', default=False, is_flag=True)
 @click.option('--test_suffix', default="", )
-def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp, confine_num_c, eq_enc, infer_freq, rew_mode, sar2gam, num_exp,
+def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp, confine_num_c, eq_enc, infer_freq, inc_enc, rew_mode, sar2gam, num_exp,
          fast_debug, note, resume, docker, test, test_suffix):
     configs = dict() # use a default json
     if config:
@@ -193,6 +193,7 @@ def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp
             confine_num_c=confine_num_c,
             eq_enc=eq_enc,
             infer_freq=infer_freq,
+            inc_enc=inc_enc,
             rew_mode=rew_mode,
             num_exp=num_exp,
             sar2gam=sar2gam and use_explorer and eq_enc,  # only when explorer and eq enc are enabled, gives reward to explorer, cannot connect with encoder
@@ -218,7 +219,7 @@ def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp
     DEBUG = 0
     os.environ['DEBUG'] = str(DEBUG)
 
-    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, test_suffix, confine_num_c, eq_enc, infer_freq,
+    experiment(variant, resume, note, debug, use_explorer, use_ae, dif_policy, obs_emb, test, test_suffix, confine_num_c, eq_enc, infer_freq, inc_enc,
                rew_mode, sar2gam, exp_offp,
                configs)
 

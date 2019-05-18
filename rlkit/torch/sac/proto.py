@@ -44,7 +44,7 @@ class ProtoAgent(nn.Module):
         self.z_dim = z_dim
         self.use_ae = use_ae
         num_base_net = 4
-        self.task_enc, self.policy, self.rew_func, self.qf2, self.vf = nets[:num_base_net]
+        self.task_enc, self.policy, self.rew_func, self.vf = nets[:num_base_net]
         self.dif_policy = dif_policy
         if len(nets)==num_base_net+1: self.gt_dec = nets[-1]
         elif len(nets)==num_base_net+2:

@@ -347,10 +347,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         z_bs = 20
         num_tasks = len(indices)
 
-        # sample data: o,a,r,no,terms from agt buffer
+        # sample data: o,a,r,no,terms from agt buffer, shape ntask,bs,dim
         obs_agt, act_agt, rew_agt, no_agt, terms_agt = self.sample_data(indices)
         sar_enc = self.prepare_encoder_data(obs_enc, act_enc, rew_enc) # squash o,a,r to one tensor
-        # TODO check conflict between inc_enc and infer_freq
+        # TODO check conflict between inc_enc and infer_freq # shape ntask*bs,dim
         v_pred_agt, pout_agt, task_z_agt = self.agent.forward(obs_agt, act_agt, no_agt, sar_enc.detach(), indices,
                                                                                               infer_freq=self.inc_enc if self.inc_enc>0 else self.infer_freq)
         # ntask,bs1+bs2
@@ -417,9 +417,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             kl_loss = self.kl_lambda * kl_div + self.rec_lambda * rec_loss
         else: # the original pearl
             #### encourage the shortening of encoder data,
-            z_mean,z_var = self.agent.z_means, self.agent.z_vars # nup, ntask,1
-            tmp = [self.agent.compute_kl_div2((z_mean[i+1],z_var[i+1]),(z_mean[i],z_var[i])) for i in range(z_mean.size(0)-1)]
-            kl_o,kl_div = [torch.mean(torch.stack(x,dim=0),dim=0) for x in zip(*tmp)] # nup-1, ntask, 1; nup-1,1
+            # z_mean,z_var = self.agent.z_means, self.agent.z_vars # nup, ntask,1
+            # tmp = [self.agent.compute_kl_div2((z_mean[i+1],z_var[i+1]),(z_mean[i],z_var[i])) for i in range(z_mean.size(0)-1)]
+            # kl_o,kl_div = [torch.mean(torch.stack(x,dim=0),dim=0) for x in zip(*tmp)] # nup-1, ntask, 1; nup-1,1
             ##################
             kl_o,kl_div = self.agent.compute_kl_div() # kl_o:nup*ntask,1 mb,1
             g_rec = torch.zeros_like(kl_o)
@@ -512,7 +512,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 except Exception as e:
                     print(repr(e))
                     print('nan occurs')
-            self.writer.add_scalar('qf_exp', qf_exp, step)
+            # self.writer.add_scalar('qf_exp', qf_exp, step)
             self.writer.add_scalar('vf_exp', vf_exp, step)
         #################################
         # save some statistics for eval
