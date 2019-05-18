@@ -459,7 +459,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # optimize actor and valuenet
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent,
                                                           (self.hpolicy_optimizer,self.lpolicy_optimizer) if self.dif_policy==1 else self.policy_optimizer,
-                        obs_agt, v_pred_agt, pout_agt, terms_agt, dif_policy=self.dif_policy, alpha=0.1)
+                        obs_agt, v_pred_agt, pout_agt, terms_agt, dif_policy=self.dif_policy, alpha=0.01)
 
         self.writer.add_scalar('rew', rew_loss, step)
         self.writer.add_scalar('vf',vloss_agt, step)
