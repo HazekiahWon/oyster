@@ -291,7 +291,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # self.writer.add_scalar('vf', vf_loss, step)
         vf_optimizer.step()
         # no need for a target network for q
-        # agent._update_target_network()
+        agent._update_target_network()
 
         # policy update
         # n.b. policy update includes dQ/da

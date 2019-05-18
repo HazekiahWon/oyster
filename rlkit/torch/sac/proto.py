@@ -51,7 +51,7 @@ class ProtoAgent(nn.Module):
             if self.use_ae: self.gt_enc, self.gt_dec = nets[-2:]
             else: self.gt_dec,self.ci2gam = nets[-2:]
 
-        # self.target_vf = self.vf.copy()
+        self.target_vf = self.vf.copy()
         self.recurrent = kwargs['recurrent']
         self.reparam = kwargs['reparameterize']
         self.use_ib = kwargs['use_information_bottleneck']
@@ -349,7 +349,7 @@ class ProtoAgent(nn.Module):
         terms = terms.view(-1,1)
 
         cur_rew = self.rew_func(obs, actions, task_z)
-        ns_ret = self.vf(obs, task_z)
+        ns_ret = self.target_vf(obs, task_z)
 
         return cur_rew+(1-terms)*discount*ns_ret
 
