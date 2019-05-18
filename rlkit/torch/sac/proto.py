@@ -274,7 +274,7 @@ class ProtoAgent(nn.Module):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
-    def forward(self, obs, actions, next_obs, enc_data, idx, infer_freq=0):
+    def forward(self, obs, actions, next_obs, enc_data, idx=None, infer_freq=0):
         """
 
         :param obs: ntask,bs,dim

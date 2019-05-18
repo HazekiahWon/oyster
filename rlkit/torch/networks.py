@@ -93,6 +93,8 @@ class FlattenMlp(Mlp):
 
 class MlpPolicy(Mlp, Policy):
     """
+
+
     A simpler interface for creating policies.
     """
 

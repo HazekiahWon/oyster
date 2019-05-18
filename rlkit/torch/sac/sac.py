@@ -351,15 +351,18 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         obs_agt, act_agt, rew_agt, no_agt, terms_agt = self.sample_data(indices)
         sar_enc = self.prepare_encoder_data(obs_enc, act_enc, rew_enc) # squash o,a,r to one tensor
         # TODO check conflict between inc_enc and infer_freq # shape ntask*bs,dim
-        v_pred_agt, pout_agt, task_z_agt = self.agent.forward(obs_agt, act_agt, no_agt, sar_enc.detach(), indices,
-                                                                                              infer_freq=self.inc_enc if self.inc_enc>0 else self.infer_freq)
+        self.agent.infer_posterior(sar_enc, infer_freq=self.inc_enc if self.inc_enc>0 else self.infer_freq)
+        if self.inc_enc!=0: # not infer freq, then set z posterior to the final z
+            m_zmean, m_zvars = [x.view(-1,num_tasks,self.agent.z_dim) for x in [self.agent.z_means, self.agent.z_vars]] # nup, ntask,dim
+            self.agent.trans_z(m_zmean[-1],m_zvars[-1])
+        v_pred_agt, pout_agt, task_z_agt = self.agent.infer(obs_agt, act_agt, no_agt, infer_freq=self.infer_freq)
         # ntask,bs1+bs2
         cur_rew_pred = self.agent.pred_cur_rew(torch.cat((obs_agt,obs_enc),dim=1),
                                                torch.cat((act_agt,act_enc),dim=1)) # both agt and enc data shaped ntask,bs,dim
         ntask,bs,_ = cur_rew_pred.shape
-        # TODO extend to infer freq
+        # TODO extend to infer freq # in the formulation, rew_err includes only m+1:n
         rew_err, rew_loss = self.mse_crit(cur_rew_pred, torch.cat((rew_agt, rew_enc), dim=1), dim_start=2)
-        rew_err = torch.mean(rew_err[:,rew_agt.size(1)],dim=1) # ntask,1
+        rew_err = torch.mean(rew_err[:,rew_agt.size(1)],dim=1) # ntask,1, take only the agent part
 
         new_act_agt, new_a_mean_agt, new_a_lstd_agt, new_a_logp_agt = pout_agt[:4] # 13,5,256,dim
 
@@ -417,12 +420,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             kl_loss = self.kl_lambda * kl_div + self.rec_lambda * rec_loss
         else: # the original pearl
             #### encourage the shortening of encoder data,
-            # z_mean,z_var = self.agent.z_means, self.agent.z_vars # nup, ntask,1
-            # tmp = [self.agent.compute_kl_div2((z_mean[i+1],z_var[i+1]),(z_mean[i],z_var[i])) for i in range(z_mean.size(0)-1)]
-            # kl_o,kl_div = [torch.mean(torch.stack(x,dim=0),dim=0) for x in zip(*tmp)] # nup-1, ntask, 1; nup-1,1
+            if self.inc_enc!=0:
+                tmp = [self.agent.compute_kl_div2((m_zmean[i+1],m_zvars[i+1]),(m_zmean[i],m_zvars[i])) for i in range(m_zmean.size(0)-1)]
+                kl_o,kl_div = [torch.mean(torch.stack(x,dim=0),dim=0) for x in zip(*tmp)] # nup-1, ntask, 1; nup-1,1
             ##################
-            kl_o,kl_div = self.agent.compute_kl_div() # kl_o:nup*ntask,1 mb,1
-            g_rec = torch.zeros_like(kl_o)
+            else:
+                kl_o,kl_div = self.agent.compute_kl_div() # kl_o:nup*ntask,1 mb,1
+            g_rec = torch.zeros_like(kl_o) # ntask,1
             kl_loss = self.kl_lambda * kl_div
 
         self.writer.add_scalar('kl', kl_div, step)
@@ -464,9 +468,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 rew1 = -gam_rew
                 if self.rew_mode==1: # combination reward mode
                     if self.infer_freq==0:
-                        rew2 = -.01*rew_err - g_rec - kl_o # combination
+                        rew2 = rew_err - g_rec - kl_o # combination
                     else:
-                        tmp =  -.01*rew_err.squeeze(-1) - g_rec.view(-1,num_tasks) - kl_o.view(-1,num_tasks) # nup, ntask
+                        tmp =  rew_err.squeeze(-1) - g_rec.view(-1,num_tasks) - kl_o.view(-1,num_tasks) # nup, ntask
                         tmp = tmp*self.factors
                         tmp = tmp.repeat(self.infer_freq,1)[:self.batch_size] # bs,ntask,1
                         rew2 = tmp.transpose(1,0) # ntask,bs
@@ -476,11 +480,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 # qloss_agt, rec_loss, kl div
                 ## TODO if the density ratio is added to kl div2, this may also change
                 if self.infer_freq==0:
-                    rew_enc = -.01*rew_err - g_rec - kl_o  # e3,e1,e0, 2 kl term, 2 rec term, ## T
+                    rew_enc = rew_err - g_rec - kl_o  # e3,e1,e0, 2 kl term, 2 rec term, ## T
                     rew_enc = rew_enc.repeat(1, obs_enc.size(1))
                 else:
                     # TODO add discounting factor
-                    tmp = -.01 * rew_err.squeeze(-1) - g_rec.view(-1, num_tasks) - kl_o.view(-1,
+                    tmp = rew_err.squeeze(-1) - g_rec.view(-1, num_tasks) - kl_o.view(-1,
                                                                                               num_tasks)  # nup, ntask
                     tmp = tmp.repeat(self.infer_freq, 1)[:self.batch_size]  # bs,ntask,1
                     rew_enc = tmp.transpose(1, 0).contiguous()  # ntask,bs
