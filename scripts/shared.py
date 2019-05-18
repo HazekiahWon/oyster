@@ -27,11 +27,16 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
             input_size=obs_dim + action_dim + z_dim,
             output_size=1,
         )
-    # qf2 = FlattenMlp(
-    #     hidden_sizes=[net_size, net_size, net_size],
-    #     input_size=obs_dim + action_dim + z_dim,
-    #     output_size=1,
-    # )
+    qf2 = FlattenMlp(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_size=obs_dim + action_dim + z_dim,
+        output_size=1,
+    )
+    qf1 = FlattenMlp(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_size=obs_dim + action_dim + z_dim,
+        output_size=1,
+    )
     vf = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + z_dim,
@@ -109,7 +114,7 @@ def setup_nets(recurrent, obs_dim, action_dim, reward_dim, task_enc_output_dim, 
     #                            action_dim=action_dim,
     #                            anet_sizes=[net_size, net_size, net_size])
 
-    nets = [task_enc, policy, rew_func, vf]
+    nets = [task_enc, policy, rew_func, qf1, qf2, vf]
     if is_actor:
         # gt_ae eq enc both
         # no gt ae, eq enc, dec

@@ -43,8 +43,8 @@ class ProtoAgent(nn.Module):
         super().__init__()
         self.z_dim = z_dim
         self.use_ae = use_ae
-        num_base_net = 4
-        self.task_enc, self.policy, self.rew_func, self.vf = nets[:num_base_net]
+        num_base_net = 6
+        self.task_enc, self.policy, self.rew_func, self.q1, self.q2, self.vf = nets[:num_base_net]
         self.dif_policy = dif_policy
         if len(nets)==num_base_net+1: self.gt_dec = nets[-1]
         elif len(nets)==num_base_net+2:
@@ -299,7 +299,7 @@ class ProtoAgent(nn.Module):
             task_z = task_z.repeat(1, bs, 1)#ntask,bs,dim .view(-1, self.z_dim)  # ntask*bs
         return self.rew_func(obs,actions, task_z)
 
-    def infer(self, obs, actions, next_obs, task_z=None, infer_freq=0):
+    def infer(self, obs, actions, next_obs, ret_target_v=False, task_z=None, infer_freq=0):
         """
 
         :param obs: ntask,bs,dim
@@ -339,7 +339,12 @@ class ProtoAgent(nn.Module):
         in_ = (obs, task_z.detach())#torch.cat([obs, task_z.detach()], dim=1)
         policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
 
-        return v, policy_outputs, task_z
+        if ret_target_v:
+            target_v = self.target_vf(next_obs, task_z.detach())
+            q1_pred = self.q1(obs, actions, task_z.detach())
+            q2_pred = self.q2(obs, actions, task_z.detach())
+            return v, policy_outputs, task_z, target_v, q1_pred, q2_pred
+        else: return v, policy_outputs, task_z
     # TODO get rid of min_q
     def q_func(self, obs, actions, task_z, discount, terms):
         t, b, _ = obs.size()
@@ -353,9 +358,20 @@ class ProtoAgent(nn.Module):
 
         return cur_rew+(1-terms)*discount*ns_ret
 
+    def min_q(self, obs, actions, task_z):
+        t, b, _ = obs.size()
+        obs = obs.view(t * b, -1)
+        # actions = actions.view(-1, actions.size(-1))
+        task_z = task_z.unsqueeze(1).repeat(1,b,1).view(-1,self.z_dim)
+
+        q1 = self.qf1(obs, actions, task_z)
+        q2 = self.qf2(obs, actions, task_z)
+        min_q = torch.min(q1, q2)
+        return min_q
+
     @property
     def networks(self):
-        return [self.task_enc, self.policy, self.rew_func, self.vf]
+        return [self.task_enc, self.policy, self.rew_func, self.q1, self.q2, self.vf]
 
 # class NewAgent(ProtoAgent):
 #     def __init__(self, explorer, seq_max_length, env, **kwargs):

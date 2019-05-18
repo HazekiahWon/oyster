@@ -109,10 +109,14 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.agent.rew_func.parameters(),
             lr=qf_lr,
         )
-        # self.qf2_optimizer = optimizer_class(
-        #     self.agent.qf2.parameters(),
-        #     lr=qf_lr,
-        # )
+        self.qf2_optimizer = optimizer_class(
+            self.agent.qf2.parameters(),
+            lr=qf_lr,
+        )
+        self.qf1_optimizer = optimizer_class(
+            self.agent.qf1.parameters(),
+            lr=qf_lr,
+        )
         self.vf_optimizer = optimizer_class(
             self.agent.vf.parameters(),
             lr=vf_lr,
@@ -242,11 +246,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.agent.detach_z()
             if self.use_explorer: self.explorer.detach_z()
 
-    def optimize_q(self, qf1_optimizer, qf2_optimizer, rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred, scale_reward=True, infer_freq=0):
+    def optimize_q(self, rewards, num_tasks, terms, target_v_values, q1_pred, q2_pred, scale_reward=False, infer_freq=0):
         # qf and encoder update (note encoder does not get grads from policy or vf)
         # if return_loss:
-        qf1_optimizer.zero_grad()
-        qf2_optimizer.zero_grad()
         if infer_freq!=0:
             n_updates = target_v_values.size(0)
             rewards_flat = rewards.unsqueeze(0).repeat(n_updates, 1, 1, 1)
@@ -276,7 +278,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         act, a_mean, a_logstd, a_logp = pout[:4]
         if dif_policy==1: eta, e_mean, e_logstd, e_logp = pout[4:]
         # compute min Q on the new actions
-        min_q_new_actions = agent.q_func(obs, act, agent.z.detach(), self.discount, terms) # make obs and act, t,256,dim
+        # min_q_new_actions = agent.q_func(obs, act, agent.z.detach(), self.discount, terms) # make obs and act, t,256,dim
+        min_q_new_actions = agent.min_q(obs, act, agent.z.detach())
         ######### vf loss involves the gradients of
         # v
         ###########
@@ -356,7 +359,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.inc_enc!=0: # not infer freq, then set z posterior to the final z
             m_zmean, m_zvars = [x.view(-1,num_tasks,self.agent.z_dim) for x in [self.agent.z_means, self.agent.z_vars]] # nup, ntask,dim
             self.agent.trans_z(m_zmean[-1],m_zvars[-1])
-        v_pred_agt, pout_agt, task_z_agt = self.agent.infer(obs_agt, act_agt, no_agt, infer_freq=self.infer_freq)
+        ret = self.agent.infer(obs_agt, act_agt, no_agt, infer_freq=self.infer_freq)
+        v_pred_agt, pout_agt, task_z_agt = ret[:3]
+        target_v_values, q1_pred, q2_pred = ret[-1]
         # ntask,bs1+bs2
         cur_rew_pred = self.agent.pred_cur_rew(torch.cat((obs_agt,obs_enc),dim=1),
                                                torch.cat((act_agt,act_enc),dim=1)) # both agt and enc data shaped ntask,bs,dim
@@ -456,6 +461,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             pout_agt = [x.view(-1,x.size(-1)) for x in pout_agt]
             v_pred_agt = v_pred_agt.view(-1,1)
 
+        q_err, qloss_agt = self.optimize_q(rew_agt, num_tasks, target_v_values, terms_agt, q1_pred, q2_pred)
+        self.qf1_optimizer.zero_grad()
+        self.qf2_optimizer.zero_grad()
+        qloss_agt.backward()
+        self.qf1_optimizer.step()
+        self.qf2_optimizer.step()
         # optimize actor and valuenet
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent,
                                                           (self.hpolicy_optimizer,self.lpolicy_optimizer) if self.dif_policy==1 else self.policy_optimizer,
