@@ -505,20 +505,21 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             exp_logp_target, vf_exp, exp_loss = self.optimize_p(self.vfexp_optimizer, self.explorer, self.exp_optimizer,
                                                                 obs_enc, v_exp, pout_exp, terms_enc, dif_policy=0,
                                                                 alpha=10)
-            if step % 20 == 0:
-                try:
+            self.writer.add_scalar('vf_exp', vf_exp, step)
+        if step % 20 == 0:
+            try:
+                if self.use_explorer:
                     self.writer.add_histogram('exp_adv', exp_logp_target - v_exp, step)
                     self.writer.add_histogram('logp_exp', exp_log_pi, step)
-                    self.writer.add_histogram('a_logp', new_a_logp_agt, step)
-                    if self.dif_policy==1: self.writer.add_histogram('e_logp', pout_agt[-1], step)
-                    if self.sar2gam:
-                        self.writer.add_histogram('trans_rew', rew1, step)
-                        if self.rew_mode==1: self.writer.add_histogram('batch_rew',rew2, step)
-                except Exception as e:
-                    print(repr(e))
-                    print('nan occurs')
-            # self.writer.add_scalar('qf_exp', qf_exp, step)
-            self.writer.add_scalar('vf_exp', vf_exp, step)
+                self.writer.add_histogram('a_logp', new_a_logp_agt, step)
+                self.writer.add_histogram('newa_q', new_a_q_agt, step)
+                if self.dif_policy==1: self.writer.add_histogram('e_logp', pout_agt[-1], step)
+                if self.sar2gam:
+                    self.writer.add_histogram('trans_rew', rew1, step)
+                    if self.rew_mode==1: self.writer.add_histogram('batch_rew',rew2, step)
+            except Exception as e:
+                print(repr(e))
+                print('nan occurs')
         #################################
         # save some statistics for eval
         if self.eval_statistics is None:
