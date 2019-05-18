@@ -44,7 +44,7 @@ class ProtoAgent(nn.Module):
         self.z_dim = z_dim
         self.use_ae = use_ae
         num_base_net = 6
-        self.task_enc, self.policy, self.rew_func, self.q1, self.q2, self.vf = nets[:num_base_net]
+        self.task_enc, self.policy, self.rew_func, self.qf1, self.qf2, self.vf = nets[:num_base_net]
         self.dif_policy = dif_policy
         if len(nets)==num_base_net+1: self.gt_dec = nets[-1]
         elif len(nets)==num_base_net+2:
@@ -341,8 +341,8 @@ class ProtoAgent(nn.Module):
 
         if ret_target_v:
             target_v = self.target_vf(next_obs, task_z.detach())
-            q1_pred = self.q1(obs, actions, task_z.detach())
-            q2_pred = self.q2(obs, actions, task_z.detach())
+            q1_pred = self.qf1(obs, actions, task_z.detach())
+            q2_pred = self.qf2(obs, actions, task_z.detach())
             return v, policy_outputs, task_z, target_v, q1_pred, q2_pred
         else: return v, policy_outputs, task_z
     # TODO get rid of min_q
@@ -371,7 +371,7 @@ class ProtoAgent(nn.Module):
 
     @property
     def networks(self):
-        return [self.task_enc, self.policy, self.rew_func, self.q1, self.q2, self.vf]
+        return [self.task_enc, self.policy, self.rew_func, self.qf1, self.qf2, self.vf]
 
 # class NewAgent(ProtoAgent):
 #     def __init__(self, explorer, seq_max_length, env, **kwargs):

@@ -174,7 +174,7 @@ def main(config, gpu, debug, use_explorer, use_ae, dif_policy, obs_emb, exp_offp
             qf_lr=3E-4,
             vf_lr=3E-4,
             context_lr=3e-4,
-            reward_scale=1.,
+            reward_scale=5.,
             sparse_rewards=False,
             reparameterize=True,
             kl_lambda=1.,

@@ -256,6 +256,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         else:
             rewards_flat = rewards.view(-1,1)
             terms_flat = terms.view(-1, 1)
+            target_v_values = target_v_values.view(-1,1)
         # scale rewards for Bellman update
         if scale_reward: rewards_flat = rewards_flat * self.reward_scale
         q_target = rewards_flat + (1 - terms_flat) * self.discount * target_v_values
@@ -359,9 +360,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.inc_enc!=0: # not infer freq, then set z posterior to the final z
             m_zmean, m_zvars = [x.view(-1,num_tasks,self.agent.z_dim) for x in [self.agent.z_means, self.agent.z_vars]] # nup, ntask,dim
             self.agent.trans_z(m_zmean[-1],m_zvars[-1])
-        ret = self.agent.infer(obs_agt, act_agt, no_agt, infer_freq=self.infer_freq)
+        ret = self.agent.infer(obs_agt, act_agt, no_agt, ret_target_v=True, infer_freq=self.infer_freq)
         v_pred_agt, pout_agt, task_z_agt = ret[:3]
-        target_v_values, q1_pred, q2_pred = ret[-1]
+        target_v_values, q1_pred, q2_pred = ret[-3:]
         # ntask,bs1+bs2
         cur_rew_pred = self.agent.pred_cur_rew(torch.cat((obs_agt,obs_enc),dim=1),
                                                torch.cat((act_agt,act_enc),dim=1)) # both agt and enc data shaped ntask,bs,dim
@@ -470,7 +471,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # optimize actor and valuenet
         new_a_q_agt,vloss_agt, agt_loss = self.optimize_p(self.vf_optimizer, self.agent,
                                                           (self.hpolicy_optimizer,self.lpolicy_optimizer) if self.dif_policy==1 else self.policy_optimizer,
-                        obs_agt, v_pred_agt, pout_agt, terms_agt, dif_policy=self.dif_policy, alpha=0.01)
+                        obs_agt, v_pred_agt, pout_agt, terms_agt, dif_policy=self.dif_policy, alpha=1)
 
         self.writer.add_scalar('rew', rew_loss, step)
         self.writer.add_scalar('vf',vloss_agt, step)
